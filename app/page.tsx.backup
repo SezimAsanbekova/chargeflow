@@ -27,18 +27,12 @@ export default function HomePage() {
   const [t, setT] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Загрузка переводов при изменении языка
+  // Загрузка переводов
   useEffect(() => {
     setIsLoading(true);
     getTranslations(locale, 'landing')
-      .then(translations => {
-        setT(translations);
-        setIsLoading(false);
-      })
-      .catch(error => {
-        console.error('Failed to load translations:', error);
-        setIsLoading(false);
-      });
+      .then(setT)
+      .finally(() => setIsLoading(false));
   }, [locale]);
 
   // Восстановление языка из cookies при загрузке
@@ -49,7 +43,7 @@ export default function HomePage() {
     }
   }, []);
 
-  // Обработчик изменения языка
+  // Обработчик смены языка
   const handleLocaleChange = (newLocale: Locale) => {
     setLocale(newLocale);
     setLocaleCookie(newLocale);
@@ -59,10 +53,7 @@ export default function HomePage() {
   if (isLoading || !t) {
     return (
       <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400 mb-4"></div>
-          <div className="text-emerald-400 text-lg">Загрузка...</div>
-        </div>
+        <div className="text-emerald-400 text-lg">Загрузка...</div>
       </div>
     );
   }
@@ -82,10 +73,18 @@ export default function HomePage() {
             <span className="text-white font-bold text-xl">{t.nav.logo}</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
-            <Link href="#features" className="text-gray-300 hover:text-emerald-400 transition">{t.nav.features}</Link>
-            <Link href="#how-it-works" className="text-gray-300 hover:text-emerald-400 transition">{t.nav.howItWorks}</Link>
-            <Link href="#pricing" className="text-gray-300 hover:text-emerald-400 transition">{t.nav.pricing}</Link>
-            <Link href="#app" className="text-gray-300 hover:text-emerald-400 transition">{t.nav.app}</Link>
+            <Link href="#features" className="text-gray-300 hover:text-emerald-400 transition">
+              {t.nav.features}
+            </Link>
+            <Link href="#how-it-works" className="text-gray-300 hover:text-emerald-400 transition">
+              {t.nav.howItWorks}
+            </Link>
+            <Link href="#pricing" className="text-gray-300 hover:text-emerald-400 transition">
+              {t.nav.pricing}
+            </Link>
+            <Link href="#app" className="text-gray-300 hover:text-emerald-400 transition">
+              {t.nav.app}
+            </Link>
           </div>
           <div className="flex items-center gap-4">
             <LanguageSwitcher 
@@ -161,7 +160,9 @@ export default function HomePage() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {t.features.smartSearch.connectors.map((connector: string, idx: number) => (
-                  <span key={idx} className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full">{connector}</span>
+                  <span key={idx} className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full">
+                    {connector}
+                  </span>
                 ))}
               </div>
             </div>
@@ -211,32 +212,51 @@ export default function HomePage() {
       <section id="how-it-works" className="py-20 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <span className="text-emerald-400 font-medium">{t.howItWorks.badge}</span>
+            <span className="text-emerald-400 font-medium">КАК ЭТО РАБОТАЕТ</span>
             <h2 className="text-4xl md:text-5xl font-bold text-white mt-4">
-              {t.howItWorks.title} <span className="text-emerald-400">{t.howItWorks.titleHighlight}</span>
+              Зарядка за <span className="text-emerald-400">4 простых шага</span>
             </h2>
           </div>
 
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { icon: Car },
-              { icon: MapPin },
-              { icon: Calendar },
-              { icon: CreditCard }
+              { 
+                step: "1", 
+                icon: Car, 
+                title: "Добавьте автомобиль", 
+                desc: "Укажите марку, модель, тип разъема и параметры батареи" 
+              },
+              { 
+                step: "2", 
+                icon: MapPin, 
+                title: "Найдите станцию", 
+                desc: "Система покажет только совместимые станции на карте" 
+              },
+              { 
+                step: "3", 
+                icon: Calendar, 
+                title: "Забронируйте", 
+                desc: "Выберите время или приезжайте сразу и сканируйте QR-код" 
+              },
+              { 
+                step: "4", 
+                icon: CreditCard, 
+                title: "Оплатите", 
+                desc: "Автоматическое списание после зарядки. Получите чек" 
+              }
             ].map((item, idx) => {
               const IconComponent = item.icon;
-              const step = t.howItWorks.steps[idx];
               return (
                 <div key={idx} className="relative">
                   <div className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-6 hover:border-emerald-500/50 transition">
                     <div className="absolute -top-4 -left-4 w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                      {idx + 1}
+                      {item.step}
                     </div>
                     <div className="mt-4 mb-4">
                       <IconComponent className="text-emerald-400" size={48} />
                     </div>
-                    <h3 className="text-white text-xl font-bold mb-3">{step.title}</h3>
-                    <p className="text-gray-400 text-sm leading-relaxed">{step.description}</p>
+                    <h3 className="text-white text-xl font-bold mb-3">{item.title}</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               );
@@ -250,10 +270,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
             <div>
-              <span className="text-emerald-400 font-medium">{t.payment.badge}</span>
+              <span className="text-emerald-400 font-medium">ОПЛАТА</span>
               <h2 className="text-4xl font-bold text-white mt-4 mb-6">
-                {t.payment.title}<br />
-                <span className="text-emerald-400">{t.payment.titleHighlight}</span>
+                Удобные способы<br />
+                <span className="text-emerald-400">оплаты</span>
               </h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-4">
@@ -261,8 +281,8 @@ export default function HomePage() {
                     <CreditCard className="text-emerald-400" size={24} />
                   </div>
                   <div>
-                    <h3 className="text-white font-bold mb-2">{t.payment.methods.card.title}</h3>
-                    <p className="text-gray-400 text-sm">{t.payment.methods.card.description}</p>
+                    <h3 className="text-white font-bold mb-2">Банковская карта</h3>
+                    <p className="text-gray-400 text-sm">Привяжите карту один раз и оплачивайте автоматически</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -270,8 +290,8 @@ export default function HomePage() {
                     <Wallet className="text-emerald-400" size={24} />
                   </div>
                   <div>
-                    <h3 className="text-white font-bold mb-2">{t.payment.methods.balance.title}</h3>
-                    <p className="text-gray-400 text-sm">{t.payment.methods.balance.description}</p>
+                    <h3 className="text-white font-bold mb-2">Внутренний баланс</h3>
+                    <p className="text-gray-400 text-sm">Пополните баланс и платите без комиссий</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -279,8 +299,8 @@ export default function HomePage() {
                     <Receipt className="text-emerald-400" size={24} />
                   </div>
                   <div>
-                    <h3 className="text-white font-bold mb-2">{t.payment.methods.receipts.title}</h3>
-                    <p className="text-gray-400 text-sm">{t.payment.methods.receipts.description}</p>
+                    <h3 className="text-white font-bold mb-2">Электронные чеки</h3>
+                    <p className="text-gray-400 text-sm">История всех платежей и чеки в приложении</p>
                   </div>
                 </div>
               </div>
@@ -288,23 +308,23 @@ export default function HomePage() {
             <div className="bg-[#0a1f1a] rounded-2xl p-8 border border-emerald-500/20">
               <div className="space-y-6">
                 <div className="flex justify-between items-center pb-4 border-b border-emerald-900/30">
-                  <span className="text-gray-400">{t.payment.invoice.energy}</span>
-                  <span className="text-white font-bold">{t.payment.invoice.energyValue}</span>
+                  <span className="text-gray-400">Энергия</span>
+                  <span className="text-white font-bold">45.5 кВт⋅ч</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-emerald-900/30">
-                  <span className="text-gray-400">{t.payment.invoice.tariff}</span>
-                  <span className="text-white font-bold">{t.payment.invoice.tariffValue}</span>
+                  <span className="text-gray-400">Тариф</span>
+                  <span className="text-white font-bold">15.50 сом/кВт⋅ч</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-emerald-900/30">
-                  <span className="text-gray-400">{t.payment.invoice.deposit}</span>
-                  <span className="text-emerald-400 font-bold">{t.payment.invoice.depositValue}</span>
+                  <span className="text-gray-400">Депозит (возврат)</span>
+                  <span className="text-emerald-400 font-bold">+100 сом</span>
                 </div>
                 <div className="flex justify-between items-center text-xl">
-                  <span className="text-white font-bold">{t.payment.invoice.total}</span>
-                  <span className="text-emerald-400 font-bold">{t.payment.invoice.totalValue}</span>
+                  <span className="text-white font-bold">Итого</span>
+                  <span className="text-emerald-400 font-bold">705 сом</span>
                 </div>
                 <button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-medium transition">
-                  {t.payment.invoice.pay}
+                  Оплатить
                 </button>
               </div>
             </div>
@@ -324,12 +344,19 @@ export default function HomePage() {
                       <Smartphone className="text-emerald-400" size={32} />
                     </div>
                     <div>
-                      <h3 className="text-white font-bold text-lg">{t.app.card.title}</h3>
-                      <p className="text-gray-400 text-sm">{t.app.card.compatibility}</p>
+                      <h3 className="text-white font-bold text-lg">Мобильное приложение</h3>
+                      <p className="text-gray-400 text-sm">iOS 13+ • Android 8+</p>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {t.app.card.features.map((feature: string, idx: number) => (
+                    {[
+                      "Управление несколькими автомобилями",
+                      "Интерактивная карта станций",
+                      "Бронирование и оплата",
+                      "История зарядок и платежей",
+                      "Push-уведомления",
+                      "Поддержка 24/7"
+                    ].map((feature, idx) => (
                       <div key={idx} className="flex items-center gap-3">
                         <div className="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center flex-shrink-0">
                           <CheckCircle className="text-emerald-400" size={14} />
@@ -342,15 +369,15 @@ export default function HomePage() {
                     <button className="flex-1 bg-[#0a1f1a] hover:bg-emerald-500/20 text-white py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 border border-emerald-900/30 hover:border-emerald-500/50">
                       <Apple size={24} />
                       <div className="text-left">
-                        <div className="text-xs text-gray-400">{t.app.card.appStore.prefix}</div>
-                        <div className="text-sm font-bold">{t.app.card.appStore.name}</div>
+                        <div className="text-xs text-gray-400">Загрузить в</div>
+                        <div className="text-sm font-bold">App Store</div>
                       </div>
                     </button>
                     <button className="flex-1 bg-[#0a1f1a] hover:bg-emerald-500/20 text-white py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 border border-emerald-900/30 hover:border-emerald-500/50">
                       <Play size={24} />
                       <div className="text-left">
-                        <div className="text-xs text-gray-400">{t.app.card.googlePlay.prefix}</div>
-                        <div className="text-sm font-bold">{t.app.card.googlePlay.name}</div>
+                        <div className="text-xs text-gray-400">Доступно в</div>
+                        <div className="text-sm font-bold">Google Play</div>
                       </div>
                     </button>
                   </div>
@@ -358,30 +385,31 @@ export default function HomePage() {
               </div>
             </div>
             <div className="order-1 md:order-2">
-              <span className="text-emerald-400 font-medium">{t.app.badge}</span>
+              <span className="text-emerald-400 font-medium">ПРИЛОЖЕНИЕ</span>
               <h2 className="text-4xl md:text-5xl font-bold text-white mt-4 mb-6">
-                {t.app.title}<br />
-                <span className="text-emerald-400">{t.app.titleHighlight}</span>
+                Всё под контролем<br />
+                <span className="text-emerald-400">в вашем смартфоне</span>
               </h2>
               <p className="text-gray-400 leading-relaxed mb-6">
-                {t.app.description}
+                Скачайте приложение ChargeFlow и получите доступ к сети зарядных станций. 
+                Находите ближайшие станции, бронируйте время и управляйте зарядкой прямо с телефона.
               </p>
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <div className="text-3xl font-bold text-emerald-400 mb-2">{t.app.stats.downloads.value}</div>
-                  <div className="text-gray-400 text-sm">{t.app.stats.downloads.label}</div>
+                  <div className="text-3xl font-bold text-emerald-400 mb-2">50+</div>
+                  <div className="text-gray-400 text-sm">Тысяч загрузок</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-emerald-400 mb-2">{t.app.stats.rating.value}</div>
-                  <div className="text-gray-400 text-sm">{t.app.stats.rating.label}</div>
+                  <div className="text-3xl font-bold text-emerald-400 mb-2">4.8</div>
+                  <div className="text-gray-400 text-sm">Рейтинг в сторах</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-emerald-400 mb-2">{t.app.stats.support.value}</div>
-                  <div className="text-gray-400 text-sm">{t.app.stats.support.label}</div>
+                  <div className="text-3xl font-bold text-emerald-400 mb-2">24/7</div>
+                  <div className="text-gray-400 text-sm">Поддержка</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-emerald-400 mb-2">{t.app.stats.uptime.value}</div>
-                  <div className="text-gray-400 text-sm">{t.app.stats.uptime.label}</div>
+                  <div className="text-3xl font-bold text-emerald-400 mb-2">99.9%</div>
+                  <div className="text-gray-400 text-sm">Uptime</div>
                 </div>
               </div>
             </div>
@@ -393,12 +421,12 @@ export default function HomePage() {
       <section id="pricing" className="py-20 px-6 bg-[#0f2d26]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <span className="text-emerald-400 font-medium">{t.pricing.badge}</span>
+            <span className="text-emerald-400 font-medium">ТАРИФЫ</span>
             <h2 className="text-4xl md:text-5xl font-bold text-white mt-4 mb-6">
-              {t.pricing.title} <span className="text-emerald-400">{t.pricing.titleHighlight}</span>
+              Прозрачное <span className="text-emerald-400">ценообразование</span>
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              {t.pricing.description}
+              Платите только за потребленную энергию. Никаких скрытых комиссий и абонентской платы.
             </p>
           </div>
 
@@ -408,47 +436,59 @@ export default function HomePage() {
               <div className="mb-4">
                 <Zap className="text-emerald-400" size={48} />
               </div>
-              <h3 className="text-white text-2xl font-bold mb-2">{t.pricing.plans.ac.title}</h3>
-              <p className="text-gray-400 text-sm mb-6">{t.pricing.plans.ac.subtitle}</p>
+              <h3 className="text-white text-2xl font-bold mb-2">AC зарядка</h3>
+              <p className="text-gray-400 text-sm mb-6">Type 2 • до 22 кВт</p>
               <div className="mb-6">
                 <div className="text-4xl font-bold text-white mb-2">
-                  {t.pricing.plans.ac.price}<span className="text-2xl text-gray-400"> {t.pricing.plans.ac.currency}</span>
+                  12<span className="text-2xl text-gray-400"> сом</span>
                 </div>
-                <div className="text-gray-400 text-sm">{t.pricing.plans.ac.unit}</div>
+                <div className="text-gray-400 text-sm">за кВт⋅ч</div>
               </div>
               <ul className="space-y-3 mb-8">
-                {t.pricing.plans.ac.features.map((feature: string, idx: number) => (
-                  <li key={idx} className="flex items-center gap-2 text-gray-300 text-sm">
-                    <CheckCircle className="text-emerald-400" size={16} />
-                    {feature}
-                  </li>
-                ))}
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle className="text-emerald-400" size={16} />
+                  Для ежедневной зарядки
+                </li>
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle className="text-emerald-400" size={16} />
+                  Полная зарядка за ночь
+                </li>
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle className="text-emerald-400" size={16} />
+                  Экономичный тариф
+                </li>
               </ul>
             </div>
 
             {/* DC Fast Charging */}
             <div className="bg-gradient-to-br from-emerald-500/10 to-[#0a1f1a] border-2 border-emerald-500 rounded-2xl p-8 relative">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-xs font-bold px-4 py-1 rounded-full">
-                {t.pricing.plans.dcFast.badge}
+                ПОПУЛЯРНЫЙ
               </div>
               <div className="mb-4">
                 <Zap className="text-emerald-400" size={48} />
               </div>
-              <h3 className="text-white text-2xl font-bold mb-2">{t.pricing.plans.dcFast.title}</h3>
-              <p className="text-gray-400 text-sm mb-6">{t.pricing.plans.dcFast.subtitle}</p>
+              <h3 className="text-white text-2xl font-bold mb-2">DC быстрая</h3>
+              <p className="text-gray-400 text-sm mb-6">CCS2 • до 150 кВт</p>
               <div className="mb-6">
                 <div className="text-4xl font-bold text-white mb-2">
-                  {t.pricing.plans.dcFast.price}<span className="text-2xl text-gray-400"> {t.pricing.plans.dcFast.currency}</span>
+                  15.50<span className="text-2xl text-gray-400"> сом</span>
                 </div>
-                <div className="text-gray-400 text-sm">{t.pricing.plans.dcFast.unit}</div>
+                <div className="text-gray-400 text-sm">за кВт⋅ч</div>
               </div>
               <ul className="space-y-3 mb-8">
-                {t.pricing.plans.dcFast.features.map((feature: string, idx: number) => (
-                  <li key={idx} className="flex items-center gap-2 text-gray-300 text-sm">
-                    <CheckCircle className="text-emerald-400" size={16} />
-                    {feature}
-                  </li>
-                ))}
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle className="text-emerald-400" size={16} />
+                  Быстрая зарядка
+                </li>
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle className="text-emerald-400" size={16} />
+                  80% за 20-30 минут
+                </li>
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle className="text-emerald-400" size={16} />
+                  Для дальних поездок
+                </li>
               </ul>
             </div>
 
@@ -457,28 +497,34 @@ export default function HomePage() {
               <div className="mb-4">
                 <Zap className="text-emerald-400" size={48} />
               </div>
-              <h3 className="text-white text-2xl font-bold mb-2">{t.pricing.plans.dcUltra.title}</h3>
-              <p className="text-gray-400 text-sm mb-6">{t.pricing.plans.dcUltra.subtitle}</p>
+              <h3 className="text-white text-2xl font-bold mb-2">DC ультра</h3>
+              <p className="text-gray-400 text-sm mb-6">CCS2 • до 350 кВт</p>
               <div className="mb-6">
                 <div className="text-4xl font-bold text-white mb-2">
-                  {t.pricing.plans.dcUltra.price}<span className="text-2xl text-gray-400"> {t.pricing.plans.dcUltra.currency}</span>
+                  18<span className="text-2xl text-gray-400"> сом</span>
                 </div>
-                <div className="text-gray-400 text-sm">{t.pricing.plans.dcUltra.unit}</div>
+                <div className="text-gray-400 text-sm">за кВт⋅ч</div>
               </div>
               <ul className="space-y-3 mb-8">
-                {t.pricing.plans.dcUltra.features.map((feature: string, idx: number) => (
-                  <li key={idx} className="flex items-center gap-2 text-gray-300 text-sm">
-                    <CheckCircle className="text-emerald-400" size={16} />
-                    {feature}
-                  </li>
-                ))}
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle className="text-emerald-400" size={16} />
+                  Максимальная скорость
+                </li>
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle className="text-emerald-400" size={16} />
+                  80% за 15 минут
+                </li>
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle className="text-emerald-400" size={16} />
+                  Премиум станции
+                </li>
               </ul>
             </div>
           </div>
 
           <div className="mt-12 text-center">
             <p className="text-gray-400 text-sm">
-              {t.pricing.note}
+              * Депозит при бронировании: 100 сом (возвращается при своевременной отмене)
             </p>
           </div>
         </div>
@@ -488,18 +534,18 @@ export default function HomePage() {
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            {t.cta.title}
+            Готовы начать зарядку?
           </h2>
           <p className="text-gray-400 text-lg mb-8">
-            {t.cta.description}
+            Присоединяйтесь к тысячам водителей электромобилей, которые уже используют нашу сеть
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-full font-medium transition flex items-center justify-center gap-2">
               <Smartphone size={20} />
-              {t.cta.downloadApp}
+              Скачать приложение
             </button>
             <button className="border border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 px-8 py-4 rounded-full font-medium transition">
-              {t.cta.contact}
+              Связаться с нами
             </button>
           </div>
         </div>
@@ -518,10 +564,10 @@ export default function HomePage() {
                   height={40}
                   className="object-contain"
                 />
-                <span className="text-white font-bold text-xl">{t.nav.logo}</span>
+                <span className="text-white font-bold text-xl">ChargeFlow</span>
               </div>
               <p className="text-gray-400 text-sm mb-4">
-                {t.footer.description}
+                Современная сеть зарядных станций для электромобилей
               </p>
               <div className="flex gap-3">
                 <a href="#" className="w-10 h-10 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-full flex items-center justify-center transition">
@@ -536,38 +582,40 @@ export default function HomePage() {
               </div>
             </div>
             <div>
-              <h4 className="text-white font-bold mb-4">{t.footer.company.title}</h4>
+              <h4 className="text-white font-bold mb-4">Компания</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
-                {t.footer.company.links.map((link: string, idx: number) => (
-                  <li key={idx}><Link href="#" className="hover:text-emerald-400 transition">{link}</Link></li>
-                ))}
+                <li><Link href="#" className="hover:text-emerald-400 transition">О нас</Link></li>
+                <li><Link href="#" className="hover:text-emerald-400 transition">Карьера</Link></li>
+                <li><Link href="#" className="hover:text-emerald-400 transition">Блог</Link></li>
+                <li><Link href="#" className="hover:text-emerald-400 transition">Пресс-центр</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-bold mb-4">{t.footer.support.title}</h4>
+              <h4 className="text-white font-bold mb-4">Поддержка</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
-                {t.footer.support.links.map((link: string, idx: number) => (
-                  <li key={idx}><Link href="#" className="hover:text-emerald-400 transition">{link}</Link></li>
-                ))}
+                <li><Link href="#" className="hover:text-emerald-400 transition">Центр помощи</Link></li>
+                <li><Link href="#" className="hover:text-emerald-400 transition">FAQ</Link></li>
+                <li><Link href="#" className="hover:text-emerald-400 transition">Контакты</Link></li>
+                <li><Link href="#" className="hover:text-emerald-400 transition">Тех. поддержка 24/7</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-bold mb-4">{t.footer.legal.title}</h4>
+              <h4 className="text-white font-bold mb-4">Правовая информация</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
-                {t.footer.legal.links.map((link: string, idx: number) => (
-                  <li key={idx}><Link href="#" className="hover:text-emerald-400 transition">{link}</Link></li>
-                ))}
+                <li><Link href="#" className="hover:text-emerald-400 transition">Условия использования</Link></li>
+                <li><Link href="#" className="hover:text-emerald-400 transition">Политика конфиденциальности</Link></li>
+                <li><Link href="#" className="hover:text-emerald-400 transition">Оферта</Link></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-emerald-900/20 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-gray-400 text-sm text-center md:text-left">
-              {t.footer.copyright}
+              © 2024 ChargeFlow. Все права защищены.
             </div>
             <div className="flex gap-6 text-gray-400 text-sm">
-              <span>{t.footer.country}</span>
+              <span>🇰🇬 Кыргызстан</span>
               <span>•</span>
-              <span>{t.footer.language}</span>
+              <span>Русский</span>
             </div>
           </div>
         </div>
