@@ -7,17 +7,18 @@ async function main() {
 
   // Создаем тестового пользователя
   const user = await prisma.user.upsert({
-    where: { phone: '+79991234567' },
+    where: { email: 'test@example.com' },
     update: {},
     create: {
+      email: 'test@example.com',
+      name: 'Тестовый пользователь',
       phone: '+79991234567',
       passwordHash: '$2a$10$example_hash', // В реальности используйте bcrypt
       role: 'user',
       status: 'active',
-      isPhoneVerified: true,
     },
   })
-  console.log('✅ Создан пользователь:', user.phone)
+  console.log('✅ Создан пользователь:', user.email)
 
   // Создаем баланс пользователя
   const balance = await prisma.userBalance.upsert({

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from "next/link";
 import Image from "next/image";
+import { useSession } from 'next-auth/react';
 import { 
   Zap, 
   MapPin, 
@@ -23,9 +24,17 @@ import { getTranslations, getLocaleCookie, setLocaleCookie, defaultLocale, type 
 import LanguageSwitcher from '@/app/i18n/components/LanguageSwitcher';
 
 export default function HomePage() {
+  const { status } = useSession();
   const [locale, setLocale] = useState<Locale>(defaultLocale);
   const [t, setT] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Редирект авторизованных пользователей в профиль
+  useEffect(() => {
+    if (status === 'authenticated') {
+      window.location.href = '/profile';
+    }
+  }, [status]);
 
   // Загрузка переводов при изменении языка
   useEffect(() => {
@@ -55,13 +64,15 @@ export default function HomePage() {
     setLocaleCookie(newLocale);
   };
 
-  // Показываем загрузку
-  if (isLoading || !t) {
+  // Показываем загрузку или если идет редирект
+  if (isLoading || !t || status === 'loading' || status === 'authenticated') {
     return (
       <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400 mb-4"></div>
-          <div className="text-emerald-400 text-lg">Загрузка...</div>
+          <div className="text-emerald-400 text-lg">
+            {status === 'authenticated' ? 'Переход в профиль...' : 'Загрузка...'}
+          </div>
         </div>
       </div>
     );
@@ -92,9 +103,9 @@ export default function HomePage() {
               currentLocale={locale}
               onLocaleChange={handleLocaleChange}
             />
-            <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-full transition">
+            <Link href="/auth/signin" className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-full transition">
               {t.nav.login}
-            </button>
+            </Link>
           </div>
         </div>
       </nav>
