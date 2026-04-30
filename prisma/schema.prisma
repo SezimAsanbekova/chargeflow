@@ -6,21 +6,28 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  
-}. 
+} 
 
 // ============================================
 // 🧠 1. USERS (Пользователи)
 // ============================================
 model User {
-  id               String   @id @default(uuid()) @db.Uuid
-  phone            String   @unique @db.VarChar(20)
-  passwordHash     String   @map("password_hash") @db.Text
-  role             UserRole @default(user)
+  id               String    @id @default(uuid()) @db.Uuid
+  email            String    @unique @db.VarChar(255)
+  phone            String?   @db.VarChar(20)
+  passwordHash     String?   @map("password_hash") @db.Text
+  name             String?   @db.VarChar(255)
+  image            String?   @db.Text
+  emailVerified    DateTime? @map("email_verified") @db.Timestamp(6)
+  role             UserRole  @default(user)
   status           UserStatus @default(active)
-  isPhoneVerified  Boolean  @default(false) @map("is_phone_verified")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+  
+  // Защита от брутфорса
+  loginAttempts    Int       @default(0) @map("login_attempts")
+  lockedUntil      DateTime? @map("locked_until") @db.Timestamp(6)
+  
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
 
   // Relations
   vehicles         Vehicle[]
@@ -29,8 +36,50 @@ model User {
   payments         Payment[]
   balance          UserBalance?
   invoices         Invoice[]
+  accounts         Account[]
+  sessions         Session[]
 
   @@map("users")
+}
+
+// NextAuth Models
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }
 
 enum UserRole {
@@ -44,7 +93,29 @@ enum UserStatus {
 }
 
 // ============================================
-// 🔐 2. SMS_VERIFICATION_CODES
+// 🔐 2. EMAIL_VERIFICATION_CODES
+// ============================================
+model EmailVerificationCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @db.VarChar(255)
+  code      String   @db.VarChar(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamp(6)
+  isUsed    Boolean  @default(false) @map("is_used")
+  type      CodeType @default(login) // login или registration
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([email, code])
+  @@map("email_verification_codes")
+}
+
+enum CodeType {
+  login
+  registration
+  reset_password
+}
+
+// ============================================
+// 🔐 3. SMS_VERIFICATION_CODES
 // ============================================
 model SmsVerificationCode {
   id        String   @id @default(uuid()) @db.Uuid
