@@ -4,7 +4,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Phone, Mail, History, FileText, Bell, Trash2, LogOut, ChevronRight, Car, Eye, EyeOff, X } from 'lucide-react';
+import { Phone, Mail, History, FileText, Bell, Trash2, LogOut, ChevronRight, Car, Eye, EyeOff, X, Map } from 'lucide-react';
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -102,6 +102,23 @@ export default function ProfilePage() {
 
         {/* Menu Items */}
         <div className="space-y-3">
+          {/* Map */}
+          <Link
+            href="/map"
+            className="flex items-center justify-between bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4 hover:border-emerald-500/50 transition"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                <Map className="text-emerald-400" size={24} />
+              </div>
+              <div>
+                <p className="text-white font-medium">Карта станций</p>
+                <p className="text-gray-400 text-sm">Найти зарядную станцию</p>
+              </div>
+            </div>
+            <ChevronRight className="text-gray-400" size={24} />
+          </Link>
+
           {/* Phone */}
           <Link
             href="/profile/phone"
@@ -231,9 +248,9 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Back to Home */}
+        {/* Back to Map */}
         <div className="mt-6 text-center">
-          <Link href="/" className="text-gray-400 hover:text-emerald-400 text-sm transition">
+          <Link href="/map" className="text-gray-400 hover:text-emerald-400 text-sm transition">
             ← Вернуться на главную
           </Link>
         </div>
