@@ -30,8 +30,13 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         });
 
-        if (!user || !user.passwordHash) {
+        if (!user) {
           throw new Error('Неверный email или пароль');
+        }
+
+        // Проверяем, был ли аккаунт создан через Google (без пароля)
+        if (!user.passwordHash) {
+          throw new Error('Этот аккаунт создан через Google. Войдите через Google');
         }
 
         // Проверка блокировки аккаунта
