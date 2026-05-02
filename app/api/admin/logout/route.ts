@@ -4,7 +4,7 @@ export async function POST() {
   const response = NextResponse.json({ success: true });
   
   // Удаляем cookie с токеном
-  response.cookies.delete('admin-token');
+  response.cookies.delete('admin_token');
   
   return response;
 }

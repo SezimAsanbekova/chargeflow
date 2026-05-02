@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { 
   Users, 
   MapPin, 
@@ -201,7 +202,10 @@ export default function AdminDashboardPage() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Users Management */}
-          <button className="bg-[#0f2d26] border border-emerald-500/30 rounded-xl p-6 text-left hover:border-emerald-500 transition group">
+          <div
+            onClick={() => router.push('/admin/users')}
+            className="bg-[#0f2d26] border border-emerald-500/30 rounded-xl p-6 text-left hover:border-emerald-500 transition group cursor-pointer"
+          >
             <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-emerald-500/30 transition">
               <Users className="text-emerald-500" size={24} />
             </div>
@@ -211,10 +215,13 @@ export default function AdminDashboardPage() {
             <p className="text-gray-400 text-sm">
               Просмотр, редактирование и блокировка пользователей
             </p>
-          </button>
+          </div>
 
           {/* Stations Management */}
-          <button className="bg-[#0f2d26] border border-blue-500/30 rounded-xl p-6 text-left hover:border-blue-500 transition group">
+          <div
+            onClick={() => router.push('/admin/stations')}
+            className="bg-[#0f2d26] border border-blue-500/30 rounded-xl p-6 text-left hover:border-blue-500 transition group cursor-pointer"
+          >
             <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-500/30 transition">
               <MapPin className="text-blue-500" size={24} />
             </div>
@@ -224,10 +231,13 @@ export default function AdminDashboardPage() {
             <p className="text-gray-400 text-sm">
               Добавление, редактирование и мониторинг станций
             </p>
-          </button>
+          </div>
 
           {/* Bookings */}
-          <button className="bg-[#0f2d26] border border-amber-500/30 rounded-xl p-6 text-left hover:border-amber-500 transition group">
+          <div
+            onClick={() => router.push('/admin/bookings')}
+            className="bg-[#0f2d26] border border-amber-500/30 rounded-xl p-6 text-left hover:border-amber-500 transition group cursor-pointer"
+          >
             <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-amber-500/30 transition">
               <Calendar className="text-amber-500" size={24} />
             </div>
@@ -237,10 +247,13 @@ export default function AdminDashboardPage() {
             <p className="text-gray-400 text-sm">
               Просмотр и управление бронированиями
             </p>
-          </button>
+          </div>
 
           {/* Analytics */}
-          <button className="bg-[#0f2d26] border border-purple-500/30 rounded-xl p-6 text-left hover:border-purple-500 transition group">
+          <div
+            onClick={() => router.push('/admin/analytics')}
+            className="bg-[#0f2d26] border border-purple-500/30 rounded-xl p-6 text-left hover:border-purple-500 transition group cursor-pointer"
+          >
             <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-500/30 transition">
               <BarChart3 className="text-purple-500" size={24} />
             </div>
@@ -250,10 +263,13 @@ export default function AdminDashboardPage() {
             <p className="text-gray-400 text-sm">
               Статистика и отчеты по использованию
             </p>
-          </button>
+          </div>
 
           {/* Revenue */}
-          <button className="bg-[#0f2d26] border border-green-500/30 rounded-xl p-6 text-left hover:border-green-500 transition group">
+          <div
+            onClick={() => router.push('/admin/finance')}
+            className="bg-[#0f2d26] border border-green-500/30 rounded-xl p-6 text-left hover:border-green-500 transition group cursor-pointer"
+          >
             <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-500/30 transition">
               <DollarSign className="text-green-500" size={24} />
             </div>
@@ -263,10 +279,13 @@ export default function AdminDashboardPage() {
             <p className="text-gray-400 text-sm">
               Доходы, платежи и транзакции
             </p>
-          </button>
+          </div>
 
           {/* Settings */}
-          <button className="bg-[#0f2d26] border border-gray-500/30 rounded-xl p-6 text-left hover:border-gray-500 transition group">
+          <div
+            onClick={() => router.push('/admin/settings')}
+            className="bg-[#0f2d26] border border-gray-500/30 rounded-xl p-6 text-left hover:border-gray-500 transition group cursor-pointer"
+          >
             <div className="w-12 h-12 bg-gray-500/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-gray-500/30 transition">
               <Settings className="text-gray-400" size={24} />
             </div>
@@ -276,7 +295,7 @@ export default function AdminDashboardPage() {
             <p className="text-gray-400 text-sm">
               Конфигурация системы и параметры
             </p>
-          </button>
+          </div>
         </div>
 
         {/* Recent Activity */}

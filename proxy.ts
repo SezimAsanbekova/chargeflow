@@ -11,7 +11,7 @@ export default async function proxy(request: NextRequest) {
     // Разрешаем доступ к страницам входа
     if (pathname === '/admin/signin' || pathname === '/admin/verify-code') {
       // Если уже авторизован, перенаправляем в dashboard
-      const adminToken = request.cookies.get('admin-token')?.value;
+      const adminToken = request.cookies.get('admin_token')?.value;
       if (adminToken) {
         const payload = await verifyJWT(adminToken);
         if (payload && payload.role === 'admin') {
@@ -22,7 +22,7 @@ export default async function proxy(request: NextRequest) {
     }
 
     // Проверяем админский токен
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
     
     if (!adminToken) {
       return NextResponse.redirect(new URL('/admin/signin', request.url));
@@ -32,7 +32,7 @@ export default async function proxy(request: NextRequest) {
     
     if (!payload || payload.role !== 'admin') {
       const response = NextResponse.redirect(new URL('/admin/signin', request.url));
-      response.cookies.delete('admin-token');
+      response.cookies.delete('admin_token');
       return response;
     }
 
@@ -45,7 +45,7 @@ export default async function proxy(request: NextRequest) {
 
   if (isProtectedUserRoute) {
     // Проверяем, не админ ли пытается зайти
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
     if (adminToken) {
       const payload = await verifyJWT(adminToken);
       if (payload && payload.role === 'admin') {
@@ -71,7 +71,7 @@ export default async function proxy(request: NextRequest) {
   // Перенаправление с главной страницы
   if (pathname === '/') {
     // Проверяем админский токен
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
     if (adminToken) {
       const payload = await verifyJWT(adminToken);
       if (payload && payload.role === 'admin') {

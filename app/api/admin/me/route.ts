@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
 
     if (!adminToken) {
       return NextResponse.json(

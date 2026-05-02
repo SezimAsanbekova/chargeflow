@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
 
     if (!adminToken) {
       return NextResponse.json(
@@ -29,7 +29,9 @@ export async function GET(request: NextRequest) {
       activeBookings,
       activeSessions,
     ] = await Promise.all([
-      prisma.user.count(),
+      prisma.user.count({
+        where: { role: 'user' }, // Только обычные пользователи
+      }),
       prisma.station.count(),
       prisma.booking.count({
         where: { status: 'active' },
