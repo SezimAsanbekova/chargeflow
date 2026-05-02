@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Устанавливаем cookie с токеном
-    response.cookies.set('admin-token', token, {
+    response.cookies.set('admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
