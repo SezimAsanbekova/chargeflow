@@ -34,6 +34,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Неверный email или пароль');
         }
 
+        // Проверяем, является ли пользователь администратором
+        if (user.role === 'admin') {
+          throw new Error('Этот аккаунт предназначен только для админ-панели. Войдите через /admin/signin');
+        }
+
         // Проверяем, был ли аккаунт создан через Google (без пароля)
         if (!user.passwordHash) {
           throw new Error('Этот аккаунт создан через Google. Войдите через Google');
@@ -146,6 +151,11 @@ export const authOptions: NextAuthOptions = {
           const existingUser = await prisma.user.findUnique({
             where: { email: user.email },
           });
+
+          // Если пользователь существует и является администратором, блокируем вход
+          if (existingUser && existingUser.role === 'admin') {
+            return false;
+          }
 
           if (!existingUser) {
             // Создаем нового пользователя
