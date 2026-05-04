@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Plus, Edit, Trash2, Power, Zap } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2, Power, Zap, Search, Filter, Calendar, X } from 'lucide-react';
 import Link from 'next/link';
 
 interface Connector {
@@ -21,20 +21,40 @@ interface Station {
   longitude: number;
   status: string;
   connectors: Connector[];
+  createdAt: string;
   _count: {
     connectors: number;
   };
 }
 
+interface Filters {
+  search: string;
+  status: string;
+  dateFrom: string;
+  dateTo: string;
+}
+
 export default function AdminStationsPage() {
   const router = useRouter();
   const [stations, setStations] = useState<Station[]>([]);
+  const [filteredStations, setFilteredStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  
+  const [filters, setFilters] = useState<Filters>({
+    search: '',
+    status: '',
+    dateFrom: '',
+    dateTo: '',
+  });
 
   useEffect(() => {
     fetchStations();
   }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [stations, filters]);
 
   const fetchStations = async () => {
     try {
@@ -49,6 +69,53 @@ export default function AdminStationsPage() {
       setLoading(false);
     }
   };
+
+  const applyFilters = () => {
+    let filtered = [...stations];
+
+    // Поиск по названию и адресу
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(
+        (station) =>
+          station.name.toLowerCase().includes(searchLower) ||
+          station.address.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Фильтр по статусу
+    if (filters.status) {
+      filtered = filtered.filter((station) => station.status === filters.status);
+    }
+
+    // Фильтр по дате создания
+    if (filters.dateFrom) {
+      filtered = filtered.filter(
+        (station) => new Date(station.createdAt) >= new Date(filters.dateFrom)
+      );
+    }
+
+    if (filters.dateTo) {
+      const dateTo = new Date(filters.dateTo);
+      dateTo.setHours(23, 59, 59, 999); // Включаем весь день
+      filtered = filtered.filter(
+        (station) => new Date(station.createdAt) <= dateTo
+      );
+    }
+
+    setFilteredStations(filtered);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      status: '',
+      dateFrom: '',
+      dateTo: '',
+    });
+  };
+
+  const hasActiveFilters = filters.search || filters.status || filters.dateFrom || filters.dateTo;
 
   const handleDelete = async (id: string) => {
     if (!confirm('Вы уверены, что хотите удалить эту станцию?')) {
@@ -70,6 +137,8 @@ export default function AdminStationsPage() {
       alert('Ошибка при удалении станции');
     }
   };
+
+  const displayStations = filteredStations.length > 0 || hasActiveFilters ? filteredStations : stations;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -116,6 +185,11 @@ export default function AdminStationsPage() {
             </h1>
             <p className="text-gray-400">
               Всего станций: {stations.length}
+              {hasActiveFilters && (
+                <span className="ml-2 text-emerald-400">
+                  (показано: {displayStations.length})
+                </span>
+              )}
             </p>
           </div>
           <div className="flex gap-3">
@@ -135,27 +209,129 @@ export default function AdminStationsPage() {
           </div>
         </div>
 
+        {/* Filters Panel */}
+        <div className="mb-6">
+          <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold flex items-center gap-2">
+                <Filter size={20} />
+                Фильтры
+              </h3>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-white transition text-sm"
+                >
+                  <X size={16} />
+                  Очистить
+                </button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Search */}
+              <div>
+                <label className="block text-gray-300 text-sm mb-2">
+                  Поиск по названию/адресу
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    value={filters.search}
+                    onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                    placeholder="Введите название или адрес..."
+                    className="w-full pl-10 pr-4 py-2 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="block text-gray-300 text-sm mb-2">
+                  Статус
+                </label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                  className="w-full px-4 py-2 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white focus:border-emerald-500 focus:outline-none text-sm"
+                >
+                  <option value="">Все статусы</option>
+                  <option value="active">Активна</option>
+                  <option value="maintenance">Обслуживание</option>
+                  <option value="inactive">Отключена</option>
+                </select>
+              </div>
+
+              {/* Date From */}
+              <div>
+                <label className="block text-gray-300 text-sm mb-2">
+                  Дата создания с
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="date"
+                    value={filters.dateFrom}
+                    onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white focus:border-emerald-500 focus:outline-none text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Date To */}
+              <div>
+                <label className="block text-gray-300 text-sm mb-2">
+                  Дата создания до
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="date"
+                    value={filters.dateTo}
+                    onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white focus:border-emerald-500 focus:outline-none text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Stations Grid */}
-        {stations.length === 0 ? (
+        {displayStations.length === 0 ? (
           <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-xl p-12 text-center">
             <MapPin className="mx-auto text-gray-500 mb-4" size={48} />
             <h3 className="text-white text-xl font-semibold mb-2">
-              Нет станций
+              {hasActiveFilters ? 'Станции не найдены' : 'Нет станций'}
             </h3>
             <p className="text-gray-400 mb-6">
-              Добавьте первую зарядную станцию
+              {hasActiveFilters 
+                ? 'Попробуйте изменить параметры фильтрации'
+                : 'Добавьте первую зарядную станцию'
+              }
             </p>
-            <Link
-              href="/admin/stations/new"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition"
-            >
-              <Plus size={20} />
-              Добавить станцию
-            </Link>
+            {hasActiveFilters ? (
+              <button
+                onClick={clearFilters}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition"
+              >
+                <X size={20} />
+                Очистить фильтры
+              </button>
+            ) : (
+              <Link
+                href="/admin/stations/new"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition"
+              >
+                <Plus size={20} />
+                Добавить станцию
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {stations.map((station) => (
+            {displayStations.map((station) => (
               <div
                 key={station.id}
                 className="bg-[#0f2d26] border border-emerald-500/30 rounded-xl p-6 hover:border-emerald-500 transition"

@@ -26,6 +26,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Проверяем, является ли пользователь администратором
+    if (user.role === 'admin') {
+      return NextResponse.json(
+        { error: 'Этот аккаунт предназначен только для админ-панели. Войдите через /admin/signin' },
+        { status: 403 }
+      );
+    }
+
     // Проверка блокировки аккаунта
     if (user.lockedUntil && new Date() < user.lockedUntil) {
       const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);

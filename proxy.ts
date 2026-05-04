@@ -39,17 +39,18 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Защита пользовательских страниц от админов
-  const protectedUserRoutes = ['/profile', '/vehicles', '/booking', '/charging'];
+  // Защита пользовательских страниц (админ может заходить)
+  const protectedUserRoutes = ['/profile', '/vehicles', '/booking', '/charging', '/map'];
   const isProtectedUserRoute = protectedUserRoutes.some(route => pathname.startsWith(route));
 
   if (isProtectedUserRoute) {
-    // Проверяем, не админ ли пытается зайти
+    // Сначала проверяем админский токен - админ может заходить
     const adminToken = request.cookies.get('admin_token')?.value;
     if (adminToken) {
       const payload = await verifyJWT(adminToken);
       if (payload && payload.role === 'admin') {
-        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+        // Админ может заходить в пользовательскую часть
+        return NextResponse.next();
       }
     }
 
@@ -101,5 +102,6 @@ export const config = {
     '/vehicles/:path*',
     '/booking/:path*',
     '/charging/:path*',
+    '/map/:path*',
   ],
 };

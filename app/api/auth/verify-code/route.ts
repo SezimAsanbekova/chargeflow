@@ -36,6 +36,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Проверяем, является ли пользователь администратором
+    if (user.role === 'admin' && type !== 'reset_password') {
+      return NextResponse.json(
+        { error: 'Этот аккаунт предназначен только для админ-панели. Войдите через /admin/signin' },
+        { status: 403 }
+      );
+    }
+
     // Если это не reset_password или не skipMarkAsUsed, то сбрасываем счетчик попыток входа
     if (type !== 'reset_password' && !skipMarkAsUsed) {
       await prisma.user.update({
