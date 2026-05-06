@@ -4,7 +4,8 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Phone, Mail, History, FileText, Bell, Trash2, LogOut, ChevronRight, Car, Eye, EyeOff, X, Map } from 'lucide-react';
+import { Phone, Mail, History, FileText, Bell, Trash2, LogOut, ChevronRight, Car, Eye, EyeOff, X, Calendar } from 'lucide-react';
+import BottomNavigation from '@/app/components/BottomNavigation';
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -91,7 +92,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a1f1a] text-white">
+    <div className="min-h-screen bg-[#0a1f1a] text-white pb-20">
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="text-center mb-8">
@@ -102,18 +103,18 @@ export default function ProfilePage() {
 
         {/* Menu Items */}
         <div className="space-y-3">
-          {/* Map */}
+          {/* My Bookings */}
           <Link
-            href="/map"
+            href="/bookings"
             className="flex items-center justify-between bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4 hover:border-emerald-500/50 transition"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                <Map className="text-emerald-400" size={24} />
+                <Calendar className="text-emerald-400" size={24} />
               </div>
               <div>
-                <p className="text-white font-medium">Карта станций</p>
-                <p className="text-gray-400 text-sm">Найти зарядную станцию</p>
+                <p className="text-white font-medium">Мои брони</p>
+                <p className="text-gray-400 text-sm">Активные бронирования</p>
               </div>
             </div>
             <ChevronRight className="text-gray-400" size={24} />
@@ -344,6 +345,8 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      <BottomNavigation />
     </div>
   );
 }

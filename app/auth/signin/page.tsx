@@ -11,6 +11,7 @@ function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status } = useSession();
+  const [isClient, setIsClient] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -26,6 +27,11 @@ function SignInForm() {
     name: '',
   });
 
+  // Ensure client-side rendering
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const callbackUrl = searchParams.get('callbackUrl') || '/profile';
 
   // Перенаправляем авторизованного пользователя в профиль
@@ -34,6 +40,15 @@ function SignInForm() {
       router.push(callbackUrl);
     }
   }, [status, router, callbackUrl]);
+
+  // Don't render form until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center p-4">
+        <div className="text-white">Загрузка...</div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,6 +211,7 @@ function SignInForm() {
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                   <input
+                    key="name-input"
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -211,6 +227,7 @@ function SignInForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
+                  key="email-input"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -226,6 +243,7 @@ function SignInForm() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
+                  key="password-input"
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}

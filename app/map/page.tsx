@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Maximize2, Navigation, Plus, Minus, X, MapPin, List, Wallet, User, SlidersHorizontal, Route, Clock, MapPinned, Search } from 'lucide-react';
+import { Sheet } from 'react-modal-sheet';
+import { Maximize2, Navigation, Plus, Minus, X, MapPin, List, Wallet, User, SlidersHorizontal, Route, Clock, MapPinned, Search, Home, History, MoreHorizontal, Zap, Plug, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface Station {
   id: string;
@@ -30,7 +31,7 @@ export default function MapPage() {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const [activeTab, setActiveTab] = useState<'map' | 'list' | 'balance'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'list' | 'balance' | 'history' | 'more'>('map');
   const [showFilter, setShowFilter] = useState(false);
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoadingStations, setIsLoadingStations] = useState(true);
@@ -61,6 +62,28 @@ export default function MapPage() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const watchIdRef = useRef<number | null>(null);
   const [showNavigationDetails, setShowNavigationDetails] = useState(false);
+  const [isCharging, setIsCharging] = useState(false);
+  const [chargingStartTime, setChargingStartTime] = useState<number | null>(null);
+  const [chargingStationId, setChargingStationId] = useState<string | null>(null);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [customAmount, setCustomAmount] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingStation, setBookingStation] = useState<Station | null>(null);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedDuration, setSelectedDuration] = useState<15 | 30 | 60>(30);
+  const [showTimeSelector, setShowTimeSelector] = useState(false);
+  const [isProcessingBooking, setIsProcessingBooking] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [currentBooking, setCurrentBooking] = useState<any>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Проверка на клиентскую сторону для избежания hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Функция для определения типа станции по мощности
   const getStationType = (powerKw: number): string => {
@@ -69,60 +92,60 @@ export default function MapPage() {
     return 'ultra';
   };
 
+  // Функция для вычисления расстояния между двумя точками (формула гаверсинуса)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Радиус Земли в км
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
   // Подсчет активных фильтров
   const activeFiltersCount = 
-    filters.stationType.length + 
     filters.connectorType.length + 
     (filters.minPower !== 20 || filters.maxPower !== 250 ? 1 : 0);
 
   // Фильтрация станций с использованием useMemo
   const filteredStations = useMemo(() => {
-    // Если показываем только ближайшие станции, используем их
-    const stationsToFilter = showOnlyNearby ? nearbyStations : stations;
+    let stationsToFilter = stations;
     
-    const filtered = stationsToFilter.filter((station) => {
-      // Поиск по названию и адресу
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
+    // Исключаем станции на обслуживании - пользователям их не показываем
+    stationsToFilter = stationsToFilter.filter(station => station.status !== 'maintenance');
+    
+    // Применяем поиск по названию и адресу
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      stationsToFilter = stationsToFilter.filter((station) => {
         const matchesName = station.name.toLowerCase().includes(query);
         const matchesAddress = station.address.toLowerCase().includes(query);
-        if (!matchesName && !matchesAddress) {
-          return false;
-        }
-      }
-
-      // Если показываем только ближайшие, не применяем дополнительные фильтры
-      if (showOnlyNearby) {
-        return true;
-      }
-
-      // Фильтр по статусу станции (свободна/обслуживание)
-      if (filters.stationType.length > 0) {
-        if (filters.stationType.includes('available') && station.status !== 'available') {
-          return false;
-        }
-        if (filters.stationType.includes('maintenance') && station.status !== 'maintenance') {
-          return false;
-        }
-      }
-
-      // Фильтр по типу коннектора
-      if (filters.connectorType.length > 0) {
-        if (!filters.connectorType.includes(station.connectorType)) {
-          return false;
-        }
-      }
-
-      // Фильтр по мощности
-      if (station.maxPowerKw < filters.minPower || station.maxPowerKw > filters.maxPower) {
-        return false;
-      }
-
-      return true;
-    });
+        return matchesName || matchesAddress;
+      });
+    }
     
-    return filtered;
-  }, [stations, filters, searchQuery, showOnlyNearby, nearbyStations]);
+    // Если есть местоположение пользователя, сортируем по расстоянию
+    if (userLocation) {
+      const stationsWithDistance = stationsToFilter.map(station => {
+        const distance = calculateDistance(
+          userLocation[1], // lat
+          userLocation[0], // lng
+          station.latitude,
+          station.longitude
+        );
+        return { ...station, distance };
+      });
+      
+      // Сортируем по расстоянию (ближайшие первыми)
+      return stationsWithDistance.sort((a, b) => a.distance - b.distance);
+    }
+    
+    // Если нет местоположения, возвращаем как есть
+    return stationsToFilter;
+  }, [stations, searchQuery, userLocation]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -157,15 +180,27 @@ export default function MapPage() {
 
   // Автоматически ищем ближайшие станции когда загрузились станции и определилось местоположение
   useEffect(() => {
-    if (stations.length > 0 && userLocation && !showOnlyNearby) {
-      // Добавляем небольшую задержку, чтобы карта успела инициализироваться
-      const timer = setTimeout(() => {
-        findNearbyStationsAutomatically(userLocation[1], userLocation[0]); // lat, lng
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [stations, userLocation]);
+    if (!isClient || stations.length === 0 || !userLocation || showOnlyNearby) return;
+    
+    // Добавляем небольшую задержку, чтобы карта успела инициализироваться
+    const timer = setTimeout(() => {
+      findNearbyStationsAutomatically(userLocation[1], userLocation[0]); // lat, lng
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [isClient, stations, userLocation, showOnlyNearby]);
+
+  // Обновляем индикатор зарядки каждую минуту
+  useEffect(() => {
+    if (!isClient || !isCharging || !chargingStartTime) return;
+
+    const interval = setInterval(() => {
+      // Принудительно обновляем компонент для отображения актуального времени и стоимости
+      setChargingStartTime(chargingStartTime);
+    }, 60000); // Каждую минуту
+
+    return () => clearInterval(interval);
+  }, [isClient, isCharging, chargingStartTime]);
 
   // Получаем баланс пользователя
   useEffect(() => {
@@ -186,7 +221,7 @@ export default function MapPage() {
     }
   }, [session]);
 
-  // Получаем местоположение пользователя и автоматически показываем ближайшие станции
+  // Получаем местоположение пользователя
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -196,16 +231,32 @@ export default function MapPage() {
         },
         (error) => {
           console.error('Error getting location:', error);
+          // Более детальная обработка ошибок геолокации
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              console.log('Пользователь запретил доступ к геолокации');
+              break;
+            case error.POSITION_UNAVAILABLE:
+              console.log('Информация о местоположении недоступна');
+              break;
+            case error.TIMEOUT:
+              console.log('Время ожидания геолокации истекло');
+              break;
+            default:
+              console.log('Неизвестная ошибка геолокации');
+              break;
+          }
           // Используем центр Бишкека по умолчанию
           setUserLocation([74.6057, 42.8746]);
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000
+          timeout: 15000, // Увеличиваем timeout
+          maximumAge: 300000 // 5 минут
         }
       );
     } else {
+      console.log('Геолокация не поддерживается браузером');
       setUserLocation([74.6057, 42.8746]);
     }
   }, []);
@@ -216,7 +267,7 @@ export default function MapPage() {
     console.log('📍 Местоположение пользователя:', lat, lng);
     console.log('🏢 Всего станций:', stations.length);
     
-    // Фильтруем только активные станции и сортируем по расстоянию
+    // Фильтруем только активные станции (исключаем обслуживание) и сортируем по расстоянию
     const activeStations = stations.filter(station => station.status === 'available');
     console.log('✅ Активных станций:', activeStations.length);
     
@@ -276,7 +327,7 @@ export default function MapPage() {
           const newLocation: [number, number] = [position.coords.longitude, position.coords.latitude];
           setUserLocation(newLocation);
           
-          // Фильтруем только активные станции и сортируем по расстоянию
+          // Фильтруем только активные станции (исключаем обслуживание) и сортируем по расстоянию
           const activeStations = stations.filter(station => station.status === 'available');
           const stationsWithDistance = activeStations.map(station => {
             const distance = calculateDistance(
@@ -324,23 +375,10 @@ export default function MapPage() {
     }
   };
 
-  // Функция для вычисления расстояния между двумя точками (формула гаверсинуса)
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371; // Радиус Земли в км
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
-
-  // Инициализация карты только когда вкладка карты активна
+  // Инициализация карты только когда вкладка карты активна и режим карты
   useEffect(() => {
-    // Если не на вкладке карты, не инициализируем
-    if (activeTab !== 'map') return;
+    // Если не на клиенте, не на вкладке карты или не в режиме карты, не инициализируем
+    if (!isClient || activeTab !== 'map' || viewMode !== 'map') return;
     
     // Если нет контейнера или местоположения, не инициализируем
     if (!mapContainer.current || !userLocation) return;
@@ -364,12 +402,12 @@ export default function MapPage() {
           'osm-tiles': {
             type: 'raster',
             tiles: [
+              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
               'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
               'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
             ],
             tileSize: 256,
-            attribution: '© OpenStreetMap contributors',
           },
         },
         layers: [
@@ -386,6 +424,12 @@ export default function MapPage() {
       zoom: 13,
     });
 
+    // Добавляем обработку ошибок загрузки тайлов
+    map.current.on('error', (e) => {
+      console.warn('Map error (non-critical):', e);
+      // Не показываем ошибку пользователю, так как это обычно временные проблемы с тайлами
+    });
+
     // Ждём загрузки карты
     map.current.on('load', () => {
       console.log('Map loaded successfully');
@@ -400,7 +444,7 @@ export default function MapPage() {
     return () => {
       // Не удаляем карту при размонтировании, только при смене местоположения
     };
-  }, [activeTab, userLocation]);
+  }, [isClient, activeTab, viewMode, userLocation]);
 
   // Очистка карты при размонтировании компонента
   useEffect(() => {
@@ -429,8 +473,7 @@ export default function MapPage() {
       el.className = 'station-marker';
       el.style.width = '40px';
       el.style.height = '40px';
-      el.style.borderRadius = '50% 50% 50% 0';
-      el.style.transform = 'rotate(-45deg)';
+      el.style.borderRadius = '50%';
       el.style.cursor = 'pointer';
       el.style.display = 'flex';
       el.style.alignItems = 'center';
@@ -438,20 +481,25 @@ export default function MapPage() {
       el.style.border = '3px solid white';
       el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
 
-      // Цвет в зависимости от статуса
+      // Цвет в зависимости от статуса - все темно-зеленые
       if (station.status === 'available') {
-        el.style.backgroundColor = '#10b981';
+        el.style.backgroundColor = '#065f46'; // темно-зеленый для доступных
       } else if (station.status === 'busy') {
-        el.style.backgroundColor = '#f59e0b';
+        el.style.backgroundColor = '#064e3b'; // еще более темно-зеленый для занятых
       } else {
-        el.style.backgroundColor = '#ef4444';
+        el.style.backgroundColor = '#052e16'; // самый темно-зеленый для обслуживания
       }
 
-      // Иконка молнии
+      // Создаем SVG иконку молнии
       const icon = document.createElement('div');
-      icon.innerHTML = '⚡';
-      icon.style.transform = 'rotate(45deg)';
-      icon.style.fontSize = '20px';
+      icon.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="white" stroke="white" stroke-width="1" stroke-linejoin="round"/>
+        </svg>
+      `;
+      icon.style.display = 'flex';
+      icon.style.alignItems = 'center';
+      icon.style.justifyContent = 'center';
       el.appendChild(icon);
 
       el.addEventListener('click', () => {
@@ -480,16 +528,6 @@ export default function MapPage() {
         center: userLocation,
         zoom: 15,
       });
-    }
-  };
-
-  const handleFullscreen = () => {
-    if (mapContainer.current) {
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      } else {
-        mapContainer.current.requestFullscreen();
-      }
     }
   };
 
@@ -739,6 +777,292 @@ export default function MapPage() {
     };
   }, []);
 
+  // Функция для начала зарядки
+  const startCharging = (station: Station) => {
+    if (station.status !== 'available') {
+      alert('Станция недоступна для зарядки');
+      return;
+    }
+
+    // Проверяем баланс (минимум 50 сом для начала зарядки)
+    if (userBalance < 50) {
+      const topUpConfirm = confirm(
+        `Недостаточно средств для начала зарядки!\n\n` +
+        `Текущий баланс: ${userBalance.toFixed(2)} сом\n` +
+        `Минимум для зарядки: 50 сом\n\n` +
+        `Пополнить баланс сейчас?`
+      );
+      
+      if (topUpConfirm) {
+        setShowTopUpModal(true);
+      }
+      return;
+    }
+
+    const confirmStart = confirm(
+      `Начать зарядку на станции "${station.name}"?\n\n` +
+      `Мощность: ${station.maxPowerKw} кВт\n` +
+      `Цена: ${station.pricePerMinute} сом/мин\n` +
+      `Коннектор: ${station.connectorType}\n` +
+      `Ваш баланс: ${userBalance.toFixed(2)} сом`
+    );
+
+    if (confirmStart) {
+      setIsCharging(true);
+      setChargingStartTime(Date.now());
+      setChargingStationId(station.id);
+      
+      // Здесь можно добавить API вызов для начала зарядки
+      // await fetch('/api/charging/start', { method: 'POST', body: JSON.stringify({ stationId: station.id }) });
+      
+      alert(`✅ Зарядка начата на станции "${station.name}"`);
+    }
+  };
+
+  // Функция для завершения зарядки
+  const stopCharging = () => {
+    if (!chargingStartTime || !chargingStationId) return;
+
+    const chargingDuration = (Date.now() - chargingStartTime) / 1000 / 60; // в минутах
+    const selectedStation = stations.find(s => s.id === chargingStationId);
+    
+    if (selectedStation) {
+      const cost = chargingDuration * selectedStation.pricePerMinute;
+      
+      const confirmStop = confirm(
+        `Завершить зарядку?\n\n` +
+        `⏱️ Время зарядки: ${Math.round(chargingDuration)} мин\n` +
+        `💰 Стоимость: ${cost.toFixed(2)} сом\n` +
+        `🔋 Станция: ${selectedStation.name}`
+      );
+
+      if (confirmStop) {
+        // Списываем стоимость зарядки с баланса
+        if (userBalance >= cost) {
+          setUserBalance(prev => prev - cost);
+        } else {
+          alert('⚠️ Недостаточно средств на балансе для оплаты зарядки!');
+          return;
+        }
+        
+        setIsCharging(false);
+        setChargingStartTime(null);
+        setChargingStationId(null);
+        
+        // Здесь можно добавить API вызов для завершения зарядки
+        // await fetch('/api/charging/stop', { method: 'POST', body: JSON.stringify({ stationId: chargingStationId }) });
+        
+        alert(
+          `🎉 Зарядка завершена!\n\n` +
+          `⏱️ Время: ${Math.round(chargingDuration)} мин\n` +
+          `💰 Списано: ${cost.toFixed(2)} сом\n` +
+          `💳 Остаток на балансе: ${(userBalance - cost).toFixed(2)} сом\n` +
+          `🏢 Станция: ${selectedStation.name}`
+        );
+      }
+    }
+  };
+
+  // Функция для пополнения баланса
+  const topUpBalance = async (amount: number) => {
+    setIsProcessingPayment(true);
+    
+    try {
+      // Имитация процесса оплаты
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Обновляем баланс
+      setUserBalance(prev => prev + amount);
+      
+      // Показываем успешное сообщение
+      alert(`✅ Баланс успешно пополнен на ${amount} сом!\nНовый баланс: ${(userBalance + amount).toFixed(2)} сом`);
+      
+      // Закрываем модальное окно
+      setShowTopUpModal(false);
+      setSelectedAmount(null);
+      setCustomAmount('');
+      
+    } catch (error) {
+      alert('❌ Ошибка при пополнении баланса. Попробуйте еще раз.');
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Функция для обработки выбора суммы
+  const handleAmountSelect = (amount: number) => {
+    setSelectedAmount(amount);
+    setCustomAmount('');
+  };
+
+  // Функция для обработки кастомной суммы
+  const handleCustomAmountChange = (value: string) => {
+    setCustomAmount(value);
+    setSelectedAmount(null);
+  };
+
+  // Функция для подтверждения пополнения
+  const confirmTopUp = () => {
+    const amount = selectedAmount || parseFloat(customAmount);
+    
+    if (!amount || amount <= 0) {
+      alert('Введите корректную сумму для пополнения');
+      return;
+    }
+    
+    if (amount < 10) {
+      alert('Минимальная сумма пополнения: 10 сом');
+      return;
+    }
+    
+    if (amount > 10000) {
+      alert('Максимальная сумма пополнения: 10,000 сом');
+      return;
+    }
+    
+    const confirmPayment = confirm(
+      `Пополнить баланс на ${amount} сом?\n\n` +
+      `Текущий баланс: ${userBalance.toFixed(2)} сом\n` +
+      `Новый баланс: ${(userBalance + amount).toFixed(2)} сом`
+    );
+    
+    if (confirmPayment) {
+      topUpBalance(amount);
+    }
+  };
+
+  // Функции для бронирования
+  const openBookingModal = (station: Station) => {
+    setBookingStation(station);
+    setShowBookingModal(true);
+    setSelectedDate('');
+    setSelectedTime('');
+    setSelectedDuration(30);
+    setBookingSuccess(false);
+  };
+
+  const closeBookingModal = () => {
+    setShowBookingModal(false);
+    setBookingStation(null);
+    setSelectedDate('');
+    setSelectedTime('');
+    setSelectedDuration(30);
+    setShowTimeSelector(false);
+    setBookingSuccess(false);
+    setCurrentBooking(null);
+  };
+
+  // Получить доступные даты (следующие 30 дней)
+  const getAvailableDates = () => {
+    const dates = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push({
+        value: date.toISOString().split('T')[0],
+        label: date.toLocaleDateString('ru-RU', { 
+          weekday: 'short', 
+          day: 'numeric', 
+          month: 'short' 
+        })
+      });
+    }
+    
+    return dates;
+  };
+
+  // Получить доступные временные слоты
+  const getAvailableTimeSlots = () => {
+    const slots = [];
+    
+    // Генерируем слоты с 8:00 до 22:00 с интервалом 30 минут
+    for (let hour = 8; hour < 22; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        slots.push(timeString);
+      }
+    }
+    
+    return slots;
+  };
+
+  // Проверить доступность временного слота
+  const isTimeSlotAvailable = (time: string, duration: number) => {
+    // Здесь можно добавить логику проверки занятых слотов
+    // Пока возвращаем true для всех слотов
+    return true;
+  };
+
+  // Подтвердить бронирование
+  const confirmBooking = async () => {
+    if (!bookingStation || !selectedDate || !selectedTime) {
+      alert('Пожалуйста, выберите дату и время');
+      return;
+    }
+
+    if (userBalance < 100) {
+      alert('Недостаточно средств для депозита (100 сом)');
+      return;
+    }
+
+    setIsProcessingBooking(true);
+
+    try {
+      // Имитация процесса бронирования
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Списываем депозит
+      setUserBalance(prev => prev - 100);
+
+      // Создаем объект бронирования
+      const booking = {
+        id: Date.now().toString(),
+        station: bookingStation,
+        date: selectedDate,
+        time: selectedTime,
+        duration: selectedDuration,
+        deposit: 100,
+        createdAt: new Date().toISOString()
+      };
+
+      setCurrentBooking(booking);
+      setBookingSuccess(true);
+
+    } catch (error) {
+      alert('❌ Ошибка при создании бронирования. Попробуйте еще раз.');
+    } finally {
+      setIsProcessingBooking(false);
+    }
+  };
+
+  // Функция для расчета времени окончания
+  const calculateEndTime = (startTime: string, duration: number) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const endDate = new Date();
+    endDate.setHours(hours, minutes + duration);
+    return endDate.toTimeString().slice(0, 5);
+  };
+
+  // Отменить бронирование
+  const cancelBooking = () => {
+    if (currentBooking) {
+      const confirmCancel = confirm(
+        `Отменить бронирование?\n\n` +
+        `Депозит 100 сом будет возвращен на ваш баланс.`
+      );
+
+      if (confirmCancel) {
+        // Возвращаем депозит
+        setUserBalance(prev => prev + 100);
+        
+        alert('✅ Бронирование отменено. Депозит возвращен на ваш баланс.');
+        closeBookingModal();
+      }
+    }
+  };
+
   const getStatusText = (status: string) => {
     switch (status) {
       case 'available':
@@ -765,7 +1089,7 @@ export default function MapPage() {
     }
   };
 
-  if (status === 'loading' || !userLocation) {
+  if (status === 'loading' || !userLocation || !isClient) {
     return (
       <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
         <div className="text-white text-xl">Загрузка карты...</div>
@@ -779,15 +1103,74 @@ export default function MapPage() {
 
   return (
     <div className="relative h-screen w-full bg-[#0a1f1a] flex flex-col">
+      {/* Top View Mode Switcher - показывается только на вкладке карты */}
+      {activeTab === 'map' && (
+        <div className="absolute top-4 left-4 right-4 z-30 max-w-md mx-auto">
+          <div className="bg-white rounded-full p-1 shadow-lg">
+            <div className="flex">
+              <button
+                onClick={() => setViewMode('map')}
+                className={`flex-1 py-3 px-8 rounded-full text-base font-medium transition ${
+                  viewMode === 'map'
+                    ? 'bg-emerald-800 text-white shadow-md'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                На карте
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex-1 py-3 px-8 rounded-full text-base font-medium transition ${
+                  viewMode === 'list'
+                    ? 'bg-emerald-800 text-white shadow-md'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Списком
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Map Container - всегда в DOM, но скрывается через CSS */}
       <div 
         ref={mapContainer} 
-        className={`flex-1 w-full ${activeTab === 'map' ? 'block' : 'hidden'}`} 
+        className={`flex-1 w-full ${viewMode === 'map' && activeTab === 'map' ? 'block' : 'hidden'}`}
       />
 
-      {/* Map Overlays - показываются только на вкладке карты */}
-      {activeTab === 'map' && (
+      {/* Map Overlays - показываются только на вкладке карты и в режиме карты */}
+      {activeTab === 'map' && viewMode === 'map' && (
         <>
+          {/* Active Charging Indicator */}
+          {isCharging && chargingStartTime && (
+            <div className="absolute top-4 left-4 right-4 z-20">
+              <div className="bg-emerald-500 text-white rounded-2xl p-4 shadow-2xl max-w-md mx-auto">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                  <div className="flex-1">
+                    <div className="font-bold text-lg">⚡ Идет зарядка</div>
+                    <div className="text-emerald-100 text-sm">
+                      {(() => {
+                        if (!isClient || !chargingStartTime) return '0 мин • 0.00 сом • Станция';
+                        const station = stations.find(s => s.id === chargingStationId);
+                        const duration = Math.floor((Date.now() - chargingStartTime) / 1000 / 60);
+                        const cost = station ? duration * station.pricePerMinute : 0;
+                        return `${duration} мин • ${cost.toFixed(2)} сом • ${station?.name || 'Станция'}`;
+                      })()}
+                    </div>
+                  </div>
+                  <button
+                    onClick={stopCharging}
+                    className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg transition"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Loading Stations Indicator */}
           {isLoadingStations && (
             <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 bg-[#0f2d26] border border-emerald-500/30 rounded-lg px-6 py-3 shadow-lg">
@@ -829,43 +1212,37 @@ export default function MapPage() {
           )}
 
           {/* Map Controls */}
-          <div className="absolute right-4 top-20 z-10 flex flex-col gap-2">
+          <div className="absolute right-4 top-80 z-10 flex flex-col gap-2">
             {/* Filter Button */}
             <button
               onClick={() => setShowFilter(true)}
-              className="w-12 h-12 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-100 transition relative"
+              className="w-12 h-12 bg-emerald-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-emerald-700 transition relative"
             >
-              <SlidersHorizontal size={24} className="text-gray-700" />
+              <SlidersHorizontal size={24} className="text-white" />
               {activeFiltersCount > 0 && (
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">{activeFiltersCount}</span>
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-400 rounded-full flex items-center justify-center">
+                  <span className="text-emerald-900 text-xs font-bold">{activeFiltersCount}</span>
                 </div>
               )}
             </button>
             
             <button
               onClick={handleZoomIn}
-              className="w-12 h-12 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-100 transition"
+              className="w-12 h-12 bg-emerald-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-emerald-700 transition"
             >
-              <Plus size={24} className="text-gray-700" />
+              <Plus size={24} className="text-white" />
             </button>
             <button
               onClick={handleZoomOut}
-              className="w-12 h-12 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-100 transition"
+              className="w-12 h-12 bg-emerald-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-emerald-700 transition"
             >
-              <Minus size={24} className="text-gray-700" />
+              <Minus size={24} className="text-white" />
             </button>
             <button
               onClick={handleGoToUserLocation}
-              className="w-12 h-12 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-100 transition"
+              className="w-12 h-12 bg-emerald-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-emerald-700 transition"
             >
-              <Navigation size={24} className="text-blue-500" />
-            </button>
-            <button
-              onClick={handleFullscreen}
-              className="w-12 h-12 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-100 transition"
-            >
-              <Maximize2 size={24} className="text-gray-700" />
+              <Navigation size={24} className="text-white" />
             </button>
           </div>
 
@@ -959,7 +1336,7 @@ export default function MapPage() {
                       <div className="flex items-center gap-2 text-gray-500 text-sm">
                         <Clock size={16} />
                         <span className="font-medium text-gray-900">
-                          {tripStartTime ? Math.floor((Date.now() - tripStartTime) / 1000 / 60) : 0} мин в пути
+                          {isClient && tripStartTime ? Math.floor((Date.now() - tripStartTime) / 1000 / 60) : 0} мин в пути
                         </span>
                       </div>
                     </div>
@@ -1134,7 +1511,7 @@ export default function MapPage() {
                   <button
                     onClick={() => buildRoute(selectedStation)}
                     disabled={isLoadingRoute}
-                    className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
+                    className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-800/30"
                   >
                     {isLoadingRoute ? (
                       <>
@@ -1152,23 +1529,47 @@ export default function MapPage() {
                   <>
                     <button
                       onClick={startNavigation}
-                      className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-2xl font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
+                      className="w-full bg-emerald-800 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-800/30"
                     >
                       <Navigation size={20} />
                       <span>Начать поездку</span>
                     </button>
                     <button
                       onClick={clearRoute}
-                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-2xl font-medium transition"
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-2xl font-medium transition"
                     >
                       Очистить маршрут
                     </button>
                   </>
                 )}
                 
+                {/* Кнопка начать зарядку - показывается только если пользователь не заряжается */}
+                {!isCharging && (
+                  <button
+                    onClick={() => startCharging(selectedStation)}
+                    disabled={selectedStation.status !== 'available'}
+                    className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-semibold transition shadow-lg shadow-emerald-800/30 flex items-center justify-center gap-2"
+                  >
+                    <Zap size={20} />
+                    <span>{selectedStation.status === 'available' ? 'Начать зарядку' : 'Недоступно'}</span>
+                  </button>
+                )}
+                
+                {/* Кнопка завершить зарядку - показывается только если пользователь заряжается на этой станции */}
+                {isCharging && chargingStationId === selectedStation.id && (
+                  <button
+                    onClick={stopCharging}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-2xl font-semibold transition shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"
+                  >
+                    <Plug size={20} />
+                    <span>Завершить зарядку</span>
+                  </button>
+                )}
+                
                 <button
-                  disabled={selectedStation.status !== 'available'}
-                  className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-semibold transition shadow-lg shadow-green-500/30"
+                  onClick={() => openBookingModal(selectedStation)}
+                  disabled={selectedStation.status !== 'available' || isCharging}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-semibold transition shadow-lg shadow-blue-600/30"
                 >
                   {selectedStation.status === 'available' ? 'Забронировать' : 'Недоступно'}
                 </button>
@@ -1179,27 +1580,41 @@ export default function MapPage() {
       )}
 
       {/* List View */}
-      {activeTab === 'list' && (
+      {(activeTab === 'list' || (activeTab === 'map' && viewMode === 'list')) && (
         <div className="flex-1 w-full overflow-y-auto p-4 pb-24">
-          <h2 className="text-2xl font-bold text-white mb-4 text-center">
-            {showOnlyNearby ? 'Ближайшие станции' : 'Зарядные станции'}
-          </h2>
-          
-          {/* Indicator for nearby mode */}
-          {showOnlyNearby && (
-            <div className="max-w-2xl mx-auto mb-4 bg-blue-500/20 border border-blue-500/30 rounded-xl p-3 text-center">
-              <div className="flex items-center justify-center gap-2 text-blue-400">
-                <Navigation size={16} />
-                <span className="text-sm font-medium">
-                  Показаны ближайшие активные станции (в радиусе 15 км от вас)
-                </span>
+          {/* Active Charging Indicator */}
+          {isCharging && chargingStartTime && (
+            <div className="max-w-2xl mx-auto mb-4 bg-emerald-500 text-white rounded-2xl p-4 shadow-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                <div className="flex-1">
+                  <div className="font-bold text-lg">⚡ Идет зарядка</div>
+                  <div className="text-emerald-100 text-sm">
+                    {(() => {
+                      if (!isClient || !chargingStartTime) return '0 мин • 0.00 сом • Станция';
+                      const station = stations.find(s => s.id === chargingStationId);
+                      const duration = Math.floor((Date.now() - chargingStartTime) / 1000 / 60);
+                      const cost = station ? duration * station.pricePerMinute : 0;
+                      return `${duration} мин • ${cost.toFixed(2)} сом • ${station?.name || 'Станция'}`;
+                    })()}
+                  </div>
+                </div>
+                <button
+                  onClick={stopCharging}
+                  className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg transition"
+                >
+                  <X size={20} />
+                </button>
               </div>
             </div>
           )}
           
-          {/* Search and Location */}
-          <div className="max-w-2xl mx-auto mb-4 space-y-3">
-            {/* Search Bar */}
+          <h2 className="text-2xl font-bold text-white mb-4 text-center">
+            Зарядные станции
+          </h2>
+          
+          {/* Search Bar Only */}
+          <div className="max-w-2xl mx-auto mb-6 mt-10">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
@@ -1218,89 +1633,6 @@ export default function MapPage() {
                 </button>
               )}
             </div>
-            
-            {/* Location Button */}
-            <button
-              onClick={findNearbyStations}
-              disabled={isGettingLocation}
-              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-4 rounded-xl font-medium transition flex items-center justify-center gap-2"
-            >
-              {isGettingLocation ? (
-                <>
-                  <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Определяем местоположение...</span>
-                </>
-              ) : (
-                <>
-                  <Navigation size={20} />
-                  <span>Обновить местоположение</span>
-                </>
-              )}
-            </button>
-            
-            {/* Show All Stations Button - показывается только когда активен режим "только ближайшие" */}
-            {showOnlyNearby && (
-              <button
-                onClick={() => {
-                  setShowOnlyNearby(false);
-                  setNearbyStations([]);
-                }}
-                className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-4 rounded-xl font-medium transition flex items-center justify-center gap-2"
-              >
-                <MapPin size={20} />
-                <span>Показать все станции</span>
-              </button>
-            )}
-          </div>
-          
-          {/* Фильтры по статусу */}
-          <div className="max-w-2xl mx-auto mb-4 flex gap-2 justify-center">
-            <button
-              onClick={() => setFilters({ ...filters, stationType: [] })}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                filters.stationType.length === 0
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-[#0f2d26] text-gray-400 border border-emerald-900/30 hover:border-emerald-500/50'
-              }`}
-            >
-              Все
-            </button>
-            <button
-              onClick={() => {
-                const newFilters = { ...filters };
-                if (newFilters.stationType.includes('available')) {
-                  newFilters.stationType = [];
-                } else {
-                  newFilters.stationType = ['available'];
-                }
-                setFilters(newFilters);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                filters.stationType.includes('available')
-                  ? 'bg-green-500 text-white'
-                  : 'bg-[#0f2d26] text-gray-400 border border-emerald-900/30 hover:border-emerald-500/50'
-              }`}
-            >
-              Свободна
-            </button>
-            <button
-              onClick={() => {
-                const newFilters = { ...filters };
-                if (newFilters.stationType.includes('maintenance')) {
-                  newFilters.stationType = [];
-                } else {
-                  newFilters.stationType = ['maintenance'];
-                }
-                setFilters(newFilters);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                filters.stationType.includes('maintenance')
-                  ? 'bg-yellow-500 text-white'
-                  : 'bg-[#0f2d26] text-gray-400 border border-emerald-900/30 hover:border-emerald-500/50'
-              }`}
-            >
-              Обслуживание
-            </button>
           </div>
           
           {isLoadingStations ? (
@@ -1317,26 +1649,14 @@ export default function MapPage() {
                 <p className="text-lg">
                   {searchQuery 
                     ? `Не найдено станций по запросу "${searchQuery}"`
-                    : stations.length === 0 
-                    ? 'Станций пока нет' 
-                    : 'Нет станций, соответствующих фильтрам'}
+                    : 'Станций пока нет'}
                 </p>
                 <p className="text-sm mt-2">
                   {searchQuery
                     ? 'Попробуйте изменить поисковый запрос'
-                    : stations.length === 0 
-                    ? 'Администратор еще не добавил зарядные станции' 
-                    : 'Попробуйте изменить параметры фильтрации'}
+                    : 'Администратор еще не добавил зарядные станции'}
                 </p>
               </div>
-              {(stations.length > 0 && !searchQuery) && (
-                <button
-                  onClick={() => setShowFilter(true)}
-                  className="mt-4 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition"
-                >
-                  Изменить фильтры
-                </button>
-              )}
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
@@ -1349,9 +1669,16 @@ export default function MapPage() {
           ) : (
             <div className="max-w-2xl mx-auto space-y-4">
               {filteredStations.map((station) => {
-                // Найдем расстояние для станции, если она в списке ближайших
-                const stationWithDistance = nearbyStations.find(s => s.id === station.id);
-                const distance = stationWithDistance?.distance;
+                // Вычисляем расстояние до станции если есть местоположение пользователя
+                let distance = null;
+                if (userLocation) {
+                  distance = calculateDistance(
+                    userLocation[1], // lat
+                    userLocation[0], // lng
+                    station.latitude,
+                    station.longitude
+                  );
+                }
                 
                 return (
                   <div
@@ -1359,6 +1686,7 @@ export default function MapPage() {
                     className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-6 hover:border-emerald-500/50 transition cursor-pointer"
                     onClick={() => {
                       setSelectedStation(station);
+                      setViewMode('map');
                       setActiveTab('map');
                       if (map.current) {
                         map.current.flyTo({
@@ -1371,31 +1699,20 @@ export default function MapPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <h3 className="text-lg font-bold text-white mb-1">{station.name}</h3>
-                        <p className="text-gray-400 text-sm">{station.address}</p>
-                        {distance && (
-                          <p className="text-blue-400 text-sm font-medium mt-1">
-                            📍 {distance.toFixed(1)} км от вас
-                          </p>
-                        )}
                       </div>
-                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(station.status)}`}>
-                        {getStatusText(station.status)}
+                      <div className="flex items-center gap-2">
+                        {distance && (
+                          <div className="flex items-center gap-1 text-gray-400 text-sm">
+                            <MapPin size={16} />
+                            <span>{distance.toFixed(1)} км</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-[#0a1f1a] rounded-lg p-2 text-center">
-                        <div className="text-gray-400 text-xs mb-1">Мощность</div>
-                        <div className="text-white font-medium text-sm">{station.maxPowerKw} кВт</div>
-                      </div>
-                      <div className="bg-[#0a1f1a] rounded-lg p-2 text-center">
-                        <div className="text-gray-400 text-xs mb-1">Коннектор</div>
-                        <div className="text-white font-medium text-sm">{station.connectorType}</div>
-                      </div>
-                      <div className="bg-[#0a1f1a] rounded-lg p-2 text-center">
-                        <div className="text-gray-400 text-xs mb-1">Цена</div>
-                        <div className="text-emerald-400 font-medium text-sm">{station.pricePerMinute} сом/мин</div>
-                      </div>
+                    <div className="text-gray-400 text-sm">
+                      <span>Мощность: {station.maxPowerKw} кВт</span>
+                      <span className="ml-4">Коннектор: {station.connectorType}</span>
                     </div>
                   </div>
                 );
@@ -1412,10 +1729,23 @@ export default function MapPage() {
             <h2 className="text-2xl font-bold text-white mb-6">Баланс</h2>
             
             {/* Balance Card */}
-            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-8 mb-6 shadow-xl">
+            <div className={`rounded-2xl p-8 mb-6 shadow-xl ${
+              userBalance < 50 
+                ? 'bg-gradient-to-br from-red-500 to-red-600' 
+                : 'bg-gradient-to-br from-emerald-500 to-emerald-600'
+            }`}>
               <div className="text-white/80 text-sm mb-2">Текущий баланс</div>
-              <div className="text-white text-5xl font-bold mb-4">{userBalance.toFixed(2)} сом</div>
-              <button className="bg-white text-emerald-600 px-6 py-3 rounded-full font-medium hover:bg-gray-100 transition">
+              <div className="text-white text-5xl font-bold mb-2">{userBalance.toFixed(2)} сом</div>
+              {userBalance < 50 && (
+                <div className="text-white/90 text-sm mb-4 bg-white/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <AlertTriangle size={16} />
+                  <span>Низкий баланс! Пополните для продолжения зарядки</span>
+                </div>
+              )}
+              <button 
+                onClick={() => setShowTopUpModal(true)}
+                className="bg-white text-emerald-600 px-6 py-3 rounded-full font-medium hover:bg-gray-100 transition"
+              >
                 Пополнить баланс
               </button>
             </div>
@@ -1431,234 +1761,533 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* Filter Modal */}
-      {showFilter && (
+      {/* Filter Bottom Sheet */}
+      <Sheet 
+        isOpen={showFilter} 
+        onClose={() => setShowFilter(false)}
+        snapPoints={[0, 0.6, 1]}
+        initialSnap={1}
+      >
+        <Sheet.Container>
+          <Sheet.Header />
+          <Sheet.Content>
+            <div className="px-6 pb-6 bg-[#0f2d26]">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-white text-center">Фильтры</h2>
+              </div>
+
+              <div className="space-y-6">
+                {/* Connector Type */}
+                <div>
+                  <label className="block text-white font-medium mb-3 text-center">Тип разъема:</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => {
+                        const newTypes = filters.connectorType.includes('CCS2')
+                          ? filters.connectorType.filter(t => t !== 'CCS2')
+                          : [...filters.connectorType, 'CCS2'];
+                        setFilters({ ...filters, connectorType: newTypes });
+                      }}
+                      className={`py-3 px-2 rounded-lg border-2 transition text-sm font-medium ${
+                        filters.connectorType.includes('CCS2')
+                          ? 'bg-emerald-500/20 border-emerald-500 text-white'
+                          : 'bg-[#0a1f1a] border-emerald-900/30 text-white hover:border-emerald-500/50'
+                      }`}
+                    >
+                      CCS2
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newTypes = filters.connectorType.includes('CHAdeMO')
+                          ? filters.connectorType.filter(t => t !== 'CHAdeMO')
+                          : [...filters.connectorType, 'CHAdeMO'];
+                        setFilters({ ...filters, connectorType: newTypes });
+                      }}
+                      className={`py-3 px-2 rounded-lg border-2 transition text-sm font-medium ${
+                        filters.connectorType.includes('CHAdeMO')
+                          ? 'bg-emerald-500/20 border-emerald-500 text-white'
+                          : 'bg-[#0a1f1a] border-emerald-900/30 text-white hover:border-emerald-500/50'
+                      }`}
+                    >
+                      CHAdeMO
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newTypes = filters.connectorType.includes('Type2')
+                          ? filters.connectorType.filter(t => t !== 'Type2')
+                          : [...filters.connectorType, 'Type2'];
+                        setFilters({ ...filters, connectorType: newTypes });
+                      }}
+                      className={`py-3 px-2 rounded-lg border-2 transition text-sm font-medium ${
+                        filters.connectorType.includes('Type2')
+                          ? 'bg-emerald-500/20 border-emerald-500 text-white'
+                          : 'bg-[#0a1f1a] border-emerald-900/30 text-white hover:border-emerald-500/50'
+                      }`}
+                    >
+                      Type 2
+                    </button>
+                  </div>
+                </div>
+
+                {/* Power Range */}
+                <div>
+                  <label className="block text-white font-medium mb-3 text-center">Мощность зарядки</label>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm text-gray-400 mb-2">
+                        <span>Минимум</span>
+                        <span className="text-emerald-400 font-bold">{filters.minPower} кВт</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="20"
+                        max="250"
+                        step="10"
+                        value={filters.minPower}
+                        onChange={(e) => setFilters({ ...filters, minPower: parseInt(e.target.value) })}
+                        className="w-full h-2 bg-[#0a1f1a] rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm text-gray-400 mb-2">
+                        <span>Максимум</span>
+                        <span className="text-emerald-400 font-bold">{filters.maxPower} кВт</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="20"
+                        max="250"
+                        step="10"
+                        value={filters.maxPower}
+                        onChange={(e) => setFilters({ ...filters, maxPower: parseInt(e.target.value) })}
+                        className="w-full h-2 bg-[#0a1f1a] rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    onClick={() => setShowFilter(false)}
+                    className="bg-emerald-800 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold transition shadow-lg"
+                  >
+                    Применить
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setFilters({
+                        stationType: [],
+                        connectorType: [],
+                        minPower: 20,
+                        maxPower: 250,
+                      });
+                    }}
+                    className="bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-white py-3 rounded-xl font-medium transition border border-emerald-900/30"
+                  >
+                    Сбросить
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Sheet.Content>
+        </Sheet.Container>
+        <Sheet.Backdrop />
+      </Sheet>
+
+      {/* Top Up Modal */}
+      {showTopUpModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
           <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">Фильтры</h2>
+              <h2 className="text-2xl font-bold text-white">Пополнить счет</h2>
               <button
-                onClick={() => setShowFilter(false)}
+                onClick={() => {
+                  setShowTopUpModal(false);
+                  setSelectedAmount(null);
+                  setCustomAmount('');
+                }}
                 className="text-gray-400 hover:text-white transition"
               >
                 <X size={24} />
               </button>
             </div>
 
-            <div className="space-y-6">
-              {/* Station Type */}
-              <div>
-                <label className="block text-white font-medium mb-3">Тип станции:</label>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => {
-                      const newTypes = filters.stationType.includes('slow')
-                        ? filters.stationType.filter(t => t !== 'slow')
-                        : [...filters.stationType, 'slow'];
-                      setFilters({ ...filters, stationType: newTypes });
-                    }}
-                    className={`w-full py-3 px-4 rounded-lg border-2 transition ${
-                      filters.stationType.includes('slow')
-                        ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                        : 'bg-[#0a1f1a] border-emerald-900/30 text-gray-400'
-                    }`}
-                  >
-                    медленная
-                  </button>
-                  <button
-                    onClick={() => {
-                      const newTypes = filters.stationType.includes('fast')
-                        ? filters.stationType.filter(t => t !== 'fast')
-                        : [...filters.stationType, 'fast'];
-                      setFilters({ ...filters, stationType: newTypes });
-                    }}
-                    className={`w-full py-3 px-4 rounded-lg border-2 transition ${
-                      filters.stationType.includes('fast')
-                        ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                        : 'bg-[#0a1f1a] border-emerald-900/30 text-gray-400'
-                    }`}
-                  >
-                    быстрая
-                  </button>
-                  <button
-                    onClick={() => {
-                      const newTypes = filters.stationType.includes('ultra')
-                        ? filters.stationType.filter(t => t !== 'ultra')
-                        : [...filters.stationType, 'ultra'];
-                      setFilters({ ...filters, stationType: newTypes });
-                    }}
-                    className={`w-full py-3 px-4 rounded-lg border-2 transition ${
-                      filters.stationType.includes('ultra')
-                        ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                        : 'bg-[#0a1f1a] border-emerald-900/30 text-gray-400'
-                    }`}
-                  >
-                    ультра
-                  </button>
+            {/* Current Balance */}
+            <div className="bg-[#0a1f1a] rounded-xl p-4 mb-6 text-center">
+              <div className="text-gray-400 text-sm mb-1">Текущий баланс:</div>
+              <div className="text-white text-2xl font-bold">{userBalance.toFixed(2)} сом</div>
+              {userBalance < 50 && (
+                <div className="text-red-400 text-xs mt-1 px-3 py-1 bg-red-500/20 rounded-full inline-block">
+                  Требуется пополнение
                 </div>
-              </div>
-
-              {/* Connector Type */}
-              <div>
-                <label className="block text-white font-medium mb-3">Тип разъема:</label>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => {
-                      const newTypes = filters.connectorType.includes('CCS2')
-                        ? filters.connectorType.filter(t => t !== 'CCS2')
-                        : [...filters.connectorType, 'CCS2'];
-                      setFilters({ ...filters, connectorType: newTypes });
-                    }}
-                    className={`w-full py-3 px-4 rounded-lg border-2 transition ${
-                      filters.connectorType.includes('CCS2')
-                        ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                        : 'bg-[#0a1f1a] border-emerald-900/30 text-gray-400'
-                    }`}
-                  >
-                    CCS2
-                  </button>
-                  <button
-                    onClick={() => {
-                      const newTypes = filters.connectorType.includes('CHAdeMO')
-                        ? filters.connectorType.filter(t => t !== 'CHAdeMO')
-                        : [...filters.connectorType, 'CHAdeMO'];
-                      setFilters({ ...filters, connectorType: newTypes });
-                    }}
-                    className={`w-full py-3 px-4 rounded-lg border-2 transition ${
-                      filters.connectorType.includes('CHAdeMO')
-                        ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                        : 'bg-[#0a1f1a] border-emerald-900/30 text-gray-400'
-                    }`}
-                  >
-                    CHAdeMO
-                  </button>
-                  <button
-                    onClick={() => {
-                      const newTypes = filters.connectorType.includes('Type2')
-                        ? filters.connectorType.filter(t => t !== 'Type2')
-                        : [...filters.connectorType, 'Type2'];
-                      setFilters({ ...filters, connectorType: newTypes });
-                    }}
-                    className={`w-full py-3 px-4 rounded-lg border-2 transition ${
-                      filters.connectorType.includes('Type2')
-                        ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                        : 'bg-[#0a1f1a] border-emerald-900/30 text-gray-400'
-                    }`}
-                  >
-                    Type 2
-                  </button>
-                </div>
-              </div>
-
-              {/* Power Range */}
-              <div>
-                <label className="block text-white font-medium mb-3">Мощность (кВт)</label>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-400 mb-2">
-                      <span>Минимум</span>
-                      <span className="text-emerald-400 font-bold">{filters.minPower} кВт</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="20"
-                      max="250"
-                      step="10"
-                      value={filters.minPower}
-                      onChange={(e) => setFilters({ ...filters, minPower: parseInt(e.target.value) })}
-                      className="w-full h-2 bg-[#0a1f1a] rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-400 mb-2">
-                      <span>Максимум</span>
-                      <span className="text-emerald-400 font-bold">{filters.maxPower} кВт</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="20"
-                      max="250"
-                      step="10"
-                      value={filters.maxPower}
-                      onChange={(e) => setFilters({ ...filters, maxPower: parseInt(e.target.value) })}
-                      className="w-full h-2 bg-[#0a1f1a] rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Apply Button */}
-              <button
-                onClick={() => setShowFilter(false)}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-lg font-medium transition"
-              >
-                Применить
-              </button>
-
-              {/* Reset Button */}
-              <button
-                onClick={() => {
-                  setFilters({
-                    stationType: [],
-                    connectorType: [],
-                    minPower: 20,
-                    maxPower: 250,
-                  });
-                }}
-                className="w-full bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-gray-400 py-3 rounded-lg font-medium transition border border-emerald-900/30"
-              >
-                Сбросить фильтры
-              </button>
+              )}
             </div>
+
+            {/* Quick Amount Selection */}
+            <div className="mb-6">
+              <h3 className="text-white font-medium mb-4">Пополнить счет</h3>
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {[100, 200, 300, 500, 1000, 2000].map((amount) => (
+                  <button
+                    key={amount}
+                    onClick={() => handleAmountSelect(amount)}
+                    className={`py-3 px-4 rounded-lg border-2 transition font-medium ${
+                      selectedAmount === amount
+                        ? 'bg-emerald-500/20 border-emerald-500 text-white'
+                        : 'bg-[#0a1f1a] border-emerald-900/30 text-gray-400 hover:border-emerald-500/50'
+                    }`}
+                  >
+                    {amount}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Selected Amount Display */}
+              {selectedAmount && (
+                <div className="text-center mb-4">
+                  <div className="text-2xl font-bold text-emerald-400">{selectedAmount} сом</div>
+                  <div className="text-gray-400 text-sm">
+                    Минимальная сумма пополнения — {selectedAmount} сом
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Custom Amount Input */}
+            <div className="mb-6">
+              <label className="block text-white font-medium mb-2">Или введите сумму:</label>
+              <input
+                type="number"
+                value={customAmount}
+                onChange={(e) => handleCustomAmountChange(e.target.value)}
+                placeholder="Введите сумму"
+                min="10"
+                max="10000"
+                className="w-full px-4 py-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white placeholder-gray-400 focus:border-emerald-500 focus:outline-none"
+              />
+              {customAmount && (
+                <div className="text-center mt-2">
+                  <div className="text-2xl font-bold text-emerald-400">{customAmount} сом</div>
+                </div>
+              )}
+            </div>
+
+            {/* Payment Button */}
+            <button
+              onClick={confirmTopUp}
+              disabled={(!selectedAmount && !customAmount) || isProcessingPayment}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-4 rounded-lg font-semibold transition flex items-center justify-center gap-2"
+            >
+              {isProcessingPayment ? (
+                <>
+                  <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Обработка платежа...</span>
+                </>
+              ) : (
+                <>
+                  <span>💳</span>
+                  <span>Пополнить</span>
+                </>
+              )}
+            </button>
+
+            {/* Payment Info */}
+            <div className="mt-4 text-center text-gray-400 text-xs">
+              <p>Минимальная сумма: 10 сом</p>
+              <p>Максимальная сумма: 10,000 сом</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Booking Modal */}
+      {showBookingModal && bookingStation && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {!bookingSuccess ? (
+              <>
+                {/* Booking Form */}
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-white">Бронирование</h2>
+                  <button
+                    onClick={closeBookingModal}
+                    className="text-gray-400 hover:text-white transition"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {/* Station Info */}
+                <div className="bg-[#0a1f1a] rounded-xl p-4 mb-6">
+                  <h3 className="text-white font-bold text-lg mb-1">{bookingStation.name}</h3>
+                  <p className="text-gray-400 text-sm mb-3">{bookingStation.address}</p>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-gray-400">Мощность:</span>
+                      <span className="text-white ml-2">{bookingStation.maxPowerKw} кВт</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Цена:</span>
+                      <span className="text-emerald-400 ml-2">{bookingStation.pricePerMinute} сом/мин</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date Selection */}
+                <div className="mb-6">
+                  <label className="block text-white font-medium mb-3">Выберите дату:</label>
+                  <select
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                  >
+                    <option value="">Выберите дату</option>
+                    {getAvailableDates().map((date) => (
+                      <option key={date.value} value={date.value}>
+                        {date.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Time Selection */}
+                <div className="mb-6">
+                  <label className="block text-white font-medium mb-3">Выберите время:</label>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setShowTimeSelector(!showTimeSelector)}
+                      className="w-full px-4 py-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-left text-white focus:border-emerald-500 focus:outline-none"
+                    >
+                      {selectedTime ? `${selectedTime} (${selectedDuration} мин)` : 'Выберите время'}
+                    </button>
+                    
+                    {showTimeSelector && (
+                      <div className="bg-[#0a1f1a] border border-emerald-900/30 rounded-lg p-4">
+                        {/* Duration Selection */}
+                        <div className="mb-4">
+                          <label className="block text-white text-sm font-medium mb-2">Продолжительность:</label>
+                          <div className="flex gap-2">
+                            {[15, 30, 60].map((duration) => (
+                              <button
+                                key={duration}
+                                onClick={() => setSelectedDuration(duration as 15 | 30 | 60)}
+                                className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                                  selectedDuration === duration
+                                    ? 'bg-emerald-500 text-white'
+                                    : 'bg-[#0f2d26] text-gray-400 hover:text-white'
+                                }`}
+                              >
+                                {duration} мин
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Time Slots */}
+                        <div className="mb-2">
+                          <div className="text-white text-sm font-medium mb-2">
+                            Доступные слоты ({getAvailableTimeSlots().filter(time => isTimeSlotAvailable(time, selectedDuration)).length}):
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                          {getAvailableTimeSlots().map((time) => (
+                            <button
+                              key={time}
+                              onClick={() => {
+                                setSelectedTime(time);
+                                setShowTimeSelector(false);
+                              }}
+                              disabled={!isTimeSlotAvailable(time, selectedDuration)}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                                selectedTime === time
+                                  ? 'bg-emerald-500 text-white'
+                                  : isTimeSlotAvailable(time, selectedDuration)
+                                  ? 'bg-[#0f2d26] text-gray-400 hover:text-white hover:bg-emerald-500/20'
+                                  : 'bg-gray-600 text-gray-500 cursor-not-allowed'
+                              }`}
+                            >
+                              {time}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Deposit Info */}
+                <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-yellow-400">💰</span>
+                    <span className="text-white font-medium">Информация о депозите</span>
+                  </div>
+                  <p className="text-yellow-100 text-sm">
+                    Депозит составляет 100 сом и будет списан с вашего баланса при подтверждении бронирования.
+                  </p>
+                </div>
+
+                {/* Balance Info */}
+                <div className="bg-[#0a1f1a] rounded-xl p-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Текущий баланс:</span>
+                    <span className={`font-bold ${userBalance >= 100 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {userBalance.toFixed(2)} сом
+                    </span>
+                  </div>
+                  {userBalance < 100 && (
+                    <div className="mt-2 text-red-400 text-sm flex items-center gap-1">
+                      <AlertTriangle size={14} />
+                      <span>Недостаточно средств для депозита</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  {userBalance < 100 && (
+                    <button
+                      onClick={() => {
+                        closeBookingModal();
+                        setShowTopUpModal(true);
+                      }}
+                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-lg font-medium transition"
+                    >
+                      Пополнить баланс
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={confirmBooking}
+                    disabled={!selectedDate || !selectedTime || userBalance < 100 || isProcessingBooking}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-4 rounded-lg font-semibold transition flex items-center justify-center gap-2"
+                  >
+                    {isProcessingBooking ? (
+                      <>
+                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Создание брони...</span>
+                      </>
+                    ) : (
+                      'Подтвердить бронь'
+                    )}
+                  </button>
+                  
+                  <button
+                    onClick={closeBookingModal}
+                    className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-medium transition"
+                  >
+                    Назад
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Booking Success */}
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <CheckCircle className="text-emerald-400" size={48} />
+                  </div>
+                  
+                  <h2 className="text-2xl font-bold text-white mb-6">Бронирование успешно!</h2>
+                  
+                  <div className="bg-[#0a1f1a] rounded-xl p-6 mb-6 text-left">
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Станция:</span>
+                        <span className="text-white font-medium">{currentBooking?.station.name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Дата:</span>
+                        <span className="text-white font-medium">
+                          {new Date(currentBooking?.date).toLocaleDateString('ru-RU', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Время:</span>
+                        <span className="text-white font-medium">
+                          {currentBooking?.time} – {calculateEndTime(currentBooking?.time, currentBooking?.duration)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Списано:</span>
+                        <span className="text-red-400 font-medium">100 сом (депозит)</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 mb-6">
+                    <p className="text-blue-100 text-sm">
+                      Отменить бронь можно не позднее чем за 30 минут до начала
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => {
+                        closeBookingModal();
+                        // Здесь можно добавить логику для начала зарядки
+                      }}
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-lg font-semibold transition"
+                    >
+                      Начать зарядку
+                    </button>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={cancelBooking}
+                        className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition"
+                      >
+                        Отменить бронь
+                      </button>
+                      
+                      <button
+                        onClick={closeBookingModal}
+                        className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-medium transition"
+                      >
+                        На главную
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0f2d26] border-t border-emerald-900/30 safe-area-inset-bottom">
-        <div className="max-w-2xl mx-auto px-4 py-3">
+        <div className="max-w-2xl mx-auto px-4 py-2">
           <div className="flex items-center justify-around">
-            {/* Map */}
+            {/* Главная */}
             <button
-              onClick={() => setActiveTab('map')}
+              onClick={() => {
+                setActiveTab('map');
+                setViewMode('map');
+              }}
               className="flex flex-col items-center gap-1 min-w-[60px]"
             >
               <div className={`p-2 rounded-lg transition ${
                 activeTab === 'map' ? 'bg-emerald-500/20' : ''
               }`}>
-                <MapPin 
+                <Home 
                   size={24} 
-                  className={activeTab === 'map' ? 'text-emerald-400' : 'text-gray-400'}
+                  className={activeTab === 'map' ? 'text-emerald-400' : 'text-white'}
                 />
               </div>
               <span className={`text-xs ${
-                activeTab === 'map' ? 'text-emerald-400 font-medium' : 'text-gray-400'
+                activeTab === 'map' ? 'text-emerald-400 font-medium' : 'text-white'
               }`}>
-                Карта
+                Главная
               </span>
             </button>
 
-            {/* List */}
-            <button
-              onClick={() => setActiveTab('list')}
-              className="flex flex-col items-center gap-1 min-w-[60px]"
-            >
-              <div className={`p-2 rounded-lg transition ${
-                activeTab === 'list' ? 'bg-emerald-500/20' : ''
-              }`}>
-                <List 
-                  size={24} 
-                  className={activeTab === 'list' ? 'text-emerald-400' : 'text-gray-400'}
-                />
-              </div>
-              <span className={`text-xs ${
-                activeTab === 'list' ? 'text-emerald-400 font-medium' : 'text-gray-400'
-              }`}>
-                Список
-              </span>
-            </button>
-
-            {/* Balance */}
+            {/* Кошелек */}
             <button
               onClick={() => setActiveTab('balance')}
               className="flex flex-col items-center gap-1 min-w-[60px]"
@@ -1668,29 +2297,45 @@ export default function MapPage() {
               }`}>
                 <Wallet 
                   size={24} 
-                  className={activeTab === 'balance' ? 'text-emerald-400' : 'text-gray-400'}
+                  className={activeTab === 'balance' ? 'text-emerald-400' : 'text-white'}
                 />
               </div>
               <span className={`text-xs ${
-                activeTab === 'balance' ? 'text-emerald-400 font-medium' : 'text-gray-400'
+                activeTab === 'balance' ? 'text-emerald-400 font-medium' : 'text-white'
               }`}>
-                Баланс
+                Кошелек
               </span>
             </button>
 
-            {/* Profile */}
+            {/* История */}
+            <button
+              onClick={() => router.push('/bookings')}
+              className="flex flex-col items-center gap-1 min-w-[60px]"
+            >
+              <div className="p-2 rounded-lg transition">
+                <History 
+                  size={24} 
+                  className="text-white"
+                />
+              </div>
+              <span className="text-xs text-white">
+                История
+              </span>
+            </button>
+
+            {/* Еще */}
             <button
               onClick={() => router.push('/profile')}
               className="flex flex-col items-center gap-1 min-w-[60px]"
             >
               <div className="p-2 rounded-lg transition">
-                <User 
+                <MoreHorizontal 
                   size={24} 
-                  className="text-gray-400"
+                  className="text-white"
                 />
               </div>
-              <span className="text-xs text-gray-400">
-                Профиль
+              <span className="text-xs text-white">
+                Еще
               </span>
             </button>
           </div>

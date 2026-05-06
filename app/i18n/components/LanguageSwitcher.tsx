@@ -18,12 +18,12 @@ export default function LanguageSwitcher({
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition"
+        className="flex items-center gap-2 px-3 md:px-4 py-2 md:rounded-lg md:bg-emerald-500/10 md:hover:bg-emerald-500/20 md:border md:border-emerald-500/30 transition"
       >
-        <span>{localeFlags[currentLocale]}</span>
-        <span className="text-gray-300">{localeNames[currentLocale]}</span>
+        <span className="text-xl md:text-base">{localeFlags[currentLocale]}</span>
+        <span className="hidden md:block text-gray-300 text-sm md:text-base">{localeNames[currentLocale]}</span>
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-3 h-3 md:w-4 md:h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

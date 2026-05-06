@@ -24,3 +24,53 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Custom styles for react-modal-sheet */
+[data-rsbs-backdrop] {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-rsbs-overlay] {
+  background-color: #0f2d26 !important;
+  border-top-left-radius: 24px !important;
+  border-top-right-radius: 24px !important;
+}
+
+[data-rsbs-header] {
+  padding-top: 16px !important;
+  padding-bottom: 8px !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+[data-rsbs-header]:before {
+  content: '' !important;
+  width: 48px !important;
+  height: 4px !important;
+  background-color: #9ca3af !important;
+  border-radius: 2px !important;
+}
+
+[data-rsbs-scroll] {
+  padding-bottom: 24px !important;
+  overflow-y: auto !important;
+}
+
+/* Header container styling */
+.react-modal-sheet-header-container {
+  background-color: #0f2d26 !important; /* такой же темно-зеленый фон, как у остального окна */
+  border-top-left-radius: 24px !important; /* закругление верхнего левого угла */
+  border-top-right-radius: 24px !important; /* закругление верхнего правого угла */
+}
+
+/* Container styling */
+.react-modal-sheet-container {
+  border-top-left-radius: 24px !important;
+  border-top-right-radius: 24px !important;
+  overflow: hidden !important; /* обрезаем содержимое по закругленным углам */
+}
+
+/* Drag indicator styling */
+.react-modal-sheet-drag-indicator {
+  background-color: #ffffff !important; /* белые полоски */
+}
