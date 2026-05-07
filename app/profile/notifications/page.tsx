@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Bell } from 'lucide-react';
+import { ArrowLeft, Bell, Lightbulb, Construction } from 'lucide-react';
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState({
@@ -142,16 +142,22 @@ export default function NotificationsPage() {
 
         {/* Info */}
         <div className="mt-6 bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4">
-          <p className="text-gray-400 text-sm">
-            💡 Уведомления помогут вам не пропустить важные события и своевременно получать информацию о зарядке вашего автомобиля.
-          </p>
+          <div className="flex items-start gap-3">
+            <Lightbulb size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-gray-400 text-sm">
+              Уведомления помогут вам не пропустить важные события и своевременно получать информацию о зарядке вашего автомобиля.
+            </p>
+          </div>
         </div>
 
         {/* Coming Soon */}
-        <div className="mt-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-center">
-          <p className="text-gray-400 text-sm">
-            🚧 Настройки сохраняются локально. Синхронизация с сервером будет добавлена позже.
-          </p>
+        <div className="mt-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+          <div className="flex items-start gap-3 justify-center">
+            <Construction size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-gray-400 text-sm">
+              Настройки сохраняются локально. Синхронизация с сервером будет добавлена позже.
+            </p>
+          </div>
         </div>
       </div>
     </div>

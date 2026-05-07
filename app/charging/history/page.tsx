@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, History } from 'lucide-react';
+import { ArrowLeft, History, Zap } from 'lucide-react';
 
 export default function ChargingHistoryPage() {
   const { data: session, status } = useSession();
@@ -50,10 +50,11 @@ export default function ChargingHistoryPage() {
         </div>
 
         {/* Coming Soon */}
-        <div className="mt-8 bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-6 text-center">
-          <p className="text-gray-400">
-            🚧 История зарядок будет доступна после первой зарядной сессии
-          </p>
+        <div className="mt-8 bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-6">
+          <div className="flex items-center justify-center gap-2 text-gray-400">
+            <Zap size={20} className="text-amber-500" />
+            <p>История зарядок будет доступна после первой зарядной сессии</p>
+          </div>
         </div>
       </div>
     </div>

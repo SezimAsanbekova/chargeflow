@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -8,6 +8,9 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Sheet } from 'react-modal-sheet';
 import { Maximize2, Navigation, Plus, Minus, X, MapPin, List, Wallet, User, SlidersHorizontal, Route, Clock, MapPinned, Search, Home, History, MoreHorizontal, Zap, Plug, CheckCircle, AlertTriangle } from 'lucide-react';
+import { NavigationPanel } from './components/NavigationPanel';
+import { NavigationSimulator } from './components/NavigationSimulator';
+import { SimulationControls } from './components/SimulationControls';
 
 interface Station {
   id: string;
@@ -79,6 +82,16 @@ export default function MapPage() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const watchIdRef = useRef<number | null>(null);
   const [showNavigationDetails, setShowNavigationDetails] = useState(false);
+  
+  // Новые состояния для симуляции навигации
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationSpeed, setSimulationSpeed] = useState(40); // км/ч
+  const [isSimulationPaused, setIsSimulationPaused] = useState(false);
+  const [simulatedPosition, setSimulatedPosition] = useState<[number, number] | null>(null);
+  const [simulatedBearing, setSimulatedBearing] = useState(0);
+  const [distanceToCurrentStep, setDistanceToCurrentStep] = useState(0);
+  const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
+  const simulatedMarkerRef = useRef<maplibregl.Marker | null>(null);
   const [isCharging, setIsCharging] = useState(false);
   const [chargingStartTime, setChargingStartTime] = useState<number | null>(null);
   const [chargingStationId, setChargingStationId] = useState<string | null>(null);
@@ -455,7 +468,7 @@ export default function MapPage() {
     });
 
     // Добавляем маркер местоположения пользователя
-    const userMarker = new maplibregl.Marker({ color: '#10b981' })
+    const userMarker = new maplibregl.Marker({ color: '#3b82f6' })
       .setLngLat(userLocation)
       .addTo(map.current);
 
@@ -573,6 +586,9 @@ export default function MapPage() {
 
       const route = data.routes[0];
       const coordinates = route.geometry.coordinates;
+      
+      // Сохраняем координаты маршрута для симуляции
+      setRouteCoordinates(coordinates);
 
       // Извлекаем пошаговые инструкции
       const steps = route.legs[0].steps.map((step: any) => ({
@@ -700,12 +716,14 @@ export default function MapPage() {
 
   const clearRoute = () => {
     stopNavigation();
+    stopSimulation();
     if (map.current && map.current.getSource('route')) {
       map.current.removeLayer('route');
       map.current.removeSource('route');
     }
     setRouteInfo(null);
     setCurrentStepIndex(0);
+    setRouteCoordinates([]);
   };
 
   const startNavigation = () => {
@@ -762,6 +780,149 @@ export default function MapPage() {
       watchIdRef.current = null;
     }
   };
+
+  // Новые функции для симуляции навигации
+  const startSimulation = () => {
+    if (!routeInfo || !routeCoordinates.length || !selectedStation) return;
+    
+    setIsSimulating(true);
+    setIsSimulationPaused(false);
+    setIsNavigating(true);
+    setTripStartTime(Date.now());
+    setCurrentStepIndex(0);
+    setSimulatedPosition(routeCoordinates[0]);
+    
+    // Создаем маркер для симулированной позиции
+    if (map.current && !simulatedMarkerRef.current) {
+      const el = document.createElement('div');
+      el.style.width = '40px';
+      el.style.height = '40px';
+      el.style.borderRadius = '50%';
+      el.style.backgroundColor = '#3b82f6';
+      el.style.border = '4px solid white';
+      el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      
+      const arrow = document.createElement('div');
+      arrow.innerHTML = '▲';
+      arrow.style.color = 'white';
+      arrow.style.fontSize = '20px';
+      arrow.style.fontWeight = 'bold';
+      el.appendChild(arrow);
+      
+      simulatedMarkerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map' })
+        .setLngLat(routeCoordinates[0])
+        .addTo(map.current);
+    }
+    
+    // Центрируем карту на начало маршрута
+    if (map.current) {
+      map.current.flyTo({
+        center: routeCoordinates[0],
+        zoom: 17,
+        pitch: 60,
+      });
+    }
+  };
+
+  const pauseSimulation = () => {
+    setIsSimulationPaused(true);
+  };
+
+  const resumeSimulation = () => {
+    setIsSimulationPaused(false);
+  };
+
+  const resetSimulation = () => {
+    setCurrentStepIndex(0);
+    setSimulatedPosition(routeCoordinates[0]);
+    setDistanceToCurrentStep(routeInfo?.steps[0]?.distance || 0);
+    
+    if (simulatedMarkerRef.current && routeCoordinates[0]) {
+      simulatedMarkerRef.current.setLngLat(routeCoordinates[0]);
+    }
+    
+    if (map.current) {
+      map.current.flyTo({
+        center: routeCoordinates[0],
+        zoom: 17,
+        pitch: 60,
+      });
+    }
+  };
+
+  const stopSimulation = () => {
+    setIsSimulating(false);
+    setIsSimulationPaused(false);
+    setSimulatedPosition(null);
+    setSimulatedBearing(0);
+    setDistanceToCurrentStep(0);
+    
+    // Объявляем завершение навигации
+    const { getVoiceNavigator } = require('./utils/voiceNavigator');
+    const voiceNavigator = getVoiceNavigator();
+    voiceNavigator.announceNavigationEnd();
+    voiceNavigator.reset();
+    
+    if (simulatedMarkerRef.current) {
+      simulatedMarkerRef.current.remove();
+      simulatedMarkerRef.current = null;
+    }
+  };
+
+  const handleSimulationPositionUpdate = useCallback((position: [number, number], bearing: number) => {
+    setSimulatedPosition(position);
+    setSimulatedBearing(bearing);
+    
+    // Обновляем маркер
+    if (simulatedMarkerRef.current) {
+      simulatedMarkerRef.current.setLngLat(position);
+      simulatedMarkerRef.current.setRotation(bearing);
+    }
+    
+    // Карта следует за маркером
+    if (map.current) {
+      map.current.easeTo({
+        center: position,
+        bearing: bearing,
+        duration: 100,
+      });
+    }
+  }, []);
+
+  const handleSimulationStepChange = useCallback((stepIndex: number, distanceToStep: number) => {
+    setCurrentStepIndex(stepIndex);
+    setDistanceToCurrentStep(distanceToStep);
+  }, []);
+
+  const handleSimulationArrival = useCallback(() => {
+    setIsSimulating(false);
+    setIsSimulationPaused(false);
+    
+    if (!tripStartTime || !routeInfo || !selectedStation) return;
+
+    const tripDuration = (Date.now() - tripStartTime) / 1000 / 60; // в минутах
+    const estimatedDuration = routeInfo?.durationInTraffic || routeInfo?.duration || 0;
+
+    // Объявляем прибытие голосом
+    const { getVoiceNavigator } = require('./utils/voiceNavigator');
+    const voiceNavigator = getVoiceNavigator();
+    voiceNavigator.announceArrival(selectedStation.name);
+
+    alert(
+      `🎉 Вы прибыли к станции!\n\n` +
+      `📍 Расстояние: ${routeInfo.distance.toFixed(1)} км\n` +
+      `⏱️ Время в пути: ${Math.round(tripDuration)} мин\n` +
+      `📊 Запланировано: ${Math.round(estimatedDuration)} мин`
+    );
+
+    stopSimulation();
+    setIsNavigating(false);
+    setTripStartTime(null);
+    clearRoute();
+  }, [tripStartTime, routeInfo, selectedStation]);
 
   const finishTrip = () => {
     if (!tripStartTime) return;
@@ -1265,158 +1426,63 @@ export default function MapPage() {
             </button>
           </div>
 
-          {/* Navigation Mode - Bottom Sheet */}
+          {/* Navigation Mode - Simulation or Real */}
           {isNavigating && routeInfo && (
             <>
-              {/* Top Bar - Distance and Time */}
-              <div className="absolute top-4 left-4 right-4 z-10 flex gap-2">
-                <div className="bg-white rounded-xl shadow-lg px-3 py-2 flex items-center gap-2">
-                  <div className="text-xl font-bold text-gray-900">
-                    {(routeInfo.steps.slice(currentStepIndex).reduce((sum, step) => sum + step.distance, 0) / 1000).toFixed(1)}
-                  </div>
-                  <div className="text-xs text-gray-500 leading-tight">
-                    <div>км</div>
-                    <div className="font-medium text-gray-900">
-                      {Math.round(routeInfo.steps.slice(currentStepIndex).reduce((sum, step) => sum + step.duration, 0) / 60)} мин
-                    </div>
-                  </div>
-                </div>
+              {/* Simulation Controls */}
+              {isSimulating && (
+                <>
+                  <SimulationControls
+                    isPlaying={!isSimulationPaused}
+                    speed={simulationSpeed}
+                    onPlayPause={() => {
+                      if (isSimulationPaused) {
+                        resumeSimulation();
+                      } else {
+                        pauseSimulation();
+                      }
+                    }}
+                    onReset={resetSimulation}
+                    onSpeedChange={setSimulationSpeed}
+                    onExit={() => {
+                      stopSimulation();
+                      setIsNavigating(false);
+                    }}
+                  />
+                  
+                  <NavigationSimulator
+                    routeCoordinates={routeCoordinates}
+                    routeSteps={routeInfo.steps}
+                    speed={simulationSpeed}
+                    onPositionUpdate={handleSimulationPositionUpdate}
+                    onStepChange={handleSimulationStepChange}
+                    onArrival={handleSimulationArrival}
+                    isActive={!isSimulationPaused}
+                    stationName={selectedStation?.name || 'зарядки'}
+                  />
+                </>
+              )}
 
-                <div className="flex-1"></div>
-
-                <button
-                  onClick={finishTrip}
-                  className="bg-white rounded-xl shadow-lg p-2 hover:bg-gray-50 transition"
-                >
-                  <X size={20} className="text-gray-700" />
-                </button>
-              </div>
-
-              {/* Navigation Bottom Sheet */}
-              <Sheet 
-                isOpen={true}
-                onClose={() => {}}
-                snapPoints={[0, 0.25, 1]}
-                initialSnap={1}
-                disableDrag={false}
-              >
-                <Sheet.Container>
-                  <Sheet.Header />
-                  <Sheet.Content>
-                    <div className="px-4 pb-6 bg-[#0f2d26]">
-                      {/* Current Instruction */}
-                      <div className="mb-4">
-                        <div className="flex items-start gap-3">
-                          {/* Direction Icon */}
-                          <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <Navigation className="text-white" size={24} />
-                          </div>
-                          
-                          {/* Instruction Text */}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-gray-400 text-xs mb-1">
-                              Через {(routeInfo.steps[currentStepIndex].distance / 1000).toFixed(1)} км
-                            </div>
-                            <div className="text-white font-bold text-base leading-tight">
-                              {routeInfo.steps[currentStepIndex].instruction}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Next Step Preview */}
-                        {currentStepIndex < routeInfo.steps.length - 1 && (
-                          <div className="mt-3 pt-3 border-t border-emerald-900/30">
-                            <div className="flex items-center gap-2 text-xs">
-                              <div className="w-6 h-6 bg-[#0a1f1a] rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Navigation className="text-gray-400" size={14} />
-                              </div>
-                              <div className="flex-1 text-gray-300">
-                                {routeInfo.steps[currentStepIndex + 1].instruction}
-                              </div>
-                              <div className="text-gray-400 text-xs">
-                                {(routeInfo.steps[currentStepIndex + 1].distance / 1000).toFixed(1)} км
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Bottom Actions */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <button
-                            onClick={() => setShowNavigationDetails(!showNavigationDetails)}
-                            className="flex items-center gap-1.5 text-emerald-400 font-medium text-xs"
-                          >
-                            {showNavigationDetails ? (
-                              <>
-                                <Minus size={16} />
-                                <span>Скрыть</span>
-                              </>
-                            ) : (
-                              <>
-                                <List size={16} />
-                                <span>Все шаги</span>
-                              </>
-                            )}
-                          </button>
-
-                          <div className="flex items-center gap-1.5 text-gray-400 text-xs">
-                            <Clock size={14} />
-                            <span className="font-medium text-white">
-                              {isClient && tripStartTime ? Math.floor((Date.now() - tripStartTime) / 1000 / 60) : 0} мин
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Finish Trip Button */}
-                        <button
-                          onClick={finishTrip}
-                          className="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-semibold text-sm transition shadow-lg"
-                        >
-                          Завершить
-                        </button>
-                      </div>
-
-                      {/* Expandable Steps List */}
-                      {showNavigationDetails && (
-                        <div className="mt-3 border-t border-emerald-900/30 pt-3 max-h-56 overflow-y-auto">
-                          {routeInfo.steps.map((step, idx) => (
-                            <div
-                              key={idx}
-                              className={`px-3 py-2 mb-1.5 rounded-lg flex items-center gap-2 ${
-                                idx === currentStepIndex ? 'bg-emerald-900/30' : 'bg-[#0a1f1a]'
-                              }`}
-                              onClick={() => setCurrentStepIndex(idx)}
-                            >
-                              <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                                idx === currentStepIndex 
-                                  ? 'bg-emerald-600 text-white' 
-                                  : idx < currentStepIndex
-                                  ? 'bg-gray-600 text-gray-400'
-                                  : 'bg-[#0a1f1a] text-gray-400 border border-emerald-900/30'
-                              }`}>
-                                {idx + 1}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className={`text-xs font-medium ${
-                                  idx === currentStepIndex ? 'text-emerald-400' : 'text-white'
-                                }`}>
-                                  {step.instruction}
-                                </div>
-                                <div className="text-xs text-gray-400">
-                                  {(step.distance / 1000).toFixed(1)} км
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </Sheet.Content>
-                </Sheet.Container>
-                <Sheet.Backdrop onTap={() => {}} />
-              </Sheet>
+              {/* Navigation Panel */}
+              <NavigationPanel
+                currentStep={routeInfo.steps[currentStepIndex]}
+                nextStep={currentStepIndex < routeInfo.steps.length - 1 ? routeInfo.steps[currentStepIndex + 1] : undefined}
+                distanceToStep={distanceToCurrentStep || routeInfo.steps[currentStepIndex]?.distance || 0}
+                remainingDistance={routeInfo.steps.slice(currentStepIndex).reduce((sum, step) => sum + step.distance, 0) / 1000}
+                remainingTime={routeInfo.steps.slice(currentStepIndex).reduce((sum, step) => sum + step.duration, 0)}
+                allSteps={routeInfo.steps}
+                currentStepIndex={currentStepIndex}
+                onShowAllSteps={() => setShowNavigationDetails(!showNavigationDetails)}
+                onFinish={() => {
+                  if (isSimulating) {
+                    stopSimulation();
+                  } else {
+                    finishTrip();
+                  }
+                }}
+                showAllSteps={showNavigationDetails}
+                onStepClick={setCurrentStepIndex}
+              />
             </>
           )}
 
@@ -1491,59 +1557,76 @@ export default function MapPage() {
                       </div>
                     </div>
 
-                    {/* Station Info */}
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      <div className="bg-[#0a1f1a] rounded-lg p-2.5">
-                        <div className="text-gray-400 text-xs mb-0.5">Статус</div>
-                        <div className={`font-semibold text-xs ${
-                          selectedStation.status === 'available' ? 'text-emerald-400' :
-                          selectedStation.status === 'busy' ? 'text-yellow-400' : 'text-red-400'
-                        }`}>
-                          {getStatusText(selectedStation.status)}
-                        </div>
-                      </div>
-                      <div className="bg-[#0a1f1a] rounded-lg p-2.5">
-                        <div className="text-gray-400 text-xs mb-0.5">Мощность</div>
-                        <div className="text-white font-semibold text-xs">{selectedStation.maxPowerKw} кВт</div>
-                      </div>
-                      <div className="bg-[#0a1f1a] rounded-lg p-2.5">
-                        <div className="text-gray-400 text-xs mb-0.5">Коннектор</div>
-                        <div className="text-white font-semibold text-xs">{selectedStation.connectorType}</div>
-                      </div>
-                      <div className="bg-[#0a1f1a] rounded-lg p-2.5">
-                        <div className="text-gray-400 text-xs mb-0.5">Цена</div>
-                        <div className="text-emerald-400 font-semibold text-xs">{selectedStation.pricePerMinute} сом/мин</div>
-                      </div>
-                    </div>
-
                     {/* Action Buttons */}
                     <div className="space-y-2">
                       {!routeInfo ? (
-                        <button
-                          onClick={() => buildRoute(selectedStation)}
-                          disabled={isLoadingRoute}
-                          className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-600 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
-                        >
-                          {isLoadingRoute ? (
-                            <>
-                              <div className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
-                              <span>Построение...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Route size={16} />
-                              <span>Маршрут</span>
-                            </>
+                        <>
+                          <button
+                            onClick={() => buildRoute(selectedStation)}
+                            disabled={isLoadingRoute}
+                            className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-600 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
+                          >
+                            {isLoadingRoute ? (
+                              <>
+                                <div className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
+                                <span>Построение...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Route size={16} />
+                                <span>Маршрут</span>
+                              </>
+                            )}
+                          </button>
+                          
+                          {!isCharging && (
+                            <button
+                              onClick={() => startCharging(selectedStation)}
+                              disabled={selectedStation.status !== 'available'}
+                              className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
+                            >
+                              <Zap size={16} />
+                              <span>{selectedStation.status === 'available' ? 'Зарядка' : 'Недоступно'}</span>
+                            </button>
                           )}
-                        </button>
+                          
+                          {isCharging && chargingStationId === selectedStation.id && (
+                            <button
+                              onClick={stopCharging}
+                              className="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
+                            >
+                              <Plug size={16} />
+                              <span>Завершить</span>
+                            </button>
+                          )}
+                          
+                          <button
+                            onClick={() => {
+                              openBookingModal(selectedStation);
+                              closeStationSheet();
+                            }}
+                            disabled={selectedStation.status !== 'available' || isCharging}
+                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition text-xs"
+                          >
+                            {selectedStation.status === 'available' ? 'Забронировать' : 'Недоступно'}
+                          </button>
+                        </>
                       ) : (
                         <>
+                          <button
+                            onClick={startSimulation}
+                            disabled={isSimulating}
+                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
+                          >
+                            <Navigation size={16} />
+                            <span>Начать тест-драйв</span>
+                          </button>
                           <button
                             onClick={startNavigation}
                             className="w-full bg-emerald-800 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
                           >
                             <Navigation size={16} />
-                            <span>Начать</span>
+                            <span>Реальная навигация</span>
                           </button>
                           <button
                             onClick={clearRoute}
@@ -1553,38 +1636,6 @@ export default function MapPage() {
                           </button>
                         </>
                       )}
-                      
-                      {!isCharging && (
-                        <button
-                          onClick={() => startCharging(selectedStation)}
-                          disabled={selectedStation.status !== 'available'}
-                          className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
-                        >
-                          <Zap size={16} />
-                          <span>{selectedStation.status === 'available' ? 'Зарядка' : 'Недоступно'}</span>
-                        </button>
-                      )}
-                      
-                      {isCharging && chargingStationId === selectedStation.id && (
-                        <button
-                          onClick={stopCharging}
-                          className="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
-                        >
-                          <Plug size={16} />
-                          <span>Завершить</span>
-                        </button>
-                      )}
-                      
-                      <button
-                        onClick={() => {
-                          openBookingModal(selectedStation);
-                          closeStationSheet();
-                        }}
-                        disabled={selectedStation.status !== 'available' || isCharging}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition text-xs"
-                      >
-                        {selectedStation.status === 'available' ? 'Забронировать' : 'Недоступно'}
-                      </button>
                     </div>
                   </div>
                 )}
@@ -2375,8 +2426,8 @@ export default function MapPage() {
                         </div>
                       </div>
                       
-                      <div className="bg-emerald-500/20 border border-emerald-500/30 rounded-xl p-3 mb-4">
-                        <p className="text-emerald-100 text-xs">
+                      <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3 mb-4">
+                        <p className="text-blue-100 text-xs">
                           Отмена за 30 мин до начала
                         </p>
                       </div>
@@ -2417,87 +2468,89 @@ export default function MapPage() {
         <Sheet.Backdrop />
       </Sheet>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0f2d26] border-t border-emerald-900/30 safe-area-inset-bottom">
-        <div className="max-w-2xl mx-auto px-4 py-2">
-          <div className="flex items-center justify-around">
-            {/* Главная */}
-            <button
-              onClick={() => {
-                setActiveTab('map');
-                setViewMode('map');
-              }}
-              className="flex flex-col items-center gap-1 min-w-[60px]"
-            >
-              <div className={`p-2 rounded-lg transition ${
-                activeTab === 'map' ? 'bg-emerald-500/20' : ''
-              }`}>
-                <Home 
-                  size={24} 
-                  className={activeTab === 'map' ? 'text-emerald-400' : 'text-white'}
-                />
-              </div>
-              <span className={`text-xs ${
-                activeTab === 'map' ? 'text-emerald-400 font-medium' : 'text-white'
-              }`}>
-                Главная
-              </span>
-            </button>
+      {/* Bottom Navigation - скрывается когда открыты модальные окна */}
+      {!showNavigationDetails && !showStationSheet && !showFilter && !showTopUpModal && !showBookingModal && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0f2d26] border-t border-emerald-900/30 safe-area-inset-bottom">
+          <div className="max-w-2xl mx-auto px-4 py-2">
+            <div className="flex items-center justify-around">
+              {/* Главная */}
+              <button
+                onClick={() => {
+                  setActiveTab('map');
+                  setViewMode('map');
+                }}
+                className="flex flex-col items-center gap-1 min-w-[60px]"
+              >
+                <div className={`p-2 rounded-lg transition ${
+                  activeTab === 'map' ? 'bg-emerald-500/20' : ''
+                }`}>
+                  <Home 
+                    size={24} 
+                    className={activeTab === 'map' ? 'text-emerald-400' : 'text-white'}
+                  />
+                </div>
+                <span className={`text-xs ${
+                  activeTab === 'map' ? 'text-emerald-400 font-medium' : 'text-white'
+                }`}>
+                  Главная
+                </span>
+              </button>
 
-            {/* Кошелек */}
-            <button
-              onClick={() => setActiveTab('balance')}
-              className="flex flex-col items-center gap-1 min-w-[60px]"
-            >
-              <div className={`p-2 rounded-lg transition ${
-                activeTab === 'balance' ? 'bg-emerald-500/20' : ''
-              }`}>
-                <Wallet 
-                  size={24} 
-                  className={activeTab === 'balance' ? 'text-emerald-400' : 'text-white'}
-                />
-              </div>
-              <span className={`text-xs ${
-                activeTab === 'balance' ? 'text-emerald-400 font-medium' : 'text-white'
-              }`}>
-                Кошелек
-              </span>
-            </button>
+              {/* Кошелек */}
+              <button
+                onClick={() => setActiveTab('balance')}
+                className="flex flex-col items-center gap-1 min-w-[60px]"
+              >
+                <div className={`p-2 rounded-lg transition ${
+                  activeTab === 'balance' ? 'bg-emerald-500/20' : ''
+                }`}>
+                  <Wallet 
+                    size={24} 
+                    className={activeTab === 'balance' ? 'text-emerald-400' : 'text-white'}
+                  />
+                </div>
+                <span className={`text-xs ${
+                  activeTab === 'balance' ? 'text-emerald-400 font-medium' : 'text-white'
+                }`}>
+                  Кошелек
+                </span>
+              </button>
 
-            {/* История */}
-            <button
-              onClick={() => router.push('/bookings')}
-              className="flex flex-col items-center gap-1 min-w-[60px]"
-            >
-              <div className="p-2 rounded-lg transition">
-                <History 
-                  size={24} 
-                  className="text-white"
-                />
-              </div>
-              <span className="text-xs text-white">
-                История
-              </span>
-            </button>
+              {/* История */}
+              <button
+                onClick={() => router.push('/bookings')}
+                className="flex flex-col items-center gap-1 min-w-[60px]"
+              >
+                <div className="p-2 rounded-lg transition">
+                  <History 
+                    size={24} 
+                    className="text-white"
+                  />
+                </div>
+                <span className="text-xs text-white">
+                  История
+                </span>
+              </button>
 
-            {/* Еще */}
-            <button
-              onClick={() => router.push('/profile')}
-              className="flex flex-col items-center gap-1 min-w-[60px]"
-            >
-              <div className="p-2 rounded-lg transition">
-                <MoreHorizontal 
-                  size={24} 
-                  className="text-white"
-                />
-              </div>
-              <span className="text-xs text-white">
-                Еще
-              </span>
-            </button>
+              {/* Еще */}
+              <button
+                onClick={() => router.push('/profile')}
+                className="flex flex-col items-center gap-1 min-w-[60px]"
+              >
+                <div className="p-2 rounded-lg transition">
+                  <MoreHorizontal 
+                    size={24} 
+                    className="text-white"
+                  />
+                </div>
+                <span className="text-xs text-white">
+                  Еще
+                </span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
