@@ -347,10 +347,10 @@ export default function HomePage() {
                     <div className="absolute -top-3 -left-3 w-8 h-8 sm:w-12 sm:h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-xl">
                       {idx + 1}
                     </div>
-                    <div className="flex items-center gap-3 mt-3 sm:mt-4 mb-3 sm:mb-4">
-                      <IconComponent className="text-emerald-400 flex-shrink-0" size={32} />
-                      <h3 className="text-white text-lg sm:text-xl font-bold">{step.title}</h3>
+                    <div className="mt-3 sm:mt-4 mb-3 sm:mb-4">
+                      <IconComponent className="text-emerald-400" size={32} />
                     </div>
+                    <h3 className="text-white text-lg sm:text-xl font-bold mb-2 sm:mb-3">{step.title}</h3>
                     <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">{step.description}</p>
                   </div>
                 </div>
@@ -663,7 +663,7 @@ export default function HomePage() {
                   <MessageCircle className="text-emerald-400" size={16} />
                 </a>
                 <a 
-                  href="mailto:support@chargeflo" 
+                  href="mailto:support@chargeflow" 
                   className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-full flex items-center justify-center transition"
                   title="Написать email"
                 >

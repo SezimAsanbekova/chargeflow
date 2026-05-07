@@ -18,12 +18,32 @@ export async function GET(
       );
     }
 
-    // Получаем начало и конец дня для выбранной даты
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+    // Парсим дату в формате YYYY-MM-DD
+    // Создаем начало и конец дня в UTC, учитывая часовой пояс Кыргызстана (UTC+6)
+    const [year, month, day] = date.split('-').map(Number);
     
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Начало дня: 00:00:00 по местному времени = 18:00:00 предыдущего дня UTC
+    const startOfDay = new Date(Date.UTC(year, month - 1, day, -6, 0, 0, 0));
+    
+    // Конец дня: 23:59:59 по местному времени = 17:59:59 текущего дня UTC
+    const endOfDay = new Date(Date.UTC(year, month - 1, day, 17, 59, 59, 999));
+
+    // Получаем текущее время
+    const now = new Date();
+
+    // Автоматически обновляем статусы просроченных бронирований для этого коннектора
+    await prisma.booking.updateMany({
+      where: {
+        connectorId,
+        status: 'active',
+        endTime: {
+          lt: now // Время окончания уже прошло
+        }
+      },
+      data: {
+        status: 'expired'
+      }
+    });
 
     // Получаем все активные бронирования для этого коннектора на выбранную дату
     const bookings = await prisma.booking.findMany({

@@ -100,19 +100,8 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        // Отправляем уведомление о входе
-        try {
-          const emailContent = getLoginNotificationEmail(
-            user.name || 'Пользователь',
-            user.email
-          );
-          await sendEmail({
-            to: user.email,
-            ...emailContent,
-          });
-        } catch (emailError) {
-          console.error('Failed to send login notification:', emailError);
-        }
+        // Не отправляем уведомление о входе при использовании credentials
+        // (это может быть первый вход после регистрации)
 
         return {
           id: user.id,
@@ -205,21 +194,8 @@ export const authOptions: NextAuthOptions = {
         }
       }
       
-      // Для credentials provider отправляем уведомление
-      if (account?.provider === 'credentials' && user?.email) {
-        try {
-          const emailContent = getLoginNotificationEmail(
-            user.name || 'Пользователь',
-            user.email
-          );
-          await sendEmail({
-            to: user.email,
-            ...emailContent,
-          });
-        } catch (emailError) {
-          console.error('Failed to send login notification:', emailError);
-        }
-      }
+      // Не отправляем уведомление о входе для credentials provider
+      // чтобы избежать дублирования писем
       
       return true;
     },

@@ -68,7 +68,24 @@ export async function POST(request: Request) {
     const end = new Date(start.getTime() + duration * 60 * 1000);
     const cancelDeadline = new Date(start.getTime() - 30 * 60 * 1000); // За 30 минут до начала
 
-    // Проверяем, нет ли пересечений с существующими бронированиями
+    // Получаем текущее время
+    const now = new Date();
+
+    // Автоматически обновляем статусы просроченных бронирований для этого коннектора
+    await prisma.booking.updateMany({
+      where: {
+        connectorId,
+        status: 'active',
+        endTime: {
+          lt: now // Время окончания уже прошло
+        }
+      },
+      data: {
+        status: 'expired'
+      }
+    });
+
+    // Проверяем, нет ли пересечений с существующими АКТИВНЫМИ бронированиями
     const existingBooking = await prisma.booking.findFirst({
       where: {
         connectorId,
@@ -211,6 +228,23 @@ export async function GET() {
     }
 
     const userId = (session.user as any).id;
+
+    // Получаем текущее время
+    const now = new Date();
+
+    // Автоматически обновляем статусы просроченных бронирований
+    await prisma.booking.updateMany({
+      where: {
+        userId,
+        status: 'active',
+        endTime: {
+          lt: now // Время окончания уже прошло
+        }
+      },
+      data: {
+        status: 'expired'
+      }
+    });
 
     // Получаем все бронирования пользователя с информацией о станции и коннекторе
     const bookings = await prisma.booking.findMany({

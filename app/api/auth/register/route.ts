@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { sendEmail, getRegistrationEmail } from '@/lib/email';
 import { validatePassword } from '@/lib/password-validator';
 import bcrypt from 'bcryptjs';
 
@@ -62,18 +61,6 @@ export async function POST(request: NextRequest) {
         balance: 0,
       },
     });
-
-    // Отправляем приветственное письмо
-    try {
-      const emailContent = getRegistrationEmail(user.name || 'Пользователь', user.email);
-      await sendEmail({
-        to: user.email,
-        ...emailContent,
-      });
-    } catch (emailError) {
-      console.error('Failed to send registration email:', emailError);
-      // Не прерываем регистрацию, если email не отправился
-    }
 
     return NextResponse.json({
       success: true,

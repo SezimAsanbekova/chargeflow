@@ -65,6 +65,13 @@ export default function BookingsPage() {
 
     if (session) {
       fetchBookings();
+      
+      // Автоматически обновляем каждые 30 секунд
+      const interval = setInterval(() => {
+        fetchBookings();
+      }, 30000);
+      
+      return () => clearInterval(interval);
     }
   }, [session]);
 
@@ -325,7 +332,7 @@ export default function BookingsPage() {
         {/* Past Bookings */}
         {pastBookings.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-400 mb-4">История бронирований</h2>
+            <h2 className="text-lg font-semibold text-gray-400 mb-4 text-center">История бронирований</h2>
             <div className="space-y-4">
               {pastBookings.map((booking) => (
                 <div
@@ -388,13 +395,6 @@ export default function BookingsPage() {
             </Link>
           </div>
         )}
-
-        {/* Back to Profile */}
-        <div className="mt-8 text-center">
-          <Link href="/profile" className="text-gray-400 hover:text-emerald-400 text-sm transition">
-            ← Вернуться в профиль
-          </Link>
-        </div>
       </div>
 
       {/* Cancel Booking Modal */}
