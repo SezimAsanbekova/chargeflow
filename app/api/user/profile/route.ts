@@ -65,13 +65,14 @@ export async function PATCH(request: Request) {
     }
 
     const userId = (session.user as any).id;
-    const { phone, name } = await request.json();
+    const { phone, name, email } = await request.json();
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         ...(phone !== undefined && { phone }),
         ...(name !== undefined && { name }),
+        ...(email !== undefined && { email }),
       },
       select: {
         id: true,
@@ -91,4 +92,9 @@ export async function PATCH(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// Добавляем поддержку PUT метода
+export async function PUT(request: Request) {
+  return PATCH(request);
 }

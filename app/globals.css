@@ -34,6 +34,7 @@ body {
   background-color: #0f2d26 !important;
   border-top-left-radius: 24px !important;
   border-top-right-radius: 24px !important;
+  max-height: fit-content !important;
 }
 
 [data-rsbs-header] {
@@ -41,6 +42,7 @@ body {
   padding-bottom: 8px !important;
   display: flex !important;
   justify-content: center !important;
+  background-color: #0f2d26 !important;
 }
 
 [data-rsbs-header]:before {
@@ -52,25 +54,28 @@ body {
 }
 
 [data-rsbs-scroll] {
-  padding-bottom: 24px !important;
   overflow-y: auto !important;
+  background-color: #0f2d26 !important;
 }
 
 /* Header container styling */
 .react-modal-sheet-header-container {
-  background-color: #0f2d26 !important; /* такой же темно-зеленый фон, как у остального окна */
-  border-top-left-radius: 24px !important; /* закругление верхнего левого угла */
-  border-top-right-radius: 24px !important; /* закругление верхнего правого угла */
+  background-color: #0f2d26 !important;
+  border-top-left-radius: 24px !important;
+  border-top-right-radius: 24px !important;
 }
 
 /* Container styling */
 .react-modal-sheet-container {
   border-top-left-radius: 24px !important;
   border-top-right-radius: 24px !important;
-  overflow: hidden !important; /* обрезаем содержимое по закругленным углам */
+  overflow: hidden !important;
+  background-color: #0f2d26 !important;
+  height: auto !important;
+  max-height: 90vh !important;
 }
 
 /* Drag indicator styling */
 .react-modal-sheet-drag-indicator {
-  background-color: #ffffff !important; /* белые полоски */
+  background-color: #ffffff !important;
 }

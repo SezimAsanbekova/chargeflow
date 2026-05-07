@@ -4,7 +4,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Phone, Mail, History, FileText, Bell, Trash2, LogOut, ChevronRight, Car, Eye, EyeOff, X, Calendar } from 'lucide-react';
+import { Phone, Mail, History, FileText, Bell, Trash2, LogOut, ChevronRight, Car, Eye, EyeOff, X, Calendar, User } from 'lucide-react';
 import BottomNavigation from '@/app/components/BottomNavigation';
 
 export default function ProfilePage() {
@@ -103,6 +103,23 @@ export default function ProfilePage() {
 
         {/* Menu Items */}
         <div className="space-y-3">
+          {/* Edit Profile */}
+          <Link
+            href="/profile/edit"
+            className="flex items-center justify-between bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4 hover:border-emerald-500/50 transition"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                <User className="text-emerald-400" size={24} />
+              </div>
+              <div>
+                <p className="text-white font-medium">Личные данные</p>
+                <p className="text-gray-400 text-sm">Имя, email, телефон</p>
+              </div>
+            </div>
+            <ChevronRight className="text-gray-400" size={24} />
+          </Link>
+
           {/* My Bookings */}
           <Link
             href="/bookings"
@@ -119,39 +136,6 @@ export default function ProfilePage() {
             </div>
             <ChevronRight className="text-gray-400" size={24} />
           </Link>
-
-          {/* Phone */}
-          <Link
-            href="/profile/phone"
-            className="flex items-center justify-between bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4 hover:border-emerald-500/50 transition"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                <Phone className="text-emerald-400" size={24} />
-              </div>
-              <div>
-                <p className="text-gray-400 text-sm">Телефон</p>
-                <p className="text-white font-medium">
-                  {userData?.phone || '+996 ___ ___ ___'}
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="text-gray-400" size={24} />
-          </Link>
-
-          {/* Email */}
-          <div className="flex items-center justify-between bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                <Mail className="text-emerald-400" size={24} />
-              </div>
-              <div>
-                <p className="text-gray-400 text-sm">Email</p>
-                <p className="text-white font-medium">{session.user?.email}</p>
-              </div>
-            </div>
-            <ChevronRight className="text-gray-400" size={24} />
-          </div>
 
           {/* My Vehicles */}
           <Link
@@ -247,13 +231,6 @@ export default function ProfilePage() {
             </div>
             <span className="text-lg">Выход</span>
           </button>
-        </div>
-
-        {/* Back to Map */}
-        <div className="mt-6 text-center">
-          <Link href="/map" className="text-gray-400 hover:text-emerald-400 text-sm transition">
-            ← Вернуться на главную
-          </Link>
         </div>
       </div>
 

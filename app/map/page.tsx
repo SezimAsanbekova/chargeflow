@@ -29,6 +29,23 @@ export default function MapPage() {
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [userBalance, setUserBalance] = useState(0);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [showStationSheet, setShowStationSheet] = useState(false);
+
+  // Функция для открытия станции в bottom sheet
+  const openStationSheet = (station: Station) => {
+    setSelectedStation(station);
+    setShowStationSheet(true);
+  };
+
+  // Функция для закрытия станции
+  const closeStationSheet = () => {
+    setShowStationSheet(false);
+    // Задержка перед очисткой данных для плавной анимации
+    setTimeout(() => {
+      setSelectedStation(null);
+      clearRoute();
+    }, 300);
+  };
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'balance' | 'history' | 'more'>('map');
@@ -75,6 +92,7 @@ export default function MapPage() {
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedDuration, setSelectedDuration] = useState<15 | 30 | 60>(30);
   const [showTimeSelector, setShowTimeSelector] = useState(false);
+  const [showDateSelector, setShowDateSelector] = useState(false);
   const [isProcessingBooking, setIsProcessingBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [currentBooking, setCurrentBooking] = useState<any>(null);
@@ -437,7 +455,7 @@ export default function MapPage() {
     });
 
     // Добавляем маркер местоположения пользователя
-    const userMarker = new maplibregl.Marker({ color: '#3b82f6' })
+    const userMarker = new maplibregl.Marker({ color: '#10b981' })
       .setLngLat(userLocation)
       .addTo(map.current);
 
@@ -503,7 +521,7 @@ export default function MapPage() {
       el.appendChild(icon);
 
       el.addEventListener('click', () => {
-        setSelectedStation(station);
+        openStationSheet(station);
       });
 
       const marker = new maplibregl.Marker({ element: el })
@@ -948,6 +966,7 @@ export default function MapPage() {
     setSelectedTime('');
     setSelectedDuration(30);
     setShowTimeSelector(false);
+    setShowDateSelector(false);
     setBookingSuccess(false);
     setCurrentBooking(null);
   };
@@ -1145,26 +1164,26 @@ export default function MapPage() {
           {/* Active Charging Indicator */}
           {isCharging && chargingStartTime && (
             <div className="absolute top-4 left-4 right-4 z-20">
-              <div className="bg-emerald-500 text-white rounded-2xl p-4 shadow-2xl max-w-md mx-auto">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+              <div className="bg-emerald-500 text-white rounded-xl p-3 shadow-2xl max-w-md mx-auto">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                   <div className="flex-1">
-                    <div className="font-bold text-lg">⚡ Идет зарядка</div>
-                    <div className="text-emerald-100 text-sm">
+                    <div className="font-bold text-sm">⚡ Зарядка</div>
+                    <div className="text-emerald-100 text-xs">
                       {(() => {
-                        if (!isClient || !chargingStartTime) return '0 мин • 0.00 сом • Станция';
+                        if (!isClient || !chargingStartTime) return '0 мин • 0 сом';
                         const station = stations.find(s => s.id === chargingStationId);
                         const duration = Math.floor((Date.now() - chargingStartTime) / 1000 / 60);
                         const cost = station ? duration * station.pricePerMinute : 0;
-                        return `${duration} мин • ${cost.toFixed(2)} сом • ${station?.name || 'Станция'}`;
+                        return `${duration} мин • ${cost.toFixed(0)} сом`;
                       })()}
                     </div>
                   </div>
                   <button
                     onClick={stopCharging}
-                    className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg transition"
+                    className="bg-white/20 hover:bg-white/30 text-white p-1.5 rounded-lg transition"
                   >
-                    <X size={20} />
+                    <X size={18} />
                   </button>
                 </div>
               </div>
@@ -1173,10 +1192,10 @@ export default function MapPage() {
 
           {/* Loading Stations Indicator */}
           {isLoadingStations && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 bg-[#0f2d26] border border-emerald-500/30 rounded-lg px-6 py-3 shadow-lg">
-              <div className="flex items-center gap-3">
-                <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-400"></div>
-                <span className="text-white font-medium">Загрузка станций...</span>
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 bg-[#0f2d26] border border-emerald-500/30 rounded-lg px-4 py-2 shadow-lg">
+              <div className="flex items-center gap-2">
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-400"></div>
+                <span className="text-white text-sm">Загрузка...</span>
               </div>
             </div>
           )}
@@ -1184,26 +1203,26 @@ export default function MapPage() {
           {/* No Stations Message */}
           {!isLoadingStations && filteredStations.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="bg-[#0f2d26] border-2 border-emerald-500/30 rounded-2xl p-8 shadow-2xl max-w-md mx-4 pointer-events-auto">
+              <div className="bg-[#0f2d26] border-2 border-emerald-500/30 rounded-xl p-6 shadow-2xl max-w-sm mx-4 pointer-events-auto">
                 <div className="text-center">
-                  <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MapPin className="text-emerald-400" size={40} />
+                  <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <MapPin className="text-emerald-400" size={32} />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-3">
-                    {stations.length === 0 ? 'Станций пока нет' : 'Таких станций еще нет'}
+                  <h3 className="text-lg font-bold text-white mb-2">
+                    {stations.length === 0 ? 'Станций нет' : 'Не найдено'}
                   </h3>
-                  <p className="text-gray-400 mb-6">
+                  <p className="text-gray-400 text-sm mb-4">
                     {stations.length === 0 
-                      ? 'Администратор еще не добавил зарядные станции' 
-                      : 'Скоро добавим! Попробуйте изменить параметры фильтрации'}
+                      ? 'Станции еще не добавлены' 
+                      : 'Измените фильтры'}
                   </p>
                   {stations.length > 0 && (
                     <button
                       onClick={() => setShowFilter(true)}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 mx-auto"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 mx-auto"
                     >
-                      <SlidersHorizontal size={20} />
-                      Изменить фильтры
+                      <SlidersHorizontal size={18} />
+                      Фильтры
                     </button>
                   )}
                 </div>
@@ -1246,13 +1265,13 @@ export default function MapPage() {
             </button>
           </div>
 
-          {/* Navigation Mode - Yandex Style */}
+          {/* Navigation Mode - Bottom Sheet */}
           {isNavigating && routeInfo && (
             <>
               {/* Top Bar - Distance and Time */}
               <div className="absolute top-4 left-4 right-4 z-10 flex gap-2">
-                <div className="bg-white rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3">
-                  <div className="text-2xl font-bold text-gray-900">
+                <div className="bg-white rounded-xl shadow-lg px-3 py-2 flex items-center gap-2">
+                  <div className="text-xl font-bold text-gray-900">
                     {(routeInfo.steps.slice(currentStepIndex).reduce((sum, step) => sum + step.distance, 0) / 1000).toFixed(1)}
                   </div>
                   <div className="text-xs text-gray-500 leading-tight">
@@ -1267,315 +1286,312 @@ export default function MapPage() {
 
                 <button
                   onClick={finishTrip}
-                  className="bg-white rounded-2xl shadow-lg p-3 hover:bg-gray-50 transition"
+                  className="bg-white rounded-xl shadow-lg p-2 hover:bg-gray-50 transition"
                 >
-                  <X size={24} className="text-gray-700" />
+                  <X size={20} className="text-gray-700" />
                 </button>
               </div>
 
-              {/* Main Navigation Card - Yandex Style */}
-              <div className="absolute bottom-6 left-4 right-4 z-10">
-                <div className="bg-white rounded-3xl shadow-2xl overflow-hidden max-w-md mx-auto">
-                  {/* Current Instruction */}
-                  <div className="p-6">
-                    <div className="flex items-start gap-4">
-                      {/* Direction Icon */}
-                      <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0">
-                        <Navigation className="text-white" size={32} />
-                      </div>
-                      
-                      {/* Instruction Text */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-gray-500 text-sm mb-1">
-                          Через {(routeInfo.steps[currentStepIndex].distance / 1000).toFixed(1)} км
-                        </div>
-                        <div className="text-gray-900 font-bold text-xl leading-tight">
-                          {routeInfo.steps[currentStepIndex].instruction}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Next Step Preview */}
-                    {currentStepIndex < routeInfo.steps.length - 1 && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="flex items-center gap-3 text-sm">
-                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Navigation className="text-gray-400" size={16} />
+              {/* Navigation Bottom Sheet */}
+              <Sheet 
+                isOpen={true}
+                onClose={() => {}}
+                snapPoints={[0, 0.25, 1]}
+                initialSnap={1}
+                disableDrag={false}
+              >
+                <Sheet.Container>
+                  <Sheet.Header />
+                  <Sheet.Content>
+                    <div className="px-4 pb-6 bg-[#0f2d26]">
+                      {/* Current Instruction */}
+                      <div className="mb-4">
+                        <div className="flex items-start gap-3">
+                          {/* Direction Icon */}
+                          <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Navigation className="text-white" size={24} />
                           </div>
-                          <div className="flex-1 text-gray-600">
-                            {routeInfo.steps[currentStepIndex + 1].instruction}
-                          </div>
-                          <div className="text-gray-400 text-xs">
-                            {(routeInfo.steps[currentStepIndex + 1].distance / 1000).toFixed(1)} км
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bottom Actions */}
-                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <button
-                        onClick={() => setShowNavigationDetails(!showNavigationDetails)}
-                        className="flex items-center gap-2 text-blue-500 font-medium text-sm"
-                      >
-                        {showNavigationDetails ? (
-                          <>
-                            <Minus size={18} />
-                            <span>Скрыть</span>
-                          </>
-                        ) : (
-                          <>
-                            <List size={18} />
-                            <span>Все шаги</span>
-                          </>
-                        )}
-                      </button>
-
-                      <div className="flex items-center gap-2 text-gray-500 text-sm">
-                        <Clock size={16} />
-                        <span className="font-medium text-gray-900">
-                          {isClient && tripStartTime ? Math.floor((Date.now() - tripStartTime) / 1000 / 60) : 0} мин в пути
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Finish Trip Button */}
-                    <button
-                      onClick={finishTrip}
-                      className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-2xl font-semibold transition shadow-lg"
-                    >
-                      Завершить поездку
-                    </button>
-                  </div>
-
-                  {/* Expandable Steps List */}
-                  {showNavigationDetails && (
-                    <div className="border-t border-gray-200 max-h-64 overflow-y-auto">
-                      {routeInfo.steps.map((step, idx) => (
-                        <div
-                          key={idx}
-                          className={`px-6 py-4 border-b border-gray-100 flex items-center gap-3 ${
-                            idx === currentStepIndex ? 'bg-blue-50' : 'bg-white'
-                          }`}
-                          onClick={() => setCurrentStepIndex(idx)}
-                        >
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                            idx === currentStepIndex 
-                              ? 'bg-blue-500 text-white' 
-                              : idx < currentStepIndex
-                              ? 'bg-gray-200 text-gray-400'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {idx + 1}
-                          </div>
+                          
+                          {/* Instruction Text */}
                           <div className="flex-1 min-w-0">
-                            <div className={`text-sm font-medium ${
-                              idx === currentStepIndex ? 'text-blue-600' : 'text-gray-900'
-                            }`}>
-                              {step.instruction}
+                            <div className="text-gray-400 text-xs mb-1">
+                              Через {(routeInfo.steps[currentStepIndex].distance / 1000).toFixed(1)} км
                             </div>
-                            <div className="text-xs text-gray-500 mt-0.5">
-                              {(step.distance / 1000).toFixed(1)} км
+                            <div className="text-white font-bold text-base leading-tight">
+                              {routeInfo.steps[currentStepIndex].instruction}
                             </div>
                           </div>
                         </div>
-                      ))}
+
+                        {/* Next Step Preview */}
+                        {currentStepIndex < routeInfo.steps.length - 1 && (
+                          <div className="mt-3 pt-3 border-t border-emerald-900/30">
+                            <div className="flex items-center gap-2 text-xs">
+                              <div className="w-6 h-6 bg-[#0a1f1a] rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Navigation className="text-gray-400" size={14} />
+                              </div>
+                              <div className="flex-1 text-gray-300">
+                                {routeInfo.steps[currentStepIndex + 1].instruction}
+                              </div>
+                              <div className="text-gray-400 text-xs">
+                                {(routeInfo.steps[currentStepIndex + 1].distance / 1000).toFixed(1)} км
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bottom Actions */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => setShowNavigationDetails(!showNavigationDetails)}
+                            className="flex items-center gap-1.5 text-emerald-400 font-medium text-xs"
+                          >
+                            {showNavigationDetails ? (
+                              <>
+                                <Minus size={16} />
+                                <span>Скрыть</span>
+                              </>
+                            ) : (
+                              <>
+                                <List size={16} />
+                                <span>Все шаги</span>
+                              </>
+                            )}
+                          </button>
+
+                          <div className="flex items-center gap-1.5 text-gray-400 text-xs">
+                            <Clock size={14} />
+                            <span className="font-medium text-white">
+                              {isClient && tripStartTime ? Math.floor((Date.now() - tripStartTime) / 1000 / 60) : 0} мин
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Finish Trip Button */}
+                        <button
+                          onClick={finishTrip}
+                          className="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-semibold text-sm transition shadow-lg"
+                        >
+                          Завершить
+                        </button>
+                      </div>
+
+                      {/* Expandable Steps List */}
+                      {showNavigationDetails && (
+                        <div className="mt-3 border-t border-emerald-900/30 pt-3 max-h-56 overflow-y-auto">
+                          {routeInfo.steps.map((step, idx) => (
+                            <div
+                              key={idx}
+                              className={`px-3 py-2 mb-1.5 rounded-lg flex items-center gap-2 ${
+                                idx === currentStepIndex ? 'bg-emerald-900/30' : 'bg-[#0a1f1a]'
+                              }`}
+                              onClick={() => setCurrentStepIndex(idx)}
+                            >
+                              <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                                idx === currentStepIndex 
+                                  ? 'bg-emerald-600 text-white' 
+                                  : idx < currentStepIndex
+                                  ? 'bg-gray-600 text-gray-400'
+                                  : 'bg-[#0a1f1a] text-gray-400 border border-emerald-900/30'
+                              }`}>
+                                {idx + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className={`text-xs font-medium ${
+                                  idx === currentStepIndex ? 'text-emerald-400' : 'text-white'
+                                }`}>
+                                  {step.instruction}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  {(step.distance / 1000).toFixed(1)} км
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </Sheet.Content>
+                </Sheet.Container>
+                <Sheet.Backdrop onTap={() => {}} />
+              </Sheet>
             </>
           )}
 
-          {/* Station Card - Yandex Style (only when not navigating) */}
-          {selectedStation && !isNavigating && (
-            <div className="absolute bottom-24 left-4 right-4 z-10 bg-white rounded-3xl shadow-2xl max-w-md mx-auto overflow-hidden">
-              <div className="p-6 pb-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">{selectedStation.name}</h3>
-                    <p className="text-gray-500 text-sm">{selectedStation.address}</p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedStation(null)}
-                    className="text-gray-400 hover:text-gray-600 transition ml-2"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-              </div>
+          {/* Station Bottom Sheet */}
+          <Sheet 
+            isOpen={showStationSheet && selectedStation !== null && !isNavigating} 
+            onClose={closeStationSheet}
+            snapPoints={[0, 1]}
+            initialSnap={1}
+            disableDrag={false}
+          >
+            <Sheet.Container>
+              <Sheet.Header />
+              <Sheet.Content>
+                {selectedStation && (
+                  <div className="px-4 pb-6 bg-[#0f2d26]">
+                    <div className="mb-3">
+                      <h3 className="text-lg font-bold text-white mb-1">{selectedStation.name}</h3>
+                      <p className="text-gray-400 text-xs">{selectedStation.address}</p>
+                    </div>
 
-              {/* Route Info */}
-              {routeInfo && (
-                <div className="space-y-3 mb-4">
-                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Route className="text-emerald-400" size={20} />
-                      <span className="text-white font-medium">Маршрут построен</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex items-center gap-2">
-                        <MapPinned className="text-emerald-400" size={16} />
-                        <div>
-                          <div className="text-gray-400 text-xs">Расстояние</div>
-                          <div className="text-white font-medium">{routeInfo.distance.toFixed(1)} км</div>
+                    {/* Route Info */}
+                    {routeInfo && (
+                      <div className="mb-3 bg-emerald-900/30 border border-emerald-500/30 rounded-xl p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Route className="text-emerald-400" size={18} />
+                          <span className="text-white font-medium text-sm">Маршрут</span>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="text-emerald-400" size={16} />
-                        <div>
-                          <div className="text-gray-400 text-xs">Время в пути</div>
-                          <div className="text-white font-medium">
-                            {Math.round(routeInfo.durationInTraffic || routeInfo.duration)} мин
-                            {routeInfo.durationInTraffic && routeInfo.durationInTraffic > routeInfo.duration && (
-                              <span className="text-yellow-400 text-xs ml-1">
-                                (+{Math.round(routeInfo.durationInTraffic - routeInfo.duration)} мин пробки)
-                              </span>
-                            )}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <MapPinned className="text-emerald-400" size={14} />
+                            <div>
+                              <div className="text-gray-400 text-xs">Расстояние</div>
+                              <div className="text-white font-medium text-sm">{routeInfo.distance.toFixed(1)} км</div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Traffic Indicator */}
-                    {routeInfo.durationInTraffic && (
-                      <div className="mt-3 pt-3 border-t border-emerald-500/20">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400 text-xs">Загруженность дорог:</span>
-                          <div className="flex items-center gap-1">
-                            {(() => {
-                              const trafficRatio = routeInfo.durationInTraffic / routeInfo.duration;
-                              if (trafficRatio < 1.1) {
-                                return (
-                                  <>
-                                    <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                                    <span className="text-emerald-400 text-xs font-medium">Свободно</span>
-                                  </>
-                                );
-                              } else if (trafficRatio < 1.3) {
-                                return (
-                                  <>
-                                    <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
-                                    <span className="text-yellow-400 text-xs font-medium">Умеренно</span>
-                                  </>
-                                );
-                              } else {
-                                return (
-                                  <>
-                                    <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                                    <span className="text-red-400 text-xs font-medium">Пробки</span>
-                                  </>
-                                );
-                              }
-                            })()}
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="text-emerald-400" size={14} />
+                            <div>
+                              <div className="text-gray-400 text-xs">Время</div>
+                              <div className="text-white font-medium text-sm">
+                                {Math.round(routeInfo.durationInTraffic || routeInfo.duration)} мин
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     )}
-                  </div>
 
+                    {/* Station Info */}
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <div className="bg-[#0a1f1a] rounded-xl p-3">
+                        <div className="text-gray-400 text-xs mb-1">Статус</div>
+                        <div className={`font-semibold text-sm ${
+                          selectedStation.status === 'available' ? 'text-emerald-400' :
+                          selectedStation.status === 'busy' ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                          {getStatusText(selectedStation.status)}
+                        </div>
+                      </div>
+                      <div className="bg-[#0a1f1a] rounded-xl p-3">
+                        <div className="text-gray-400 text-xs mb-1">Мощность</div>
+                        <div className="text-white font-semibold text-sm">{selectedStation.maxPowerKw} кВт</div>
+                      </div>
+                      <div className="bg-[#0a1f1a] rounded-xl p-3">
+                        <div className="text-gray-400 text-xs mb-1">Коннектор</div>
+                        <div className="text-white font-semibold text-sm">{selectedStation.connectorType}</div>
+                      </div>
+                      <div className="bg-[#0a1f1a] rounded-xl p-3">
+                        <div className="text-gray-400 text-xs mb-1">Цена</div>
+                        <div className="text-emerald-400 font-semibold text-sm">{selectedStation.pricePerMinute} сом/мин</div>
+                      </div>
+                    </div>
 
-                </div>
-              )}
+                    {/* Station Info */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="bg-[#0a1f1a] rounded-lg p-2.5">
+                        <div className="text-gray-400 text-xs mb-0.5">Статус</div>
+                        <div className={`font-semibold text-xs ${
+                          selectedStation.status === 'available' ? 'text-emerald-400' :
+                          selectedStation.status === 'busy' ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                          {getStatusText(selectedStation.status)}
+                        </div>
+                      </div>
+                      <div className="bg-[#0a1f1a] rounded-lg p-2.5">
+                        <div className="text-gray-400 text-xs mb-0.5">Мощность</div>
+                        <div className="text-white font-semibold text-xs">{selectedStation.maxPowerKw} кВт</div>
+                      </div>
+                      <div className="bg-[#0a1f1a] rounded-lg p-2.5">
+                        <div className="text-gray-400 text-xs mb-0.5">Коннектор</div>
+                        <div className="text-white font-semibold text-xs">{selectedStation.connectorType}</div>
+                      </div>
+                      <div className="bg-[#0a1f1a] rounded-lg p-2.5">
+                        <div className="text-gray-400 text-xs mb-0.5">Цена</div>
+                        <div className="text-emerald-400 font-semibold text-xs">{selectedStation.pricePerMinute} сом/мин</div>
+                      </div>
+                    </div>
 
-              <div className="px-6 pb-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <div className="text-gray-500 text-xs mb-1">Статус</div>
-                    <div className={`font-semibold ${
-                      selectedStation.status === 'available' ? 'text-green-600' :
-                      selectedStation.status === 'busy' ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
-                      {getStatusText(selectedStation.status)}
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                      {!routeInfo ? (
+                        <button
+                          onClick={() => buildRoute(selectedStation)}
+                          disabled={isLoadingRoute}
+                          className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-600 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
+                        >
+                          {isLoadingRoute ? (
+                            <>
+                              <div className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
+                              <span>Построение...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Route size={16} />
+                              <span>Маршрут</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={startNavigation}
+                            className="w-full bg-emerald-800 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
+                          >
+                            <Navigation size={16} />
+                            <span>Начать</span>
+                          </button>
+                          <button
+                            onClick={clearRoute}
+                            className="w-full bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-white py-2 rounded-xl font-medium transition text-xs border border-emerald-900/30"
+                          >
+                            Очистить
+                          </button>
+                        </>
+                      )}
+                      
+                      {!isCharging && (
+                        <button
+                          onClick={() => startCharging(selectedStation)}
+                          disabled={selectedStation.status !== 'available'}
+                          className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
+                        >
+                          <Zap size={16} />
+                          <span>{selectedStation.status === 'available' ? 'Зарядка' : 'Недоступно'}</span>
+                        </button>
+                      )}
+                      
+                      {isCharging && chargingStationId === selectedStation.id && (
+                        <button
+                          onClick={stopCharging}
+                          className="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
+                        >
+                          <Plug size={16} />
+                          <span>Завершить</span>
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => {
+                          openBookingModal(selectedStation);
+                          closeStationSheet();
+                        }}
+                        disabled={selectedStation.status !== 'available' || isCharging}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition text-xs"
+                      >
+                        {selectedStation.status === 'available' ? 'Забронировать' : 'Недоступно'}
+                      </button>
                     </div>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <div className="text-gray-500 text-xs mb-1">Мощность</div>
-                    <div className="text-gray-900 font-semibold">{selectedStation.maxPowerKw} кВт</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <div className="text-gray-500 text-xs mb-1">Коннектор</div>
-                    <div className="text-gray-900 font-semibold">{selectedStation.connectorType}</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <div className="text-gray-500 text-xs mb-1">Цена</div>
-                    <div className="text-blue-600 font-semibold">{selectedStation.pricePerMinute} сом/мин</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-6 pb-6 space-y-2">
-                {!routeInfo ? (
-                  <button
-                    onClick={() => buildRoute(selectedStation)}
-                    disabled={isLoadingRoute}
-                    className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-800/30"
-                  >
-                    {isLoadingRoute ? (
-                      <>
-                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>Построение маршрута...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Route size={20} />
-                        <span>Построить маршрут</span>
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={startNavigation}
-                      className="w-full bg-emerald-800 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-800/30"
-                    >
-                      <Navigation size={20} />
-                      <span>Начать поездку</span>
-                    </button>
-                    <button
-                      onClick={clearRoute}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-2xl font-medium transition"
-                    >
-                      Очистить маршрут
-                    </button>
-                  </>
                 )}
-                
-                {/* Кнопка начать зарядку - показывается только если пользователь не заряжается */}
-                {!isCharging && (
-                  <button
-                    onClick={() => startCharging(selectedStation)}
-                    disabled={selectedStation.status !== 'available'}
-                    className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-semibold transition shadow-lg shadow-emerald-800/30 flex items-center justify-center gap-2"
-                  >
-                    <Zap size={20} />
-                    <span>{selectedStation.status === 'available' ? 'Начать зарядку' : 'Недоступно'}</span>
-                  </button>
-                )}
-                
-                {/* Кнопка завершить зарядку - показывается только если пользователь заряжается на этой станции */}
-                {isCharging && chargingStationId === selectedStation.id && (
-                  <button
-                    onClick={stopCharging}
-                    className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-2xl font-semibold transition shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"
-                  >
-                    <Plug size={20} />
-                    <span>Завершить зарядку</span>
-                  </button>
-                )}
-                
-                <button
-                  onClick={() => openBookingModal(selectedStation)}
-                  disabled={selectedStation.status !== 'available' || isCharging}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-semibold transition shadow-lg shadow-blue-600/30"
-                >
-                  {selectedStation.status === 'available' ? 'Забронировать' : 'Недоступно'}
-                </button>
-              </div>
-            </div>
-          )}
+              </Sheet.Content>
+            </Sheet.Container>
+            <Sheet.Backdrop />
+          </Sheet>
         </>
       )}
 
@@ -1685,7 +1701,7 @@ export default function MapPage() {
                     key={station.id}
                     className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-6 hover:border-emerald-500/50 transition cursor-pointer"
                     onClick={() => {
-                      setSelectedStation(station);
+                      openStationSheet(station);
                       setViewMode('map');
                       setActiveTab('map');
                       if (map.current) {
@@ -1772,15 +1788,15 @@ export default function MapPage() {
           <Sheet.Header />
           <Sheet.Content>
             <div className="px-6 pb-6 bg-[#0f2d26]">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-white text-center">Фильтры</h2>
+              <div className="mb-4">
+                <h2 className="text-xl font-bold text-white text-center">Фильтры</h2>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Connector Type */}
                 <div>
-                  <label className="block text-white font-medium mb-3 text-center">Тип разъема:</label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <label className="block text-white font-medium mb-2 text-center text-sm">Тип разъема:</label>
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => {
                         const newTypes = filters.connectorType.includes('CCS2')
@@ -1788,7 +1804,7 @@ export default function MapPage() {
                           : [...filters.connectorType, 'CCS2'];
                         setFilters({ ...filters, connectorType: newTypes });
                       }}
-                      className={`py-3 px-2 rounded-lg border-2 transition text-sm font-medium ${
+                      className={`py-2.5 px-2 rounded-lg border-2 transition text-xs font-medium ${
                         filters.connectorType.includes('CCS2')
                           ? 'bg-emerald-500/20 border-emerald-500 text-white'
                           : 'bg-[#0a1f1a] border-emerald-900/30 text-white hover:border-emerald-500/50'
@@ -1803,7 +1819,7 @@ export default function MapPage() {
                           : [...filters.connectorType, 'CHAdeMO'];
                         setFilters({ ...filters, connectorType: newTypes });
                       }}
-                      className={`py-3 px-2 rounded-lg border-2 transition text-sm font-medium ${
+                      className={`py-2.5 px-2 rounded-lg border-2 transition text-xs font-medium ${
                         filters.connectorType.includes('CHAdeMO')
                           ? 'bg-emerald-500/20 border-emerald-500 text-white'
                           : 'bg-[#0a1f1a] border-emerald-900/30 text-white hover:border-emerald-500/50'
@@ -1818,7 +1834,7 @@ export default function MapPage() {
                           : [...filters.connectorType, 'Type2'];
                         setFilters({ ...filters, connectorType: newTypes });
                       }}
-                      className={`py-3 px-2 rounded-lg border-2 transition text-sm font-medium ${
+                      className={`py-2.5 px-2 rounded-lg border-2 transition text-xs font-medium ${
                         filters.connectorType.includes('Type2')
                           ? 'bg-emerald-500/20 border-emerald-500 text-white'
                           : 'bg-[#0a1f1a] border-emerald-900/30 text-white hover:border-emerald-500/50'
@@ -1831,10 +1847,10 @@ export default function MapPage() {
 
                 {/* Power Range */}
                 <div>
-                  <label className="block text-white font-medium mb-3 text-center">Мощность зарядки</label>
-                  <div className="space-y-4">
+                  <label className="block text-white font-medium mb-2 text-center text-sm">Мощность</label>
+                  <div className="space-y-3">
                     <div>
-                      <div className="flex justify-between text-sm text-gray-400 mb-2">
+                      <div className="flex justify-between text-xs text-gray-400 mb-1.5">
                         <span>Минимум</span>
                         <span className="text-emerald-400 font-bold">{filters.minPower} кВт</span>
                       </div>
@@ -1849,7 +1865,7 @@ export default function MapPage() {
                       />
                     </div>
                     <div>
-                      <div className="flex justify-between text-sm text-gray-400 mb-2">
+                      <div className="flex justify-between text-xs text-gray-400 mb-1.5">
                         <span>Максимум</span>
                         <span className="text-emerald-400 font-bold">{filters.maxPower} кВт</span>
                       </div>
@@ -1867,10 +1883,10 @@ export default function MapPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-2 gap-2 pt-2">
                   <button
                     onClick={() => setShowFilter(false)}
-                    className="bg-emerald-800 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold transition shadow-lg"
+                    className="bg-emerald-800 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-semibold transition shadow-lg text-sm"
                   >
                     Применить
                   </button>
@@ -1884,7 +1900,7 @@ export default function MapPage() {
                         maxPower: 250,
                       });
                     }}
-                    className="bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-white py-3 rounded-xl font-medium transition border border-emerald-900/30"
+                    className="bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-white py-2.5 rounded-xl font-medium transition border border-emerald-900/30 text-sm"
                   >
                     Сбросить
                   </button>
@@ -2002,263 +2018,404 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* Booking Modal */}
-      {showBookingModal && bookingStation && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            {!bookingSuccess ? (
-              <>
-                {/* Booking Form */}
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-white">Бронирование</h2>
-                  <button
-                    onClick={closeBookingModal}
-                    className="text-gray-400 hover:text-white transition"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-
-                {/* Station Info */}
-                <div className="bg-[#0a1f1a] rounded-xl p-4 mb-6">
-                  <h3 className="text-white font-bold text-lg mb-1">{bookingStation.name}</h3>
-                  <p className="text-gray-400 text-sm mb-3">{bookingStation.address}</p>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-400">Мощность:</span>
-                      <span className="text-white ml-2">{bookingStation.maxPowerKw} кВт</span>
+      {/* Booking Bottom Sheet */}
+      <Sheet 
+        isOpen={showBookingModal && bookingStation !== null}
+        onClose={closeBookingModal}
+        snapPoints={[0, 1]}
+        initialSnap={1}
+      >
+        <Sheet.Container>
+          <Sheet.Header />
+          <Sheet.Content>
+            {bookingStation && (
+              <div className="px-4 pb-6 bg-[#0f2d26]">
+                {!bookingSuccess ? (
+                  <>
+                    {/* Booking Form */}
+                    <div className="mb-4">
+                      <h2 className="text-xl font-bold text-white text-center">Бронирование</h2>
                     </div>
-                    <div>
-                      <span className="text-gray-400">Цена:</span>
-                      <span className="text-emerald-400 ml-2">{bookingStation.pricePerMinute} сом/мин</span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Date Selection */}
-                <div className="mb-6">
-                  <label className="block text-white font-medium mb-3">Выберите дату:</label>
-                  <select
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="">Выберите дату</option>
-                    {getAvailableDates().map((date) => (
-                      <option key={date.value} value={date.value}>
-                        {date.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Time Selection */}
-                <div className="mb-6">
-                  <label className="block text-white font-medium mb-3">Выберите время:</label>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => setShowTimeSelector(!showTimeSelector)}
-                      className="w-full px-4 py-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-left text-white focus:border-emerald-500 focus:outline-none"
-                    >
-                      {selectedTime ? `${selectedTime} (${selectedDuration} мин)` : 'Выберите время'}
-                    </button>
-                    
-                    {showTimeSelector && (
-                      <div className="bg-[#0a1f1a] border border-emerald-900/30 rounded-lg p-4">
-                        {/* Duration Selection */}
-                        <div className="mb-4">
-                          <label className="block text-white text-sm font-medium mb-2">Продолжительность:</label>
-                          <div className="flex gap-2">
-                            {[15, 30, 60].map((duration) => (
-                              <button
-                                key={duration}
-                                onClick={() => setSelectedDuration(duration as 15 | 30 | 60)}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
-                                  selectedDuration === duration
-                                    ? 'bg-emerald-500 text-white'
-                                    : 'bg-[#0f2d26] text-gray-400 hover:text-white'
-                                }`}
-                              >
-                                {duration} мин
-                              </button>
-                            ))}
-                          </div>
+                    {/* Station Info */}
+                    <div className="bg-[#0a1f1a] rounded-xl p-3 mb-4">
+                      <h3 className="text-white font-bold text-base mb-1">{bookingStation.name}</h3>
+                      <p className="text-gray-400 text-xs mb-2">{bookingStation.address}</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-gray-400">Мощность:</span>
+                          <span className="text-white ml-1.5">{bookingStation.maxPowerKw} кВт</span>
                         </div>
-
-                        {/* Time Slots */}
-                        <div className="mb-2">
-                          <div className="text-white text-sm font-medium mb-2">
-                            Доступные слоты ({getAvailableTimeSlots().filter(time => isTimeSlotAvailable(time, selectedDuration)).length}):
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
-                          {getAvailableTimeSlots().map((time) => (
-                            <button
-                              key={time}
-                              onClick={() => {
-                                setSelectedTime(time);
-                                setShowTimeSelector(false);
-                              }}
-                              disabled={!isTimeSlotAvailable(time, selectedDuration)}
-                              className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
-                                selectedTime === time
-                                  ? 'bg-emerald-500 text-white'
-                                  : isTimeSlotAvailable(time, selectedDuration)
-                                  ? 'bg-[#0f2d26] text-gray-400 hover:text-white hover:bg-emerald-500/20'
-                                  : 'bg-gray-600 text-gray-500 cursor-not-allowed'
-                              }`}
-                            >
-                              {time}
-                            </button>
-                          ))}
+                        <div>
+                          <span className="text-gray-400">Цена:</span>
+                          <span className="text-emerald-400 ml-1.5">{bookingStation.pricePerMinute} сом/мин</span>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Deposit Info */}
-                <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 mb-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-yellow-400">💰</span>
-                    <span className="text-white font-medium">Информация о депозите</span>
-                  </div>
-                  <p className="text-yellow-100 text-sm">
-                    Депозит составляет 100 сом и будет списан с вашего баланса при подтверждении бронирования.
-                  </p>
-                </div>
-
-                {/* Balance Info */}
-                <div className="bg-[#0a1f1a] rounded-xl p-4 mb-6">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Текущий баланс:</span>
-                    <span className={`font-bold ${userBalance >= 100 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {userBalance.toFixed(2)} сом
-                    </span>
-                  </div>
-                  {userBalance < 100 && (
-                    <div className="mt-2 text-red-400 text-sm flex items-center gap-1">
-                      <AlertTriangle size={14} />
-                      <span>Недостаточно средств для депозита</span>
                     </div>
-                  )}
-                </div>
 
-                {/* Action Buttons */}
-                <div className="space-y-3">
-                  {userBalance < 100 && (
-                    <button
-                      onClick={() => {
-                        closeBookingModal();
-                        setShowTopUpModal(true);
-                      }}
-                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-lg font-medium transition"
-                    >
-                      Пополнить баланс
-                    </button>
-                  )}
-                  
-                  <button
-                    onClick={confirmBooking}
-                    disabled={!selectedDate || !selectedTime || userBalance < 100 || isProcessingBooking}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-4 rounded-lg font-semibold transition flex items-center justify-center gap-2"
-                  >
-                    {isProcessingBooking ? (
-                      <>
-                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>Создание брони...</span>
-                      </>
-                    ) : (
-                      'Подтвердить бронь'
-                    )}
-                  </button>
-                  
-                  <button
-                    onClick={closeBookingModal}
-                    className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-medium transition"
-                  >
-                    Назад
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Booking Success */}
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle className="text-emerald-400" size={48} />
-                  </div>
-                  
-                  <h2 className="text-2xl font-bold text-white mb-6">Бронирование успешно!</h2>
-                  
-                  <div className="bg-[#0a1f1a] rounded-xl p-6 mb-6 text-left">
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Станция:</span>
-                        <span className="text-white font-medium">{currentBooking?.station.name}</span>
+                    {/* Date Selection */}
+                    <div className="mb-4">
+                      <label className="block text-white font-medium mb-2 text-center text-sm">Дата:</label>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => setShowDateSelector(!showDateSelector)}
+                          className="w-full px-4 py-3 bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl text-left text-white hover:border-emerald-500 focus:border-emerald-500 focus:outline-none transition flex items-center justify-between"
+                        >
+                          <span className="text-sm">
+                            {selectedDate 
+                              ? new Date(selectedDate).toLocaleDateString('ru-RU', { 
+                                  weekday: 'short', 
+                                  day: 'numeric', 
+                                  month: 'long',
+                                  year: 'numeric'
+                                })
+                              : 'Выберите дату'
+                            }
+                          </span>
+                          <svg 
+                            className={`w-5 h-5 text-emerald-400 transition-transform ${showDateSelector ? 'rotate-180' : ''}`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                        
+                        {showDateSelector && (
+                          <div className="bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl p-3">
+                            {/* Calendar Header - Month/Year */}
+                            <div className="text-center mb-3">
+                              <div className="text-white font-bold text-base">
+                                {new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
+                              </div>
+                            </div>
+                            
+                            {/* Days of Week */}
+                            <div className="grid grid-cols-7 gap-1 mb-2">
+                              {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day) => (
+                                <div key={day} className="text-center text-gray-400 text-xs font-medium py-1">
+                                  {day}
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* Calendar Days */}
+                            <div className="grid grid-cols-7 gap-1">
+                              {(() => {
+                                const today = new Date();
+                                // Функция для получения локальной даты в формате YYYY-MM-DD
+                                const getLocalDateString = (date: Date) => {
+                                  const year = date.getFullYear();
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  return `${year}-${month}-${day}`;
+                                };
+                                
+                                const todayDateString = getLocalDateString(today);
+                                
+                                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                                const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Понедельник = 0
+                                const daysInMonth = lastDay.getDate();
+                                const days = [];
+                                
+                                // Empty cells before first day
+                                for (let i = 0; i < startDayOfWeek; i++) {
+                                  days.push(<div key={`empty-${i}`} className="p-2"></div>);
+                                }
+                                
+                                // Days of month
+                                for (let day = 1; day <= daysInMonth; day++) {
+                                  // Создаем дату в локальном времени
+                                  const dateLocal = new Date(today.getFullYear(), today.getMonth(), day);
+                                  const dateValue = getLocalDateString(dateLocal);
+                                  const isToday = dateValue === todayDateString;
+                                  const isSelected = selectedDate === dateValue;
+                                  const isPast = dateValue < todayDateString;
+                                  
+                                  days.push(
+                                    <button
+                                      key={day}
+                                      onClick={() => {
+                                        if (!isPast) {
+                                          setSelectedDate(dateValue);
+                                          setShowDateSelector(false);
+                                        }
+                                      }}
+                                      disabled={isPast}
+                                      className={`p-2 rounded-lg text-center text-sm font-medium transition ${
+                                        isPast
+                                          ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-40'
+                                          : isSelected
+                                          ? 'bg-emerald-600 text-white shadow-lg'
+                                          : isToday
+                                          ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500'
+                                          : 'bg-[#0f2d26] text-gray-300 hover:bg-emerald-600/20 border border-emerald-900/30'
+                                      }`}
+                                    >
+                                      {day}
+                                    </button>
+                                  );
+                                }
+                                
+                                return days;
+                              })()}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Дата:</span>
-                        <span className="text-white font-medium">
-                          {new Date(currentBooking?.date).toLocaleDateString('ru-RU', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric'
-                          })}
+                    </div>
+
+                    {/* Time Selection */}
+                    <div className="mb-4">
+                      <label className="block text-white font-medium mb-2 text-center text-sm">Время:</label>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => setShowTimeSelector(!showTimeSelector)}
+                          className="w-full px-4 py-3 bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl text-left text-white hover:border-emerald-500 focus:border-emerald-500 focus:outline-none transition flex items-center justify-between"
+                        >
+                          <span>{selectedTime ? `${selectedTime} (${selectedDuration} мин)` : 'Выберите время'}</span>
+                          <svg 
+                            className={`w-5 h-5 text-emerald-400 transition-transform ${showTimeSelector ? 'rotate-180' : ''}`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        {showTimeSelector && (
+                          <div className="bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl p-4">
+                            {/* Duration Selection */}
+                            <div className="mb-4">
+                              <label className="block text-white text-sm font-medium mb-3 text-center">Продолжительность:</label>
+                              <div className="grid grid-cols-3 gap-2">
+                                {[15, 30, 60].map((duration) => (
+                                  <button
+                                    key={duration}
+                                    onClick={() => setSelectedDuration(duration as 15 | 30 | 60)}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                                      selectedDuration === duration
+                                        ? 'bg-emerald-600 text-white shadow-lg'
+                                        : 'bg-[#0f2d26] text-gray-400 hover:text-white hover:bg-emerald-600/20 border border-emerald-900/30'
+                                    }`}
+                                  >
+                                    {duration} мин
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Time Slots */}
+                            <div className="mb-2">
+                              <div className="text-white text-sm font-medium mb-3 text-center">
+                                Доступные слоты: {getAvailableTimeSlots().filter(time => isTimeSlotAvailable(time, selectedDuration)).length}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
+                              {getAvailableTimeSlots().map((time) => {
+                                const isSelected = selectedTime === time;
+                                const isAvailable = isTimeSlotAvailable(time, selectedDuration);
+                                
+                                // Функция для получения локальной даты в формате YYYY-MM-DD
+                                const getLocalDateString = (date: Date) => {
+                                  const year = date.getFullYear();
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  return `${year}-${month}-${day}`;
+                                };
+                                
+                                // Проверяем, если выбрана сегодняшняя дата
+                                const today = new Date();
+                                const todayDateString = getLocalDateString(today);
+                                const isToday = selectedDate === todayDateString;
+                                let isPastTime = false;
+                                
+                                if (isToday) {
+                                  const now = new Date();
+                                  const currentHour = now.getHours();
+                                  const currentMinute = now.getMinutes();
+                                  const [slotHour, slotMinute] = time.split(':').map(Number);
+                                  
+                                  // Время прошло, если час меньше текущего, или час равен но минуты меньше/равны
+                                  isPastTime = slotHour < currentHour || (slotHour === currentHour && slotMinute <= currentMinute);
+                                }
+                                
+                                const isDisabled = !isAvailable || isPastTime;
+                                
+                                return (
+                                  <button
+                                    key={time}
+                                    onClick={() => {
+                                      if (!isDisabled) {
+                                        setSelectedTime(time);
+                                        setShowTimeSelector(false);
+                                      }
+                                    }}
+                                    disabled={isDisabled}
+                                    className={`px-2 py-2 rounded-lg text-sm font-medium transition ${
+                                      isSelected
+                                        ? 'bg-emerald-600 text-white shadow-lg'
+                                        : isDisabled
+                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-40'
+                                        : 'bg-[#0f2d26] text-gray-300 hover:text-white hover:bg-emerald-600/20 border border-emerald-900/30'
+                                    }`}
+                                  >
+                                    {time}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Deposit Info */}
+                    <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 mb-4">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className="text-yellow-400 text-sm">💰</span>
+                        <span className="text-white font-medium text-xs">Депозит</span>
+                      </div>
+                      <p className="text-yellow-100 text-xs">
+                        100 сом будет списано при подтверждении
+                      </p>
+                    </div>
+
+                    {/* Balance Info */}
+                    <div className="bg-[#0a1f1a] rounded-xl p-3 mb-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-400">Баланс:</span>
+                        <span className={`font-bold ${userBalance >= 100 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {userBalance.toFixed(0)} сом
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Время:</span>
-                        <span className="text-white font-medium">
-                          {currentBooking?.time} – {calculateEndTime(currentBooking?.time, currentBooking?.duration)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Списано:</span>
-                        <span className="text-red-400 font-medium">100 сом (депозит)</span>
-                      </div>
+                      {userBalance < 100 && (
+                        <div className="mt-1.5 text-red-400 text-xs flex items-center gap-1">
+                          <AlertTriangle size={12} />
+                          <span>Недостаточно средств</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  
-                  <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 mb-6">
-                    <p className="text-blue-100 text-sm">
-                      Отменить бронь можно не позднее чем за 30 минут до начала
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => {
-                        closeBookingModal();
-                        // Здесь можно добавить логику для начала зарядки
-                      }}
-                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-lg font-semibold transition"
-                    >
-                      Начать зарядку
-                    </button>
-                    
-                    <div className="flex gap-3">
+
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                      {userBalance < 100 && (
+                        <button
+                          onClick={() => {
+                            closeBookingModal();
+                            setShowTopUpModal(true);
+                          }}
+                          className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2.5 rounded-xl font-medium transition text-sm"
+                        >
+                          Пополнить
+                        </button>
+                      )}
+                      
                       <button
-                        onClick={cancelBooking}
-                        className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition"
+                        onClick={confirmBooking}
+                        disabled={!selectedDate || !selectedTime || userBalance < 100 || isProcessingBooking}
+                        className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-sm"
                       >
-                        Отменить бронь
+                        {isProcessingBooking ? (
+                          <>
+                            <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Создание...</span>
+                          </>
+                        ) : (
+                          'Подтвердить'
+                        )}
                       </button>
                       
                       <button
                         onClick={closeBookingModal}
-                        className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-medium transition"
+                        className="w-full bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-white py-2.5 rounded-xl font-medium transition border border-emerald-900/30 text-sm"
                       >
-                        На главную
+                        Назад
                       </button>
                     </div>
-                  </div>
-                </div>
-              </>
+                  </>
+                ) : (
+                  <>
+                    {/* Booking Success */}
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="text-emerald-400" size={40} />
+                      </div>
+                      
+                      <h2 className="text-xl font-bold text-white mb-4">Успешно!</h2>
+                      
+                      <div className="bg-[#0a1f1a] rounded-xl p-4 mb-4 text-left">
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Станция:</span>
+                            <span className="text-white font-medium">{currentBooking?.station.name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Дата:</span>
+                            <span className="text-white font-medium">
+                              {new Date(currentBooking?.date).toLocaleDateString('ru-RU', {
+                                day: 'numeric',
+                                month: 'short'
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Время:</span>
+                            <span className="text-white font-medium">
+                              {currentBooking?.time} – {calculateEndTime(currentBooking?.time, currentBooking?.duration)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Списано:</span>
+                            <span className="text-red-400 font-medium">100 сом</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-emerald-500/20 border border-emerald-500/30 rounded-xl p-3 mb-4">
+                        <p className="text-emerald-100 text-xs">
+                          Отмена за 30 мин до начала
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => {
+                            closeBookingModal();
+                          }}
+                          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-semibold transition text-sm"
+                        >
+                          Начать зарядку
+                        </button>
+                        
+                        <div className="flex gap-2">
+                          <button
+                            onClick={cancelBooking}
+                            className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-medium transition text-xs"
+                          >
+                            Отменить
+                          </button>
+                          
+                          <button
+                            onClick={closeBookingModal}
+                            className="flex-1 bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-white py-2.5 rounded-xl font-medium transition border border-emerald-900/30 text-xs"
+                          >
+                            Главная
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
-          </div>
-        </div>
-      )}
+          </Sheet.Content>
+        </Sheet.Container>
+        <Sheet.Backdrop />
+      </Sheet>
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0f2d26] border-t border-emerald-900/30 safe-area-inset-bottom">

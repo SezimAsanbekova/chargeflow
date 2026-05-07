@@ -174,7 +174,7 @@ export default function VehiclesPage() {
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link
               href="/profile"
               className="w-10 h-10 bg-[#0f2d26] border border-emerald-900/30 rounded-full flex items-center justify-center hover:border-emerald-500/50 transition"
@@ -182,8 +182,8 @@ export default function VehiclesPage() {
               <ChevronLeft size={20} />
             </Link>
             <div>
-              <h1 className="text-3xl font-bold">Мои автомобили</h1>
-              <p className="text-gray-400 text-sm mt-1">
+              <h1 className="text-2xl md:text-3xl font-bold">Мои автомобили</h1>
+              <p className="text-gray-400 text-xs md:text-sm mt-1">
                 {vehicles.length === 0
                   ? 'У вас пока нет автомобилей'
                   : `${vehicles.length} ${vehicles.length === 1 ? 'автомобиль' : 'автомобилей'}`}
@@ -192,10 +192,11 @@ export default function VehiclesPage() {
           </div>
           <Link
             href="/vehicles/add"
-            className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-full font-medium transition flex items-center gap-2"
+            className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 md:px-6 md:py-3 rounded-full font-medium transition flex items-center gap-1 md:gap-2 text-sm md:text-base"
           >
-            <Plus size={20} />
-            Добавить
+            <Plus size={18} className="md:w-5 md:h-5" />
+            <span className="hidden sm:inline">Добавить</span>
+            <span className="sm:hidden">+</span>
           </Link>
         </div>
 
