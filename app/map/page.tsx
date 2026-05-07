@@ -22,6 +22,13 @@ interface Station {
   maxPowerKw: number;
   pricePerMinute: number;
   connectorType: string;
+  connectors?: Array<{
+    id: string;
+    type: string;
+    powerKw: number;
+    pricePerKwh: number;
+    status: string;
+  }>;
 }
 
 export default function MapPage() {
@@ -110,6 +117,8 @@ export default function MapPage() {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [currentBooking, setCurrentBooking] = useState<any>(null);
   const [isClient, setIsClient] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<Array<{ start: string; end: string }>>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   // Проверка на клиентскую сторону для избежания hydration mismatch
   useEffect(() => {
@@ -727,11 +736,16 @@ export default function MapPage() {
   };
 
   const startNavigation = () => {
-    if (!routeInfo) return;
+    if (!routeInfo || !selectedStation) return;
     
     setIsNavigating(true);
     setTripStartTime(Date.now());
     setCurrentStepIndex(0);
+
+    // Объявляем начало навигации голосом
+    const { getVoiceNavigator } = require('./utils/voiceNavigator');
+    const voiceNavigator = getVoiceNavigator();
+    voiceNavigator.announceNavigationStart(selectedStation.name);
 
     // Отслеживаем местоположение пользователя в реальном времени
     if (navigator.geolocation) {
@@ -749,18 +763,18 @@ export default function MapPage() {
               center: newLocation,
               zoom: 17,
               bearing: position.coords.heading || 0,
+              pitch: 60,
             });
           }
 
-          // Проверяем, достиг ли пользователь следующего шага
-          // (упрощенная логика - в реальном приложении нужна более сложная проверка)
-          if (routeInfo && currentStepIndex < routeInfo.steps.length - 1) {
-            // Автоматически переходим к следующему шагу через некоторое время
-            // В реальном приложении нужно проверять расстояние до точки поворота
+          // Вычисляем текущий шаг и расстояние до него
+          if (routeInfo && routeCoordinates.length > 0) {
+            updateRealNavigationProgress(newLocation);
           }
         },
         (error) => {
           console.error('Error tracking location:', error);
+          alert('Ошибка получения GPS координат. Проверьте разрешения.');
         },
         {
           enableHighAccuracy: true,
@@ -769,6 +783,117 @@ export default function MapPage() {
         }
       );
     }
+  };
+
+  // Функция для обновления прогресса реальной навигации
+  const updateRealNavigationProgress = (currentPosition: [number, number]) => {
+    if (!routeInfo) return;
+
+    // Находим текущий шаг маршрута
+    let accumulatedDistance = 0;
+    let currentStepIdx = 0;
+    
+    for (let i = 0; i < routeInfo.steps.length; i++) {
+      accumulatedDistance += routeInfo.steps[i].distance;
+      
+      // Вычисляем расстояние от текущей позиции до конца этого шага
+      const distanceFromStart = calculateTotalDistanceTraveled(currentPosition);
+      
+      if (distanceFromStart < accumulatedDistance) {
+        currentStepIdx = i;
+        const distanceToStep = accumulatedDistance - distanceFromStart;
+        
+        setCurrentStepIndex(currentStepIdx);
+        setDistanceToCurrentStep(distanceToStep);
+        
+        // Голосовые подсказки
+        const { getVoiceNavigator } = require('./utils/voiceNavigator');
+        const voiceNavigator = getVoiceNavigator();
+        voiceNavigator.announceManeuver(
+          currentStepIdx,
+          routeInfo.steps[currentStepIdx].instruction,
+          distanceToStep
+        );
+        
+        break;
+      }
+    }
+
+    // Проверяем прибытие к станции
+    if (selectedStation) {
+      const distanceToStation = calculateDistance(
+        currentPosition[1],
+        currentPosition[0],
+        selectedStation.latitude,
+        selectedStation.longitude
+      ) * 1000; // в метрах
+
+      if (distanceToStation < 20) { // Прибыли если ближе 20 метров
+        handleRealNavigationArrival();
+      }
+    }
+  };
+
+  // Вычисляем пройденное расстояние от начала маршрута
+  const calculateTotalDistanceTraveled = (currentPosition: [number, number]): number => {
+    if (!routeCoordinates.length || !userLocation) return 0;
+
+    // Находим ближайшую точку на маршруте к текущей позиции
+    let minDistance = Infinity;
+    let closestIndex = 0;
+
+    for (let i = 0; i < routeCoordinates.length; i++) {
+      const dist = calculateDistance(
+        currentPosition[1],
+        currentPosition[0],
+        routeCoordinates[i][1],
+        routeCoordinates[i][0]
+      ) * 1000;
+
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestIndex = i;
+      }
+    }
+
+    // Суммируем расстояние от начала до ближайшей точки
+    let totalDistance = 0;
+    for (let i = 0; i < closestIndex; i++) {
+      if (i < routeCoordinates.length - 1) {
+        totalDistance += calculateDistance(
+          routeCoordinates[i][1],
+          routeCoordinates[i][0],
+          routeCoordinates[i + 1][1],
+          routeCoordinates[i + 1][0]
+        ) * 1000;
+      }
+    }
+
+    return totalDistance;
+  };
+
+  // Обработка прибытия при реальной навигации
+  const handleRealNavigationArrival = () => {
+    if (!tripStartTime || !routeInfo || !selectedStation) return;
+
+    const tripDuration = (Date.now() - tripStartTime) / 1000 / 60; // в минутах
+    const estimatedDuration = routeInfo?.durationInTraffic || routeInfo?.duration || 0;
+
+    // Объявляем прибытие голосом
+    const { getVoiceNavigator } = require('./utils/voiceNavigator');
+    const voiceNavigator = getVoiceNavigator();
+    voiceNavigator.announceArrival(selectedStation.name);
+
+    alert(
+      `🎉 Вы прибыли к станции!\n\n` +
+      `📍 Расстояние: ${routeInfo.distance.toFixed(1)} км\n` +
+      `⏱️ Время в пути: ${Math.round(tripDuration)} мин\n` +
+      `📊 Запланировано: ${Math.round(estimatedDuration)} мин`
+    );
+
+    stopNavigation();
+    setTripStartTime(null);
+    clearRoute();
   };
 
   const stopNavigation = () => {
@@ -1170,10 +1295,87 @@ export default function MapPage() {
 
   // Проверить доступность временного слота
   const isTimeSlotAvailable = (time: string, duration: number) => {
-    // Здесь можно добавить логику проверки занятых слотов
-    // Пока возвращаем true для всех слотов
-    return true;
+    if (!selectedDate || bookedSlots.length === 0) {
+      return true; // Если нет данных о занятых слотах, считаем доступным
+    }
+
+    // Формируем дату и время начала выбранного слота
+    const [hours, minutes] = time.split(':').map(Number);
+    const slotStart = new Date(selectedDate);
+    slotStart.setHours(hours, minutes, 0, 0);
+    
+    // Формируем дату и время окончания выбранного слота
+    const slotEnd = new Date(slotStart.getTime() + duration * 60 * 1000);
+
+    // Проверяем пересечение с каждым забронированным слотом
+    for (const booked of bookedSlots) {
+      const bookedStart = new Date(booked.start);
+      const bookedEnd = new Date(booked.end);
+
+      // Проверяем пересечение временных интервалов
+      // Слот занят если:
+      // 1. Начало нашего слота попадает в забронированный интервал
+      // 2. Конец нашего слота попадает в забронированный интервал
+      // 3. Наш слот полностью покрывает забронированный интервал
+      const hasOverlap = (
+        (slotStart >= bookedStart && slotStart < bookedEnd) || // Начало попадает
+        (slotEnd > bookedStart && slotEnd <= bookedEnd) ||     // Конец попадает
+        (slotStart <= bookedStart && slotEnd >= bookedEnd)     // Полное покрытие
+      );
+
+      if (hasOverlap) {
+        return false; // Слот занят
+      }
+    }
+
+    return true; // Слот свободен
   };
+
+  // Загрузить занятые слоты для выбранной даты
+  const loadBookedSlots = async (stationId: string, date: string) => {
+    if (!date) return;
+
+    const connector = bookingStation?.connectors?.[0];
+    if (!connector) return;
+
+    setIsLoadingSlots(true);
+    
+    try {
+      const response = await fetch(
+        `/api/stations/${stationId}/available-slots?date=${date}&connectorId=${connector.id}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setBookedSlots(data.bookedSlots || []);
+      } else {
+        console.error('Failed to load booked slots');
+        setBookedSlots([]);
+      }
+    } catch (error) {
+      console.error('Error loading booked slots:', error);
+      setBookedSlots([]);
+    } finally {
+      setIsLoadingSlots(false);
+    }
+  };
+
+  // Загружаем занятые слоты при изменении даты или станции
+  useEffect(() => {
+    if (bookingStation && selectedDate) {
+      loadBookedSlots(bookingStation.id, selectedDate);
+    } else {
+      setBookedSlots([]);
+    }
+  }, [bookingStation, selectedDate]);
+
+  // Проверяем доступность выбранного времени при изменении длительности
+  useEffect(() => {
+    if (selectedTime && selectedDate && !isTimeSlotAvailable(selectedTime, selectedDuration)) {
+      // Если выбранное время стало недоступным, сбрасываем выбор
+      setSelectedTime('');
+    }
+  }, [selectedDuration, bookedSlots]);
 
   // Подтвердить бронирование
   const confirmBooking = async () => {
@@ -1190,15 +1392,45 @@ export default function MapPage() {
     setIsProcessingBooking(true);
 
     try {
-      // Имитация процесса бронирования
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Находим коннектор станции (берем первый доступный)
+      const connector = bookingStation.connectors?.[0];
+      
+      if (!connector) {
+        alert('❌ У станции нет доступных коннекторов');
+        setIsProcessingBooking(false);
+        return;
+      }
 
-      // Списываем депозит
+      // Формируем дату и время начала
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+      const startDateTime = new Date(selectedDate);
+      startDateTime.setHours(hours, minutes, 0, 0);
+
+      // Отправляем запрос на создание бронирования
+      const response = await fetch('/api/user/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          connectorId: connector.id,
+          startTime: startDateTime.toISOString(),
+          duration: selectedDuration
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка при создании бронирования');
+      }
+
+      // Обновляем баланс пользователя
       setUserBalance(prev => prev - 100);
 
-      // Создаем объект бронирования
+      // Создаем объект бронирования для отображения
       const booking = {
-        id: Date.now().toString(),
+        id: data.booking.id,
         station: bookingStation,
         date: selectedDate,
         time: selectedTime,
@@ -1210,8 +1442,8 @@ export default function MapPage() {
       setCurrentBooking(booking);
       setBookingSuccess(true);
 
-    } catch (error) {
-      alert('❌ Ошибка при создании бронирования. Попробуйте еще раз.');
+    } catch (error: any) {
+      alert(`❌ ${error.message || 'Ошибка при создании бронирования. Попробуйте еще раз.'}`);
     } finally {
       setIsProcessingBooking(false);
     }
@@ -2262,11 +2494,20 @@ export default function MapPage() {
                             {/* Time Slots */}
                             <div className="mb-2">
                               <div className="text-white text-sm font-medium mb-3 text-center">
-                                Доступные слоты: {getAvailableTimeSlots().filter(time => isTimeSlotAvailable(time, selectedDuration)).length}
+                                {isLoadingSlots ? (
+                                  <span className="text-gray-400">Загрузка доступных слотов...</span>
+                                ) : (
+                                  <>Доступные слоты: {getAvailableTimeSlots().filter(time => isTimeSlotAvailable(time, selectedDuration)).length}</>
+                                )}
                               </div>
                             </div>
-                            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
-                              {getAvailableTimeSlots().map((time) => {
+                            {isLoadingSlots ? (
+                              <div className="flex items-center justify-center py-8">
+                                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400"></div>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
+                                {getAvailableTimeSlots().map((time) => {
                                 const isSelected = selectedTime === time;
                                 const isAvailable = isTimeSlotAvailable(time, selectedDuration);
                                 
@@ -2318,21 +2559,28 @@ export default function MapPage() {
                                   </button>
                                 );
                               })}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
                     </div>
 
                     {/* Deposit Info */}
-                    <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-3 mb-4">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className="text-yellow-400 text-sm">💰</span>
-                        <span className="text-white font-medium text-xs">Депозит</span>
+                    <div className="bg-[#0a1f1a] border border-emerald-900/30 rounded-lg p-4 mb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-5 h-5 mt-0.5">
+                          <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-white font-medium text-sm mb-1">Депозит</h4>
+                          <p className="text-gray-400 text-sm">
+                            100 сом будет списано при подтверждении
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-yellow-100 text-xs">
-                        100 сом будет списано при подтверждении
-                      </p>
                     </div>
 
                     {/* Balance Info */}
@@ -2435,21 +2683,14 @@ export default function MapPage() {
                       <div className="space-y-2">
                         <button
                           onClick={() => {
-                            closeBookingModal();
+                            router.push('/bookings');
                           }}
                           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-semibold transition text-sm"
                         >
-                          Начать зарядку
+                          Мои брони
                         </button>
                         
                         <div className="flex gap-2">
-                          <button
-                            onClick={cancelBooking}
-                            className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-medium transition text-xs"
-                          >
-                            Отменить
-                          </button>
-                          
                           <button
                             onClick={closeBookingModal}
                             className="flex-1 bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-white py-2.5 rounded-xl font-medium transition border border-emerald-900/30 text-xs"
