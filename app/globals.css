@@ -93,3 +93,56 @@ body {
 .react-modal-sheet-drag-indicator {
   background-color: #ffffff !important;
 }
+
+/* Custom Date Picker Styling - Dark Green Theme */
+.custom-date-input {
+  color-scheme: dark;
+  position: relative;
+}
+
+.custom-date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.8) sepia(1) saturate(5) hue-rotate(100deg);
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.custom-date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Date input text styling */
+.custom-date-input::-webkit-datetime-edit {
+  color: #ffffff;
+  padding: 0;
+}
+
+.custom-date-input::-webkit-datetime-edit-fields-wrapper {
+  color: #ffffff;
+}
+
+.custom-date-input::-webkit-datetime-edit-text {
+  color: #6b7280;
+  padding: 0 2px;
+}
+
+.custom-date-input::-webkit-datetime-edit-month-field,
+.custom-date-input::-webkit-datetime-edit-day-field,
+.custom-date-input::-webkit-datetime-edit-year-field {
+  color: #ffffff;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.custom-date-input::-webkit-datetime-edit-month-field:focus,
+.custom-date-input::-webkit-datetime-edit-day-field:focus,
+.custom-date-input::-webkit-datetime-edit-year-field:focus {
+  background-color: #10b981;
+  color: #ffffff;
+  outline: none;
+}
+
+/* Calendar popup styling for Chrome/Edge */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-image: none;
+}

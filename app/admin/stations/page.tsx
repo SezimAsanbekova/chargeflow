@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Plus, Edit, Trash2, Power, Zap, Search, Filter, Calendar, X } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2, Power, Zap, Search, Filter, X } from 'lucide-react';
 import Link from 'next/link';
+import CustomDatePicker from '../components/CustomDatePicker';
 
 interface Connector {
   id: string;
@@ -268,15 +269,10 @@ export default function AdminStationsPage() {
                 <label className="block text-gray-300 text-sm mb-2">
                   Дата создания с
                 </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                  <input
-                    type="date"
-                    value={filters.dateFrom}
-                    onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white focus:border-emerald-500 focus:outline-none text-sm"
-                  />
-                </div>
+                <CustomDatePicker
+                  value={filters.dateFrom}
+                  onChange={(date) => setFilters({ ...filters, dateFrom: date })}
+                />
               </div>
 
               {/* Date To */}
@@ -284,15 +280,10 @@ export default function AdminStationsPage() {
                 <label className="block text-gray-300 text-sm mb-2">
                   Дата создания до
                 </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                  <input
-                    type="date"
-                    value={filters.dateTo}
-                    onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white focus:border-emerald-500 focus:outline-none text-sm"
-                  />
-                </div>
+                <CustomDatePicker
+                  value={filters.dateTo}
+                  onChange={(date) => setFilters({ ...filters, dateTo: date })}
+                />
               </div>
             </div>
           </div>

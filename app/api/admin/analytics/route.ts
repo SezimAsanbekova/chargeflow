@@ -70,6 +70,21 @@ export async function GET(request: NextRequest) {
 
     console.log('Found sessions:', sessions.length);
     
+    // Get payments in date range for revenue calculation
+    const payments = await prisma.payment.findMany({
+      where: {
+        createdAt: {
+          gte: startDate,
+        },
+        status: 'success', // Only count successful payments
+      },
+      select: {
+        amount: true,
+      },
+    });
+
+    console.log('Found successful payments:', payments.length);
+    
     // Also get all sessions to check if there are any
     const allSessions = await prisma.chargingSession.count();
     console.log('Total sessions in database:', allSessions);
@@ -83,7 +98,14 @@ export async function GET(request: NextRequest) {
     // Calculate statistics
     const totalSessions = sessions.length;
     const totalEnergy = sessions.reduce((sum, s) => sum + Number(s.energyKwh), 0);
-    const totalRevenue = sessions.reduce((sum, s) => sum + Number(s.costTotal), 0);
+    // Calculate revenue from successful payments instead of session costs
+    const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    
+    console.log('Analytics calculation:');
+    console.log('- Total sessions:', totalSessions);
+    console.log('- Total energy:', totalEnergy);
+    console.log('- Total revenue (from payments):', totalRevenue);
+    console.log('- Sample payments:', payments.slice(0, 3).map(p => ({ amount: p.amount })));
     
     // Get unique users count in period
     const uniqueUsersInPeriod = new Set(sessions.map(s => s.userId)).size;

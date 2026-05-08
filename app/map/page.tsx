@@ -11,6 +11,7 @@ import { Maximize2, Navigation, Plus, Minus, X, MapPin, List, Wallet, User, Slid
 import { NavigationPanel } from './components/NavigationPanel';
 import { NavigationSimulator } from './components/NavigationSimulator';
 import { SimulationControls } from './components/SimulationControls';
+import { getVoiceNavigator } from './utils/voiceNavigator';
 
 interface Station {
   id: string;
@@ -743,7 +744,6 @@ export default function MapPage() {
     setCurrentStepIndex(0);
 
     // Объявляем начало навигации голосом
-    const { getVoiceNavigator } = require('./utils/voiceNavigator');
     const voiceNavigator = getVoiceNavigator();
     voiceNavigator.announceNavigationStart(selectedStation.name);
 
@@ -807,7 +807,6 @@ export default function MapPage() {
         setDistanceToCurrentStep(distanceToStep);
         
         // Голосовые подсказки
-        const { getVoiceNavigator } = require('./utils/voiceNavigator');
         const voiceNavigator = getVoiceNavigator();
         voiceNavigator.announceManeuver(
           currentStepIdx,
@@ -880,7 +879,6 @@ export default function MapPage() {
     const estimatedDuration = routeInfo?.durationInTraffic || routeInfo?.duration || 0;
 
     // Объявляем прибытие голосом
-    const { getVoiceNavigator } = require('./utils/voiceNavigator');
     const voiceNavigator = getVoiceNavigator();
     voiceNavigator.announceArrival(selectedStation.name);
 
@@ -986,7 +984,6 @@ export default function MapPage() {
     setDistanceToCurrentStep(0);
     
     // Объявляем завершение навигации
-    const { getVoiceNavigator } = require('./utils/voiceNavigator');
     const voiceNavigator = getVoiceNavigator();
     voiceNavigator.announceNavigationEnd();
     voiceNavigator.reset();
@@ -1032,7 +1029,6 @@ export default function MapPage() {
     const estimatedDuration = routeInfo?.durationInTraffic || routeInfo?.duration || 0;
 
     // Объявляем прибытие голосом
-    const { getVoiceNavigator } = require('./utils/voiceNavigator');
     const voiceNavigator = getVoiceNavigator();
     voiceNavigator.announceArrival(selectedStation.name);
 
