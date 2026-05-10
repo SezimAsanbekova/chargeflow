@@ -2,18 +2,20 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## 🚗 EV Charging Station Platform with Navigation Simulator
 
-A comprehensive electric vehicle charging station platform with an advanced navigation test-drive feature.
+A comprehensive electric vehicle charging station platform with an advanced navigation test-drive feature and **Progressive Web App (PWA)** support.
 
 ### ✨ Key Features
 
 - 🗺️ **Interactive Map** - Browse charging stations on an interactive map
 - 🧭 **Navigation Simulator** - Test drive routes without real GPS (2GIS-style)
-- 🔊 **Voice Guidance** - Automatic voice instructions in Russian
+- 🔊 **Voice Guidance** - Automatic voice instructions in Russian ✅ **FIXED: Now correctly announces left/right turns**
 - ⚡ **Real-time Updates** - Live distance and time updates
 - 🎮 **Speed Control** - Adjustable simulation speed (10-60 km/h)
 - 📍 **Turn-by-Turn Directions** - Clear visual and audio instructions
 - 🔋 **Station Management** - Browse, filter, and book charging stations
 - 💳 **Balance Management** - Top-up and track charging costs
+- 👨‍💼 **Admin Panel** - Comprehensive management system for administrators
+- 📱 **PWA Support** - Install as native app, work offline, fast loading
 
 ### 🎯 Navigation Test Drive
 
@@ -46,12 +48,39 @@ Use the control panel to play/pause/reset
 ```
 
 For detailed instructions, see:
+- 📱 **[PWA Installation Guide](PWA_УСТАНОВКА.md)** - Quick PWA installation guide (Russian)
+- 📱 **[PWA Complete Guide](PWA_GUIDE.md)** - Complete PWA documentation
 - 📖 [Quick Start Guide](QUICKSTART_NAVIGATION.md) - Get started in 60 seconds
 - 📚 [User Guide (Russian)](NAVIGATION_GUIDE_RU.md) - Complete user documentation
 - 🔧 [Developer Notes](app/map/DEVELOPER_NOTES.md) - Technical documentation
 - 💻 [API Examples](app/map/API_EXAMPLES.md) - Code examples
+- 👨‍💼 [Admin Panel Guide](ADMIN_PANEL_GUIDE.md) - Complete admin panel documentation
+- 📋 [Admin Panel (Russian)](АДМИН_ПАНЕЛЬ.md) - Quick admin guide in Russian
+- ✅ [Voice Timing Fix](VOICE_TIMING_FIX.md) - Latest fix for announcement timing
+- ✅ [Voice Debug Guide](VOICE_DEBUG_INSTRUCTIONS.md) - Debugging voice navigation
+- ✅ [Voice Fix (Russian)](ГОЛОСОВОЙ_НАВИГАТОР_ИСПРАВЛЕН.md) - Voice navigation fix details
+- 🔧 [Voice Directions Fix](VOICE_DIRECTIONS_FIX.md) - Technical details of the fix
 
 ## Getting Started
+
+### 📱 Install as PWA (Recommended)
+
+ChargeFlow supports Progressive Web App installation for the best experience:
+
+**Benefits:**
+- ✅ Install on home screen
+- ✅ Work offline
+- ✅ Fast loading with caching
+- ✅ Native app experience
+- ✅ Automatic updates
+
+**Quick Install:**
+- **Android/Desktop**: Click "Install" banner or browser menu → "Install ChargeFlow"
+- **iOS**: Safari → Share → "Add to Home Screen"
+
+See [PWA_УСТАНОВКА.md](PWA_УСТАНОВКА.md) for detailed instructions.
+
+### 💻 Run Development Server
 
 First, run the development server:
 
@@ -82,6 +111,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - **UI Components**: Custom + Lucide Icons
 - **Navigation**: OSRM API
 - **Voice**: Web Speech API
+- **PWA**: next-pwa with Workbox
 
 ## 🏗️ Project Structure
 
@@ -104,6 +134,57 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ```
 
 ## 🚀 Features in Detail
+
+### 👨‍💼 Admin Panel
+
+The platform includes a comprehensive admin panel for managing the entire system:
+
+**Access**: `/admin/signin` (Two-factor authentication via Telegram)
+
+**Features:**
+- 📊 **Dashboard** - Overview with key statistics (users, stations, bookings, revenue)
+- 📈 **Analytics** - Detailed statistics with PDF export (sessions, energy, revenue by period)
+- 👥 **Users** - User management (search, filter, block/unblock, view history)
+- 📍 **Stations** - Station management (add, edit, delete, filter by status/date)
+- 📅 **Bookings** - View and manage all bookings (active, completed, cancelled)
+- 💰 **Finance** - Financial tracking with CSV export (payments, revenue, transactions)
+- ⚙️ **Settings** - System configuration (Telegram, Email, Payments, System settings)
+
+**Security:**
+- Two-factor authentication (Email + Telegram code)
+- Role-based access control
+- Protected routes
+- Session management
+
+**See**: [ADMIN_PANEL_GUIDE.md](ADMIN_PANEL_GUIDE.md) for complete documentation or [АДМИН_ПАНЕЛЬ.md](АДМИН_ПАНЕЛЬ.md) for quick guide in Russian.
+
+### 🆕 Recent Fixes (May 9, 2026)
+
+#### ✅ Voice Navigation Timing Fixed (Latest)
+Voice announcements now work correctly during navigation:
+- ✅ Announces at **200m, 100m, and 50m** before turns
+- ✅ Works during movement (not just at arrival)
+- ✅ Wider announcement ranges (170-200m, 70-100m, 20-50m)
+- ✅ Detailed console logging for debugging
+
+**What was fixed**: 
+1. Added 200m threshold for earlier warnings
+2. Expanded announcement ranges from 20m to 30m width
+3. Added comprehensive logging to track announcement logic
+
+**See**: [VOICE_TIMING_FIX.md](VOICE_TIMING_FIX.md) for technical details and [VOICE_DEBUG_INSTRUCTIONS.md](VOICE_DEBUG_INSTRUCTIONS.md) for debugging guide.
+
+#### ✅ Voice Navigation Directions Fixed
+The voice navigator now correctly announces all turn directions:
+- ✅ "Turn left" / "Turn right" - works correctly
+- ✅ "Sharp turn left/right" - works correctly  
+- ✅ "Slight turn left/right" - works correctly
+- ✅ "At the end of the road turn left/right" - works correctly
+- ✅ "Continue straight" - works correctly
+
+**What was fixed**: The `formatInstruction()` method in `voiceNavigator.ts` was missing handlers for turn instructions. Now all turn types are properly processed and announced.
+
+**See**: [ГОЛОСОВОЙ_НАВИГАТОР_ИСПРАВЛЕН.md](ГОЛОСОВОЙ_НАВИГАТОР_ИСПРАВЛЕН.md) for user guide (Russian) or [VOICE_DIRECTIONS_FIX.md](VOICE_DIRECTIONS_FIX.md) for technical details.
 
 ### Navigation Simulator
 

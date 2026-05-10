@@ -10,7 +10,7 @@ export class VoiceNavigator {
   private isSpeaking: boolean = false;
   private lastAnnouncedStep: number = -1;
   private lastAnnouncedDistance: number = -1;
-  private announcementThresholds = [100, 50]; // Метры для объявлений
+  private announcementThresholds = [200, 100, 50]; // Метры для объявлений
   private isInitialized: boolean = false;
 
   constructor() {
@@ -247,11 +247,13 @@ export class VoiceNavigator {
     distanceToStep: number
   ): void {
     if (!this.isEnabled || !this.synthesis) {
+      console.log('[Voice] Skipping: voice disabled or synthesis unavailable');
       return;
     }
 
     // Если уже говорит - не перебиваем
     if (this.isSpeakingNow()) {
+      console.log('[Voice] Skipping: already speaking');
       return;
     }
 
@@ -262,11 +264,14 @@ export class VoiceNavigator {
     );
 
     if (!shouldAnnounce) {
+      console.log(`[Voice] Skipping: step=${stepIndex}, distance=${Math.round(distanceToStep)}m, lastStep=${this.lastAnnouncedStep}, lastDist=${this.lastAnnouncedDistance}m`);
       return;
     }
 
     // Формируем текст объявления
     const announcement = this.formatAnnouncement(instruction, distanceToStep);
+    
+    console.log(`[Voice] ✅ Announcing: step=${stepIndex}, distance=${Math.round(distanceToStep)}m, text="${announcement}"`);
     
     // Запоминаем, что объявили
     this.lastAnnouncedStep = stepIndex;
@@ -283,28 +288,45 @@ export class VoiceNavigator {
     stepIndex: number,
     distanceToStep: number
   ): boolean {
+    console.log(`[Voice] Checking: step=${stepIndex}, distance=${Math.round(distanceToStep)}m, lastStep=${this.lastAnnouncedStep}, lastDist=${this.lastAnnouncedDistance}m`);
+    
     // Если это новый шаг
     if (stepIndex !== this.lastAnnouncedStep) {
+      console.log('[Voice] New step detected');
+      
       // Объявляем, если расстояние в пределах порогов
+      // Используем более широкий диапазон: threshold-30 до threshold
       for (const threshold of this.announcementThresholds) {
-        if (distanceToStep <= threshold && distanceToStep > threshold - 20) {
+        if (distanceToStep <= threshold && distanceToStep > threshold - 30) {
+          console.log(`[Voice] ✅ Within threshold ${threshold}m (range: ${threshold-30}-${threshold}m)`);
           return true;
         }
       }
-      // Или если очень близко (меньше 20м) - объявляем сразу
-      if (distanceToStep <= 20) {
+      
+      // Или если очень близко (меньше 30м) - объявляем сразу
+      if (distanceToStep <= 30) {
+        console.log('[Voice] ✅ Very close (<30m)');
         return true;
       }
+      
+      console.log('[Voice] ❌ New step but distance not in announcement range');
     } else {
       // Если тот же шаг - проверяем, не пора ли объявить снова
-      // (например, было 100м, теперь 50м)
+      // (например, было 200м, теперь 100м, потом 50м)
       const currentThreshold = Math.floor(distanceToStep / 10) * 10;
+      
+      console.log(`[Voice] Same step, currentThreshold=${currentThreshold}m`);
+      
       if (currentThreshold !== this.lastAnnouncedDistance) {
         for (const threshold of this.announcementThresholds) {
-          if (distanceToStep <= threshold && distanceToStep > threshold - 20) {
+          if (distanceToStep <= threshold && distanceToStep > threshold - 30) {
+            console.log(`[Voice] ✅ Distance changed, within threshold ${threshold}m`);
             return true;
           }
         }
+        console.log('[Voice] ❌ Distance changed but not in announcement range');
+      } else {
+        console.log('[Voice] ❌ Same distance threshold');
       }
     }
 
@@ -350,7 +372,7 @@ export class VoiceNavigator {
       return 'начинайте движение';
     }
 
-    if (lower.includes('прибыли') || lower.includes('прибытие')) {
+    if (lower.includes('прибыли') || lower.includes('прибытие') || lower.includes('место назначения')) {
       return 'вы прибыли к месту назначения';
     }
 
@@ -358,6 +380,33 @@ export class VoiceNavigator {
       return 'круговое движение';
     }
 
+    // Обработка поворотов - ВАЖНО: проверяем в правильном порядке
+    // Сначала проверяем "налево", потом "направо", чтобы избежать путаницы
+    if (lower.includes('налево')) {
+      if (lower.includes('резко')) {
+        return 'резко поверните налево';
+      } else if (lower.includes('слегка')) {
+        return 'поверните слегка налево';
+      } else if (lower.includes('конце дороги')) {
+        return 'в конце дороги поверните налево';
+      } else {
+        return 'поверните налево';
+      }
+    }
+
+    if (lower.includes('направо')) {
+      if (lower.includes('резко')) {
+        return 'резко поверните направо';
+      } else if (lower.includes('слегка')) {
+        return 'поверните слегка направо';
+      } else if (lower.includes('конце дороги')) {
+        return 'в конце дороги поверните направо';
+      } else {
+        return 'поверните направо';
+      }
+    }
+
+    // Обработка развилок
     if (lower.includes('развилк')) {
       if (lower.includes('лев')) {
         return 'на развилке держитесь левее';
@@ -365,6 +414,11 @@ export class VoiceNavigator {
         return 'на развилке держитесь правее';
       }
       return 'развилка';
+    }
+
+    // Обработка прямого движения
+    if (lower.includes('прямо') || lower.includes('продолжайте')) {
+      return 'продолжайте движение прямо';
     }
 
     // Возвращаем как есть, но в нижнем регистре для естественности

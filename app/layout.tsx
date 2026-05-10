@@ -16,6 +16,42 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ChargeFlow - Зарядные станции для электромобилей",
   description: "Найдите и забронируйте зарядные станции для вашего электромобиля",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ChargeFlow",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "ChargeFlow",
+    title: "ChargeFlow - Зарядные станции для электромобилей",
+    description: "Найдите и забронируйте зарядные станции для вашего электромобиля",
+  },
+  twitter: {
+    card: "summary",
+    title: "ChargeFlow - Зарядные станции для электромобилей",
+    description: "Найдите и забронируйте зарядные станции для вашего электромобиля",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+    viewportFit: "cover",
+  },
 };
 
 export default function RootLayout({
@@ -28,6 +64,17 @@ export default function RootLayout({
       lang="ru"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <meta name="application-name" content="ChargeFlow" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="ChargeFlow" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#10b981" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
       </body>
