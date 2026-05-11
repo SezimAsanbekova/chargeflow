@@ -11,6 +11,7 @@ interface Connector {
   type: string;
   powerKw: number;
   pricePerKwh: number;
+  pricePerMinute?: number;
   status: string;
 }
 
@@ -162,6 +163,32 @@ export default function AdminStationsPage() {
         return 'Обслуживание';
       case 'inactive':
         return 'Отключена';
+      default:
+        return status;
+    }
+  };
+
+  const getConnectorStatusIcon = (status: string) => {
+    switch (status) {
+      case 'available':
+        return '🟢';
+      case 'busy':
+        return '🟡';
+      case 'maintenance':
+        return '🔴';
+      default:
+        return '⚪';
+    }
+  };
+
+  const getConnectorStatusText = (status: string) => {
+    switch (status) {
+      case 'available':
+        return 'Свободен';
+      case 'busy':
+        return 'Занят';
+      case 'maintenance':
+        return 'Обслуживание';
       default:
         return status;
     }
@@ -363,27 +390,40 @@ export default function AdminStationsPage() {
                   {station.address}
                 </p>
 
-                {/* Connectors */}
-                <div className="flex items-center gap-4 text-sm">
+                {/* Connectors Summary */}
+                <div className="flex items-center gap-4 text-sm mb-3">
                   <div className="flex items-center gap-2 text-emerald-400">
                     <Zap size={16} />
-                    <span>{station._count.connectors} разъёмов</span>
+                    <span>{station.connectors.length} коннектор(ов)</span>
                   </div>
+                  {station.connectors.length > 0 && (
+                    <div className="flex items-center gap-1 text-gray-400">
+                      <span>{station.connectors.filter(c => c.status === 'available').length} свободно</span>
+                    </div>
+                  )}
                 </div>
 
-                {/* Connector Types */}
+                {/* Connectors Details */}
                 {station.connectors.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-emerald-900/30">
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from(
-                        new Set(station.connectors.map((c) => c.type))
-                      ).map((type) => (
-                        <span
-                          key={type}
-                          className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-xs rounded"
+                    <div className="space-y-2">
+                      {station.connectors.map((connector, idx) => (
+                        <div
+                          key={connector.id}
+                          className="flex items-center justify-between text-xs bg-[#0a1f1a] rounded-lg p-2"
                         >
-                          {type}
-                        </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{getConnectorStatusIcon(connector.status)}</span>
+                            <span className="text-white font-medium">{connector.type}</span>
+                            <span className="text-gray-400">•</span>
+                            <span className="text-gray-400">{Number(connector.powerKw)} кВт</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-400">
+                              {Number(connector.pricePerMinute || connector.pricePerKwh || 0)} сом/мин
+                            </span>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>

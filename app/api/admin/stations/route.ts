@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 // GET - Получить список всех станций
 export async function GET(request: NextRequest) {
   try {
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
 
     if (!adminToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 // POST - Создать новую станцию
 export async function POST(request: NextRequest) {
   try {
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
 
     if (!adminToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

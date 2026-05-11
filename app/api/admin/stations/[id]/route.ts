@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { id } = await params;
     
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
 
     if (!adminToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -52,7 +52,7 @@ export async function PUT(
   try {
     const { id } = await params;
     
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
 
     if (!adminToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -134,7 +134,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    const adminToken = request.cookies.get('admin-token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value;
 
     if (!adminToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -184,13 +184,14 @@ enum StationStatus {
 // 🔌 5. CONNECTORS (Разъёмы)
 // ============================================
 model Connector {
-  id          String          @id @default(uuid()) @db.Uuid
-  stationId   String          @map("station_id") @db.Uuid
-  type        ConnectorType
-  powerKw     Decimal         @map("power_kw") @db.Decimal(5, 2)
-  pricePerKwh Decimal         @map("price_per_kwh") @db.Decimal(6, 2)
-  status      ConnectorStatus @default(available)
-  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  id            String          @id @default(uuid()) @db.Uuid
+  stationId     String          @map("station_id") @db.Uuid
+  type          ConnectorType
+  powerKw       Decimal         @map("power_kw") @db.Decimal(5, 2)
+  pricePerKwh   Decimal         @map("price_per_kwh") @db.Decimal(6, 2)
+  pricePerMinute Decimal        @map("price_per_minute") @db.Decimal(6, 2) @default(0)
+  status        ConnectorStatus @default(available)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
 
   // Relations
   station          Station           @relation(fields: [stationId], references: [id], onDelete: Cascade)
@@ -210,7 +211,7 @@ enum ConnectorType {
 enum ConnectorStatus {
   available
   busy
-  broken
+  maintenance
 }
 
 // ============================================

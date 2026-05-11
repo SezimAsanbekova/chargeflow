@@ -13,7 +13,8 @@ import {
   LogOut,
   BarChart3,
   Menu,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 import { useState } from 'react';
 import AdminHeader from './components/AdminHeader';
@@ -45,6 +46,7 @@ export default function AdminLayout({
     { name: 'Пользователи', href: '/admin/users', icon: Users },
     { name: 'Станции', href: '/admin/stations', icon: MapPin },
     { name: 'Бронирования', href: '/admin/bookings', icon: Calendar },
+    { name: 'Сессии', href: '/admin/sessions', icon: Zap },
     { name: 'Финансы', href: '/admin/finance', icon: DollarSign },
     { name: 'Настройки', href: '/admin/settings', icon: Settings },
   ];

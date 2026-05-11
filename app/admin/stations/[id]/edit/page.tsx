@@ -11,7 +11,7 @@ interface Connector {
   id?: string;
   type: string;
   powerKw: number;
-  pricePerKwh: number;
+  pricePerMinute: number;
   status: string;
 }
 
@@ -55,22 +55,8 @@ export default function EditStationPage() {
     workingHours: '24/7',
   });
 
-  const [connectors, setConnectors] = useState<{
-    CCS2: boolean;
-    CHAdeMO: boolean;
-    Type2: boolean;
-    GB_T: boolean;
-  }>({
-    CCS2: false,
-    CHAdeMO: false,
-    Type2: false,
-    GB_T: false,
-  });
-
-  const [connectorSettings, setConnectorSettings] = useState({
-    powerKw: '50',
-    pricePerKwh: '15',
-  });
+  // Новая структура для коннекторов - массив с индивидуальными настройками
+  const [connectors, setConnectors] = useState<Connector[]>([]);
 
   useEffect(() => {
     fetchStation();
@@ -101,21 +87,23 @@ export default function EditStationPage() {
           workingHours: st.workingHours?.schedule || '24/7',
         });
 
-        // Устанавливаем выбранные разъёмы
-        const selectedTypes = st.connectors.map((c: Connector) => c.type);
-        setConnectors({
-          CCS2: selectedTypes.includes('CCS2'),
-          CHAdeMO: selectedTypes.includes('CHAdeMO'),
-          Type2: selectedTypes.includes('Type2'),
-          GB_T: selectedTypes.includes('GB_T'),
-        });
-
-        // Берем настройки из первого разъёма
-        if (st.connectors.length > 0) {
-          setConnectorSettings({
-            powerKw: st.connectors[0].powerKw.toString(),
-            pricePerKwh: st.connectors[0].pricePerKwh.toString(),
-          });
+        // Загружаем существующие коннекторы
+        if (st.connectors && st.connectors.length > 0) {
+          setConnectors(st.connectors.map((c: any) => ({
+            id: c.id,
+            type: c.type,
+            powerKw: Number(c.powerKw),
+            pricePerMinute: Number(c.pricePerMinute || c.pricePerKwh || 0),
+            status: c.status,
+          })));
+        } else {
+          // Если нет коннекторов, добавляем один по умолчанию
+          setConnectors([{
+            type: 'CCS2',
+            powerKw: 50,
+            pricePerMinute: 14,
+            status: 'available',
+          }]);
         }
       }
     } catch (error) {
@@ -125,24 +113,49 @@ export default function EditStationPage() {
     }
   };
 
+  // Функции для управления коннекторами
+  const addConnector = () => {
+    if (connectors.length >= 6) {
+      setError('Максимум 6 коннекторов на станцию');
+      return;
+    }
+    setConnectors([
+      ...connectors,
+      {
+        type: 'CCS2',
+        powerKw: 50,
+        pricePerMinute: 14,
+        status: 'available',
+      },
+    ]);
+  };
+
+  const removeConnector = (index: number) => {
+    if (connectors.length <= 1) {
+      setError('Минимум 1 коннектор на станцию');
+      return;
+    }
+    setConnectors(connectors.filter((_, i) => i !== index));
+  };
+
+  const updateConnector = (index: number, field: keyof Connector, value: any) => {
+    const updated = [...connectors];
+    updated[index] = { ...updated[index], [field]: value };
+    setConnectors(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSaving(true);
 
     try {
-      // Формируем массив выбранных разъёмов
-      const selectedConnectors = Object.entries(connectors)
-        .filter(([_, selected]) => selected)
-        .map(([type]) => ({
-          type,
-          powerKw: parseFloat(connectorSettings.powerKw) || 0,
-          pricePerKwh: parseFloat(connectorSettings.pricePerKwh) || 0,
-          status: 'available',
-        }));
+      if (connectors.length === 0) {
+        throw new Error('Добавьте хотя бы один коннектор');
+      }
 
-      if (selectedConnectors.length === 0) {
-        throw new Error('Выберите хотя бы один тип разъёма');
+      if (connectors.length > 6) {
+        throw new Error('Максимум 6 коннекторов на станцию');
       }
 
       const response = await fetch(`/api/admin/stations/${stationId}`, {
@@ -153,7 +166,13 @@ export default function EditStationPage() {
           latitude: parseFloat(formData.latitude),
           longitude: parseFloat(formData.longitude),
           workingHours: { schedule: formData.workingHours },
-          connectors: selectedConnectors,
+          connectors: connectors.map(c => ({
+            type: c.type,
+            powerKw: c.powerKw,
+            pricePerMinute: c.pricePerMinute,
+            pricePerKwh: 0, // Для совместимости
+            status: c.status,
+          })),
         }),
       });
 
@@ -190,10 +209,6 @@ export default function EditStationPage() {
       console.error('Error deleting station:', error);
       alert('Ошибка при удалении станции');
     }
-  };
-
-  const toggleConnector = (type: keyof typeof connectors) => {
-    setConnectors({ ...connectors, [type]: !connectors[type] });
   };
 
   // Инициализация карты
@@ -576,137 +591,119 @@ export default function EditStationPage() {
 
           {/* Connectors */}
           <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-xl p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Разъёмы</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-white">
+                Коннекторы ({connectors.length}/6)
+              </h2>
+              <button
+                type="button"
+                onClick={addConnector}
+                disabled={connectors.length >= 6}
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition text-sm flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Добавить коннектор
+              </button>
+            </div>
 
             <div className="space-y-4">
-              {/* Connector Types */}
-              <div>
-                <label className="block text-gray-300 mb-3 text-sm">
-                  Типы разъёмов *
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center gap-3 p-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg cursor-pointer hover:border-emerald-500 transition group">
-                    <div className="relative flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={connectors.CCS2}
-                        onChange={() => toggleConnector('CCS2')}
-                        className="sr-only peer"
-                      />
-                      <div className="w-5 h-5 rounded border-2 border-gray-600 peer-checked:border-emerald-500 peer-checked:bg-emerald-500 transition flex items-center justify-center">
-                        {connectors.CCS2 && (
-                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-white group-hover:text-emerald-400 transition">CCS2</span>
-                  </label>
+              {connectors.map((connector, index) => (
+                <div
+                  key={index}
+                  className="bg-[#0a1f1a] border border-emerald-900/30 rounded-lg p-4"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white font-medium">
+                      Коннектор #{index + 1}
+                    </h3>
+                    {connectors.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeConnector(index)}
+                        className="text-red-400 hover:text-red-300 transition"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
 
-                  <label className="flex items-center gap-3 p-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg cursor-pointer hover:border-emerald-500 transition group">
-                    <div className="relative flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={connectors.CHAdeMO}
-                        onChange={() => toggleConnector('CHAdeMO')}
-                        className="sr-only peer"
-                      />
-                      <div className="w-5 h-5 rounded border-2 border-gray-600 peer-checked:border-emerald-500 peer-checked:bg-emerald-500 transition flex items-center justify-center">
-                        {connectors.CHAdeMO && (
-                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Тип коннектора */}
+                    <div>
+                      <label className="block text-gray-300 mb-2 text-sm">
+                        Тип разъёма *
+                      </label>
+                      <select
+                        value={connector.type}
+                        onChange={(e) => updateConnector(index, 'type', e.target.value)}
+                        className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
+                      >
+                        <option value="CCS2">CCS2</option>
+                        <option value="CHAdeMO">CHAdeMO</option>
+                        <option value="Type2">Type 2</option>
+                        <option value="GB_T">GB/T</option>
+                      </select>
                     </div>
-                    <span className="text-white group-hover:text-emerald-400 transition">CHAdeMO</span>
-                  </label>
 
-                  <label className="flex items-center gap-3 p-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg cursor-pointer hover:border-emerald-500 transition group">
-                    <div className="relative flex-shrink-0">
+                    {/* Мощность */}
+                    <div>
+                      <label className="block text-gray-300 mb-2 text-sm">
+                        Мощность (кВт) *
+                      </label>
                       <input
-                        type="checkbox"
-                        checked={connectors.Type2}
-                        onChange={() => toggleConnector('Type2')}
-                        className="sr-only peer"
+                        type="number"
+                        value={connector.powerKw}
+                        onChange={(e) => updateConnector(index, 'powerKw', parseFloat(e.target.value) || 0)}
+                        min="1"
+                        max="350"
+                        required
+                        className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
                       />
-                      <div className="w-5 h-5 rounded border-2 border-gray-600 peer-checked:border-emerald-500 peer-checked:bg-emerald-500 transition flex items-center justify-center">
-                        {connectors.Type2 && (
-                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
                     </div>
-                    <span className="text-white group-hover:text-emerald-400 transition">Type 2</span>
-                  </label>
 
-                  <label className="flex items-center gap-3 p-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg cursor-pointer hover:border-emerald-500 transition group">
-                    <div className="relative flex-shrink-0">
+                    {/* Цена за минуту */}
+                    <div>
+                      <label className="block text-gray-300 mb-2 text-sm">
+                        Цена (сом/мин) *
+                      </label>
                       <input
-                        type="checkbox"
-                        checked={connectors.GB_T}
-                        onChange={() => toggleConnector('GB_T')}
-                        className="sr-only peer"
+                        type="number"
+                        step="0.01"
+                        value={connector.pricePerMinute}
+                        onChange={(e) => updateConnector(index, 'pricePerMinute', parseFloat(e.target.value) || 0)}
+                        min="0"
+                        required
+                        className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
                       />
-                      <div className="w-5 h-5 rounded border-2 border-gray-600 peer-checked:border-emerald-500 peer-checked:bg-emerald-500 transition flex items-center justify-center">
-                        {connectors.GB_T && (
-                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
                     </div>
-                    <span className="text-white group-hover:text-emerald-400 transition">GB/T</span>
-                  </label>
+
+                    {/* Статус */}
+                    <div>
+                      <label className="block text-gray-300 mb-2 text-sm">
+                        Статус *
+                      </label>
+                      <select
+                        value={connector.status}
+                        onChange={(e) => updateConnector(index, 'status', e.target.value)}
+                        className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
+                      >
+                        <option value="available">🟢 Свободен</option>
+                        <option value="busy">🟡 Занят</option>
+                        <option value="maintenance">🔴 Обслуживание</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              {/* Common Settings */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-emerald-900/30">
-                <div>
-                  <label className="block text-gray-300 mb-2 text-sm">
-                    Мощность (кВт) *
-                  </label>
-                  <input
-                    type="number"
-                    value={connectorSettings.powerKw}
-                    onChange={(e) =>
-                      setConnectorSettings({
-                        ...connectorSettings,
-                        powerKw: e.target.value,
-                      })
-                    }
-                    required
-                    className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-300 mb-2 text-sm">
-                    Цена (сом/мин) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={connectorSettings.pricePerKwh}
-                    onChange={(e) =>
-                      setConnectorSettings({
-                        ...connectorSettings,
-                        pricePerKwh: e.target.value,
-                      })
-                    }
-                    required
-                    className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <p className="text-gray-500 text-sm">
-                Выбранные разъёмы будут созданы с указанными мощностью и ценой. Цена указывается за минуту зарядки.
-              </p>
+              ))}
             </div>
+
+            <p className="text-gray-500 text-sm mt-4">
+              Добавьте от 1 до 6 коннекторов. Каждый коннектор может иметь свой тип, мощность, цену и статус.
+            </p>
           </div>
 
           {/* Actions */}

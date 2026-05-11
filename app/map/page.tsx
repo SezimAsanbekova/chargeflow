@@ -28,6 +28,7 @@ interface Station {
     type: string;
     powerKw: number;
     pricePerKwh: number;
+    pricePerMinute?: number;
     status: string;
   }>;
 }
@@ -40,11 +41,22 @@ export default function MapPage() {
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [userBalance, setUserBalance] = useState(0);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [selectedConnector, setSelectedConnector] = useState<{
+    id: string;
+    type: string;
+    powerKw: number;
+    pricePerKwh: number;
+    pricePerMinute?: number;
+    status: string;
+  } | null>(null);
   const [showStationSheet, setShowStationSheet] = useState(false);
 
   // Функция для открытия станции в bottom sheet
   const openStationSheet = (station: Station) => {
     setSelectedStation(station);
+    // Автоматически выбираем первый доступный коннектор
+    const availableConnector = station.connectors?.find(c => c.status === 'available');
+    setSelectedConnector(availableConnector || station.connectors?.[0] || null);
     setShowStationSheet(true);
   };
 
@@ -54,6 +66,7 @@ export default function MapPage() {
     // Задержка перед очисткой данных для плавной анимации
     setTimeout(() => {
       setSelectedStation(null);
+      setSelectedConnector(null);
       clearRoute();
     }, 300);
   };
@@ -114,6 +127,7 @@ export default function MapPage() {
   const [selectedDuration, setSelectedDuration] = useState<15 | 30 | 60>(30);
   const [showTimeSelector, setShowTimeSelector] = useState(false);
   const [showDateSelector, setShowDateSelector] = useState(false);
+  const [showConnectorDropdown, setShowConnectorDropdown] = useState(false);
   const [isProcessingBooking, setIsProcessingBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [currentBooking, setCurrentBooking] = useState<any>(null);
@@ -168,6 +182,28 @@ export default function MapPage() {
       });
     }
     
+    // Фильтр по типу разъема
+    if (filters.connectorType.length > 0) {
+      stationsToFilter = stationsToFilter.filter((station) => {
+        // Проверяем основной тип разъема станции
+        if (filters.connectorType.includes(station.connectorType)) {
+          return true;
+        }
+        // Также проверяем разъемы в массиве connectors, если они есть
+        if (station.connectors && station.connectors.length > 0) {
+          return station.connectors.some(connector => 
+            filters.connectorType.includes(connector.type)
+          );
+        }
+        return false;
+      });
+    }
+    
+    // Фильтр по мощности
+    stationsToFilter = stationsToFilter.filter((station) => {
+      return station.maxPowerKw >= filters.minPower && station.maxPowerKw <= filters.maxPower;
+    });
+    
     // Если есть местоположение пользователя, сортируем по расстоянию
     if (userLocation) {
       const stationsWithDistance = stationsToFilter.map(station => {
@@ -186,13 +222,31 @@ export default function MapPage() {
     
     // Если нет местоположения, возвращаем как есть
     return stationsToFilter;
-  }, [stations, searchQuery, userLocation]);
+  }, [stations, searchQuery, userLocation, filters]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/signin');
     }
   }, [status, router]);
+
+  // Закрываем dropdown при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showConnectorDropdown && !target.closest('.connector-dropdown-container')) {
+        setShowConnectorDropdown(false);
+      }
+    };
+
+    if (showConnectorDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showConnectorDropdown]);
 
   // Загружаем станции из API
   useEffect(() => {
@@ -1079,8 +1133,14 @@ export default function MapPage() {
 
   // Функция для начала зарядки
   const startCharging = (station: Station) => {
-    if (station.status !== 'available') {
-      alert('Станция недоступна для зарядки');
+    // Проверяем, что выбран коннектор
+    if (!selectedConnector) {
+      alert('Выберите коннектор для зарядки');
+      return;
+    }
+
+    if (selectedConnector.status !== 'available') {
+      alert('Выбранный коннектор недоступен для зарядки');
       return;
     }
 
@@ -1099,11 +1159,13 @@ export default function MapPage() {
       return;
     }
 
+    const pricePerMin = Number(selectedConnector.pricePerMinute || selectedConnector.pricePerKwh || 0);
+
     const confirmStart = confirm(
       `Начать зарядку на станции "${station.name}"?\n\n` +
-      `Мощность: ${station.maxPowerKw} кВт\n` +
-      `Цена: ${station.pricePerMinute} сом/мин\n` +
-      `Коннектор: ${station.connectorType}\n` +
+      `Коннектор: ${selectedConnector.type}\n` +
+      `Мощность: ${Number(selectedConnector.powerKw)} кВт\n` +
+      `Цена: ${pricePerMin} сом/мин\n` +
       `Ваш баланс: ${userBalance.toFixed(2)} сом`
     );
 
@@ -1112,10 +1174,16 @@ export default function MapPage() {
       setChargingStartTime(Date.now());
       setChargingStationId(station.id);
       
-      // Здесь можно добавить API вызов для начала зарядки
-      // await fetch('/api/charging/start', { method: 'POST', body: JSON.stringify({ stationId: station.id }) });
+      // Здесь можно добавить API вызов для начала зарядки с connectorId
+      // await fetch('/api/charging/start', { 
+      //   method: 'POST', 
+      //   body: JSON.stringify({ 
+      //     stationId: station.id, 
+      //     connectorId: selectedConnector.id 
+      //   }) 
+      // });
       
-      alert(`✅ Зарядка начата на станции "${station.name}"`);
+      alert(`✅ Зарядка начата\nКоннектор: ${selectedConnector.type}\nСтанция: "${station.name}"`);
     }
   };
 
@@ -1124,16 +1192,25 @@ export default function MapPage() {
     if (!chargingStartTime || !chargingStationId) return;
 
     const chargingDuration = (Date.now() - chargingStartTime) / 1000 / 60; // в минутах
-    const selectedStation = stations.find(s => s.id === chargingStationId);
+    const station = stations.find(s => s.id === chargingStationId);
     
-    if (selectedStation) {
-      const cost = chargingDuration * selectedStation.pricePerMinute;
+    if (station) {
+      // Используем цену выбранного коннектора или fallback на цену станции
+      const pricePerMin = selectedConnector 
+        ? Number(selectedConnector.pricePerMinute || selectedConnector.pricePerKwh || 0)
+        : station.pricePerMinute;
+      
+      const cost = chargingDuration * pricePerMin;
+      
+      const connectorInfo = selectedConnector 
+        ? `\n🔌 Коннектор: ${selectedConnector.type}`
+        : '';
       
       const confirmStop = confirm(
         `Завершить зарядку?\n\n` +
         `⏱️ Время зарядки: ${Math.round(chargingDuration)} мин\n` +
         `💰 Стоимость: ${cost.toFixed(2)} сом\n` +
-        `🔋 Станция: ${selectedStation.name}`
+        `🏢 Станция: ${station.name}${connectorInfo}`
       );
 
       if (confirmStop) {
@@ -1150,14 +1227,20 @@ export default function MapPage() {
         setChargingStationId(null);
         
         // Здесь можно добавить API вызов для завершения зарядки
-        // await fetch('/api/charging/stop', { method: 'POST', body: JSON.stringify({ stationId: chargingStationId }) });
+        // await fetch('/api/charging/stop', { 
+        //   method: 'POST', 
+        //   body: JSON.stringify({ 
+        //     stationId: chargingStationId,
+        //     connectorId: selectedConnector?.id 
+        //   }) 
+        // });
         
         alert(
           `🎉 Зарядка завершена!\n\n` +
           `⏱️ Время: ${Math.round(chargingDuration)} мин\n` +
           `💰 Списано: ${cost.toFixed(2)} сом\n` +
           `💳 Остаток на балансе: ${(userBalance - cost).toFixed(2)} сом\n` +
-          `🏢 Станция: ${selectedStation.name}`
+          `🏢 Станция: ${station.name}${connectorInfo}`
         );
       }
     }
@@ -1327,18 +1410,15 @@ export default function MapPage() {
     return true; // Слот свободен
   };
 
-  // Загрузить занятые слоты для выбранной даты
-  const loadBookedSlots = async (stationId: string, date: string) => {
-    if (!date) return;
-
-    const connector = bookingStation?.connectors?.[0];
-    if (!connector) return;
+  // Загрузить занятые слоты для выбранной даты и коннектора
+  const loadBookedSlots = async (stationId: string, connectorId: string) => {
+    if (!selectedDate || !connectorId) return;
 
     setIsLoadingSlots(true);
     
     try {
       const response = await fetch(
-        `/api/stations/${stationId}/available-slots?date=${date}&connectorId=${connector.id}`
+        `/api/stations/${stationId}/available-slots?date=${selectedDate}&connectorId=${connectorId}`
       );
       
       if (response.ok) {
@@ -1356,14 +1436,12 @@ export default function MapPage() {
     }
   };
 
-  // Загружаем занятые слоты при изменении даты или станции
+  // Загружаем занятые слоты при изменении даты или коннектора
   useEffect(() => {
-    if (bookingStation && selectedDate) {
-      loadBookedSlots(bookingStation.id, selectedDate);
-    } else {
-      setBookedSlots([]);
+    if (bookingStation && selectedDate && selectedConnector) {
+      loadBookedSlots(bookingStation.id, selectedConnector.id);
     }
-  }, [bookingStation, selectedDate]);
+  }, [bookingStation, selectedDate, selectedConnector]);
 
   // Проверяем доступность выбранного времени при изменении длительности
   useEffect(() => {
@@ -1380,6 +1458,11 @@ export default function MapPage() {
       return;
     }
 
+    if (!selectedConnector) {
+      alert('Пожалуйста, выберите коннектор');
+      return;
+    }
+
     if (userBalance < 100) {
       alert('Недостаточно средств для депозита (100 сом)');
       return;
@@ -1388,28 +1471,19 @@ export default function MapPage() {
     setIsProcessingBooking(true);
 
     try {
-      // Находим коннектор станции (берем первый доступный)
-      const connector = bookingStation.connectors?.[0];
-      
-      if (!connector) {
-        alert('❌ У станции нет доступных коннекторов');
-        setIsProcessingBooking(false);
-        return;
-      }
-
       // Формируем дату и время начала
       const [hours, minutes] = selectedTime.split(':').map(Number);
       const startDateTime = new Date(selectedDate);
       startDateTime.setHours(hours, minutes, 0, 0);
 
-      // Отправляем запрос на создание бронирования
+      // Отправляем запрос на создание бронирования с выбранным коннектором
       const response = await fetch('/api/user/bookings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          connectorId: connector.id,
+          connectorId: selectedConnector.id,
           startTime: startDateTime.toISOString(),
           duration: selectedDuration
         })
@@ -1428,6 +1502,7 @@ export default function MapPage() {
       const booking = {
         id: data.booking.id,
         station: bookingStation,
+        connector: selectedConnector,
         date: selectedDate,
         time: selectedTime,
         duration: selectedDuration,
@@ -1760,30 +1835,81 @@ export default function MapPage() {
                       </div>
                     )}
 
-                    {/* Station Info */}
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      <div className="bg-[#0a1f1a] rounded-xl p-3">
-                        <div className="text-gray-400 text-xs mb-1">Статус</div>
-                        <div className={`font-semibold text-sm ${
-                          selectedStation.status === 'available' ? 'text-emerald-400' :
-                          selectedStation.status === 'busy' ? 'text-yellow-400' : 'text-red-400'
-                        }`}>
-                          {getStatusText(selectedStation.status)}
+                    {/* Connectors List */}
+                    {selectedStation.connectors && selectedStation.connectors.length > 0 ? (
+                      <div className="mb-4">
+                        <h4 className="text-white font-semibold text-sm mb-2">
+                          Коннекторы ({selectedStation.connectors.length})
+                        </h4>
+                        <div className="space-y-2">
+                          {selectedStation.connectors.map((connector) => {
+                            const isSelected = selectedConnector?.id === connector.id;
+                            const isAvailable = connector.status === 'available';
+                            
+                            return (
+                              <button
+                                key={connector.id}
+                                onClick={() => setSelectedConnector(connector)}
+                                disabled={!isAvailable}
+                                className={`w-full text-left p-3 rounded-xl border-2 transition ${
+                                  isSelected
+                                    ? 'bg-emerald-500/20 border-emerald-500'
+                                    : isAvailable
+                                    ? 'bg-[#0a1f1a] border-emerald-900/30 hover:border-emerald-500/50'
+                                    : 'bg-[#0a1f1a] border-gray-700 opacity-50 cursor-not-allowed'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-white font-semibold text-sm">
+                                      {connector.type}
+                                    </span>
+                                  </div>
+                                  {isSelected && (
+                                    <CheckCircle className="text-emerald-400" size={18} />
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-gray-400">
+                                    {Number(connector.powerKw)} кВт
+                                  </span>
+                                  <span className="text-emerald-400 font-semibold">
+                                    {Number(connector.pricePerMinute || connector.pricePerKwh || 0)} сом/мин
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
-                      <div className="bg-[#0a1f1a] rounded-xl p-3">
-                        <div className="text-gray-400 text-xs mb-1">Мощность</div>
-                        <div className="text-white font-semibold text-sm">{selectedStation.maxPowerKw} кВт</div>
+                    ) : (
+                      /* Fallback для старых станций без коннекторов */
+                      <div className="mb-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-[#0a1f1a] rounded-xl p-3">
+                            <div className="text-gray-400 text-xs mb-1">Статус</div>
+                            <div className={`font-semibold text-sm ${
+                              selectedStation.status === 'available' ? 'text-emerald-400' :
+                              selectedStation.status === 'busy' ? 'text-yellow-400' : 'text-red-400'
+                            }`}>
+                              {getStatusText(selectedStation.status)}
+                            </div>
+                          </div>
+                          <div className="bg-[#0a1f1a] rounded-xl p-3">
+                            <div className="text-gray-400 text-xs mb-1">Мощность</div>
+                            <div className="text-white font-semibold text-sm">{selectedStation.maxPowerKw} кВт</div>
+                          </div>
+                          <div className="bg-[#0a1f1a] rounded-xl p-3">
+                            <div className="text-gray-400 text-xs mb-1">Коннектор</div>
+                            <div className="text-white font-semibold text-sm">{selectedStation.connectorType}</div>
+                          </div>
+                          <div className="bg-[#0a1f1a] rounded-xl p-3">
+                            <div className="text-gray-400 text-xs mb-1">Цена</div>
+                            <div className="text-emerald-400 font-semibold text-sm">{selectedStation.pricePerMinute} сом/мин</div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="bg-[#0a1f1a] rounded-xl p-3">
-                        <div className="text-gray-400 text-xs mb-1">Коннектор</div>
-                        <div className="text-white font-semibold text-sm">{selectedStation.connectorType}</div>
-                      </div>
-                      <div className="bg-[#0a1f1a] rounded-xl p-3">
-                        <div className="text-gray-400 text-xs mb-1">Цена</div>
-                        <div className="text-emerald-400 font-semibold text-sm">{selectedStation.pricePerMinute} сом/мин</div>
-                      </div>
-                    </div>
+                    )}
 
                     {/* Action Buttons */}
                     <div className="space-y-2">
@@ -1810,11 +1936,14 @@ export default function MapPage() {
                           {!isCharging && (
                             <button
                               onClick={() => startCharging(selectedStation)}
-                              disabled={selectedStation.status !== 'available'}
+                              disabled={!selectedConnector || selectedConnector.status !== 'available'}
                               className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-xs"
                             >
                               <Zap size={16} />
-                              <span>{selectedStation.status === 'available' ? 'Зарядка' : 'Недоступно'}</span>
+                              <span>
+                                {!selectedConnector ? 'Выберите коннектор' :
+                                 selectedConnector.status === 'available' ? 'Зарядка' : 'Недоступно'}
+                              </span>
                             </button>
                           )}
                           
@@ -1831,12 +1960,13 @@ export default function MapPage() {
                           <button
                             onClick={() => {
                               openBookingModal(selectedStation);
-                              closeStationSheet();
+                              // Не закрываем окно станции, чтобы пользователь видел выбранный коннектор
                             }}
-                            disabled={selectedStation.status !== 'available' || isCharging}
+                            disabled={!selectedConnector || selectedConnector.status !== 'available' || isCharging}
                             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition text-xs"
                           >
-                            {selectedStation.status === 'available' ? 'Забронировать' : 'Недоступно'}
+                            {!selectedConnector ? 'Выберите коннектор' :
+                             selectedConnector.status === 'available' ? 'Забронировать' : 'Недоступно'}
                           </button>
                         </>
                       ) : (
@@ -1908,25 +2038,40 @@ export default function MapPage() {
             Зарядные станции
           </h2>
           
-          {/* Search Bar Only */}
+          {/* Search Bar and Filter Button */}
           <div className="max-w-2xl mx-auto mb-6 mt-10">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск станций по названию или адресу..."
-                className="w-full pl-10 pr-4 py-3 bg-[#0f2d26] border border-emerald-900/30 rounded-xl text-white placeholder-gray-400 focus:border-emerald-500 focus:outline-none"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition"
-                >
-                  <X size={20} />
-                </button>
-              )}
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Поиск станций по названию или адресу..."
+                  className="w-full pl-10 pr-4 py-3 bg-[#0f2d26] border border-emerald-900/30 rounded-xl text-white placeholder-gray-400 focus:border-emerald-500 focus:outline-none"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition"
+                  >
+                    <X size={20} />
+                  </button>
+                )}
+              </div>
+              
+              {/* Filter Button */}
+              <button
+                onClick={() => setShowFilter(true)}
+                className="bg-emerald-800 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl transition flex items-center gap-2 relative"
+              >
+                <SlidersHorizontal size={20} />
+                {activeFiltersCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
           
@@ -1944,21 +2089,44 @@ export default function MapPage() {
                 <p className="text-lg">
                   {searchQuery 
                     ? `Не найдено станций по запросу "${searchQuery}"`
+                    : activeFiltersCount > 0
+                    ? 'Нет станций, соответствующих выбранным фильтрам'
                     : 'Станций пока нет'}
                 </p>
                 <p className="text-sm mt-2">
                   {searchQuery
                     ? 'Попробуйте изменить поисковый запрос'
+                    : activeFiltersCount > 0
+                    ? 'Попробуйте изменить параметры фильтрации'
                     : 'Администратор еще не добавил зарядные станции'}
                 </p>
               </div>
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="mt-4 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition"
-                >
-                  Очистить поиск
-                </button>
+              {(searchQuery || activeFiltersCount > 0) && (
+                <div className="flex gap-3 justify-center">
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition"
+                    >
+                      Очистить поиск
+                    </button>
+                  )}
+                  {activeFiltersCount > 0 && (
+                    <button
+                      onClick={() => {
+                        setFilters({
+                          stationType: [],
+                          connectorType: [],
+                          minPower: 20,
+                          maxPower: 250,
+                        });
+                      }}
+                      className="bg-emerald-800 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-medium transition"
+                    >
+                      Сбросить фильтры
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ) : (
@@ -1974,6 +2142,10 @@ export default function MapPage() {
                     station.longitude
                   );
                 }
+                
+                // Подсчитываем доступные коннекторы
+                const availableConnectors = station.connectors?.filter(c => c.status === 'available').length || 0;
+                const totalConnectors = station.connectors?.length || 0;
                 
                 return (
                   <div
@@ -1994,6 +2166,7 @@ export default function MapPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <h3 className="text-lg font-bold text-white mb-1">{station.name}</h3>
+                        <p className="text-gray-400 text-sm">{station.address}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {distance && (
@@ -2005,10 +2178,41 @@ export default function MapPage() {
                       </div>
                     </div>
 
-                    <div className="text-gray-400 text-sm">
-                      <span>Мощность: {station.maxPowerKw} кВт</span>
-                      <span className="ml-4">Коннектор: {station.connectorType}</span>
-                    </div>
+                    {/* Connectors */}
+                    {station.connectors && station.connectors.length > 0 ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-emerald-400 mb-2">
+                          <Zap size={16} />
+                          <span>{availableConnectors} из {totalConnectors} доступно</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {station.connectors.slice(0, 4).map((connector, idx) => (
+                            <div
+                              key={connector.id}
+                              className={`text-xs p-2 rounded-lg ${
+                                connector.status === 'available'
+                                  ? 'bg-emerald-500/10 border border-emerald-500/30'
+                                  : 'bg-gray-700/30 border border-gray-600/30 opacity-50'
+                              }`}
+                            >
+                              <div className="text-white font-medium">{connector.type}</div>
+                              <div className="text-gray-400">{Number(connector.powerKw)} кВт • {Number(connector.pricePerMinute || connector.pricePerKwh || 0)} сом/мин</div>
+                            </div>
+                          ))}
+                          {station.connectors.length > 4 && (
+                            <div className="text-xs p-2 rounded-lg bg-gray-700/30 border border-gray-600/30 flex items-center justify-center">
+                              <span className="text-gray-400">+{station.connectors.length - 4} еще</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      /* Fallback для старых станций */
+                      <div className="text-gray-400 text-sm">
+                        <span>Мощность: {station.maxPowerKw} кВт</span>
+                        <span className="ml-4">Коннектор: {station.connectorType}</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -2320,17 +2524,133 @@ export default function MapPage() {
                     <div className="bg-[#0a1f1a] rounded-xl p-3 mb-4">
                       <h3 className="text-white font-bold text-base mb-1">{bookingStation.name}</h3>
                       <p className="text-gray-400 text-xs mb-2">{bookingStation.address}</p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <span className="text-gray-400">Мощность:</span>
-                          <span className="text-white ml-1.5">{bookingStation.maxPowerKw} кВт</span>
+                    </div>
+
+                    {/* Connector Selection */}
+                    {bookingStation.connectors && bookingStation.connectors.length > 0 ? (
+                      <div className="mb-4">
+                        <label className="block text-white font-medium mb-2 text-sm">Коннектор:</label>
+                        
+                        {/* Custom Dropdown */}
+                        <div className="relative connector-dropdown-container">
+                          <button
+                            type="button"
+                            onClick={() => setShowConnectorDropdown(!showConnectorDropdown)}
+                            className="w-full bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl px-4 py-3 text-white hover:border-emerald-500 focus:border-emerald-500 focus:outline-none transition text-sm flex items-center justify-between"
+                          >
+                            <span className={selectedConnector ? 'text-white' : 'text-gray-400'}>
+                              {selectedConnector 
+                                ? `${selectedConnector.type} • ${Number(selectedConnector.powerKw)} кВт • ${Number(selectedConnector.pricePerMinute || selectedConnector.pricePerKwh || 0)} сом/мин`
+                                : 'Выберите коннектор'
+                              }
+                            </span>
+                            <svg 
+                              className={`w-5 h-5 text-emerald-400 transition-transform ${showConnectorDropdown ? 'rotate-180' : ''}`}
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          
+                          {/* Dropdown Menu */}
+                          {showConnectorDropdown && (
+                            <div className="absolute z-50 w-full mt-2 bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                              {bookingStation.connectors.map((connector, index) => {
+                                const isAvailable = connector.status === 'available';
+                                const pricePerMin = Number(connector.pricePerMinute || connector.pricePerKwh || 0);
+                                const isSelected = selectedConnector?.id === connector.id;
+                                
+                                return (
+                                  <button
+                                    key={connector.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isAvailable) {
+                                        setSelectedConnector(connector);
+                                        setShowConnectorDropdown(false);
+                                        // Перезагружаем занятые слоты для нового коннектора
+                                        loadBookedSlots(bookingStation.id, connector.id);
+                                      }
+                                    }}
+                                    disabled={!isAvailable}
+                                    className={`w-full text-left px-4 py-3 transition ${
+                                      index !== bookingStation.connectors.length - 1 ? 'border-b border-emerald-900/20' : ''
+                                    } ${
+                                      isSelected 
+                                        ? 'bg-emerald-500/20 text-white' 
+                                        : isAvailable 
+                                        ? 'hover:bg-emerald-500/10 text-white' 
+                                        : 'text-gray-600 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <Plug className={isAvailable ? 'text-emerald-400' : 'text-gray-600'} size={14} />
+                                          <span className="font-semibold text-sm">{connector.type}</span>
+                                          {!isAvailable && (
+                                            <span className="text-xs text-gray-500">(занят)</span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-3 text-xs">
+                                          <span className={isAvailable ? 'text-gray-400' : 'text-gray-600'}>
+                                            {Number(connector.powerKw)} кВт
+                                          </span>
+                                          <span className={isAvailable ? 'text-emerald-400 font-semibold' : 'text-gray-600'}>
+                                            {pricePerMin} сом/мин
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {isSelected && (
+                                        <CheckCircle className="text-emerald-400" size={18} />
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <span className="text-gray-400">Цена:</span>
-                          <span className="text-emerald-400 ml-1.5">{bookingStation.pricePerMinute} сом/мин</span>
+                        
+                        {/* Selected Connector Info Card */}
+                        {selectedConnector && (
+                          <div className="mt-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Plug className="text-emerald-400" size={16} />
+                              <span className="text-white font-semibold text-sm">{selectedConnector.type}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-gray-400">Мощность:</span>
+                                <span className="text-white ml-1.5 font-medium">{Number(selectedConnector.powerKw)} кВт</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-400">Цена:</span>
+                                <span className="text-emerald-400 ml-1.5 font-semibold">
+                                  {Number(selectedConnector.pricePerMinute || selectedConnector.pricePerKwh || 0)} сом/мин
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Fallback для старых станций */
+                      <div className="bg-[#0a1f1a] rounded-xl p-3 mb-4">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-gray-400">Мощность:</span>
+                            <span className="text-white ml-1.5">{bookingStation.maxPowerKw} кВт</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Цена:</span>
+                            <span className="text-emerald-400 ml-1.5">{bookingStation.pricePerMinute} сом/мин</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Date Selection */}
                     <div className="mb-4">
