@@ -68,8 +68,8 @@ export default function EditProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName,
-          email: editEmail,
           phone: editPhone,
+          // email не отправляем - его нельзя изменить
         }),
       });
 
@@ -130,17 +130,20 @@ export default function EditProfilePage() {
 
           {/* Email */}
           <div>
-            <label className="block text-white font-medium mb-3">Email</label>
+            <label className="block text-white font-medium mb-3">
+              Email
+              <span className="ml-2 text-xs text-gray-400">(нельзя изменить)</span>
+            </label>
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                <Mail className="text-emerald-400" size={20} />
+                <Mail className="text-gray-500" size={20} />
               </div>
               <input
                 type="email"
                 value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                placeholder="Введите email"
-                className="w-full bg-[#0f2d26] border-2 border-emerald-900/30 rounded-xl pl-12 pr-4 py-4 text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none transition"
+                readOnly
+                disabled
+                className="w-full bg-[#0a1f1a] border-2 border-emerald-900/20 rounded-xl pl-12 pr-4 py-4 text-gray-400 cursor-not-allowed opacity-60"
               />
             </div>
           </div>

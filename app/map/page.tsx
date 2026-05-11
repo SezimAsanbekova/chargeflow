@@ -134,6 +134,16 @@ export default function MapPage() {
   const [isClient, setIsClient] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<Array<{ start: string; end: string }>>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  
+  // Состояния для фильтрации по активному автомобилю
+  const [activeVehicle, setActiveVehicle] = useState<{
+    id: string;
+    brand: string;
+    model: string;
+    connectorType: string;
+    maxPowerKw: number;
+  } | null>(null);
+  const [showOnlyCompatible, setShowOnlyCompatible] = useState(false);
 
   // Проверка на клиентскую сторону для избежания hydration mismatch
   useEffect(() => {
@@ -145,6 +155,12 @@ export default function MapPage() {
     if (powerKw < 50) return 'slow';
     if (powerKw < 150) return 'fast';
     return 'ultra';
+  };
+
+  // Функция для форматирования типа коннектора
+  const formatConnectorType = (type: string): string => {
+    if (type === 'GB_T') return 'GB/T';
+    return type;
   };
 
   // Функция для вычисления расстояния между двумя точками (формула гаверсинуса)
@@ -171,6 +187,20 @@ export default function MapPage() {
     
     // Исключаем станции на обслуживании - пользователям их не показываем
     stationsToFilter = stationsToFilter.filter(station => station.status !== 'maintenance');
+    
+    // Фильтр по совместимости с активным автомобилем
+    if (showOnlyCompatible && activeVehicle) {
+      stationsToFilter = stationsToFilter.filter((station) => {
+        // Проверяем, есть ли у станции коннектор, совместимый с автомобилем
+        if (station.connectors && station.connectors.length > 0) {
+          return station.connectors.some(connector => 
+            connector.type === activeVehicle.connectorType
+          );
+        }
+        // Если нет массива connectors, проверяем основной тип
+        return station.connectorType === activeVehicle.connectorType;
+      });
+    }
     
     // Применяем поиск по названию и адресу
     if (searchQuery.trim()) {
@@ -222,7 +252,7 @@ export default function MapPage() {
     
     // Если нет местоположения, возвращаем как есть
     return stationsToFilter;
-  }, [stations, searchQuery, userLocation, filters]);
+  }, [stations, searchQuery, userLocation, filters, showOnlyCompatible, activeVehicle]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -270,6 +300,34 @@ export default function MapPage() {
 
     if (session) {
       fetchStations();
+    }
+  }, [session]);
+
+  // Загружаем активный автомобиль пользователя
+  useEffect(() => {
+    const fetchActiveVehicle = async () => {
+      try {
+        const response = await fetch('/api/vehicles');
+        if (response.ok) {
+          const data = await response.json();
+          const active = data.vehicles?.find((v: any) => v.isActive);
+          if (active) {
+            setActiveVehicle({
+              id: active.id,
+              brand: active.brand,
+              model: active.model,
+              connectorType: active.connectorType,
+              maxPowerKw: active.maxPowerKw,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching active vehicle:', error);
+      }
+    };
+
+    if (session) {
+      fetchActiveVehicle();
     }
   }, [session]);
 
@@ -1838,49 +1896,102 @@ export default function MapPage() {
                     {/* Connectors List */}
                     {selectedStation.connectors && selectedStation.connectors.length > 0 ? (
                       <div className="mb-4">
-                        <h4 className="text-white font-semibold text-sm mb-2">
-                          Коннекторы ({selectedStation.connectors.length})
-                        </h4>
-                        <div className="space-y-2">
-                          {selectedStation.connectors.map((connector) => {
-                            const isSelected = selectedConnector?.id === connector.id;
-                            const isAvailable = connector.status === 'available';
-                            
-                            return (
-                              <button
-                                key={connector.id}
-                                onClick={() => setSelectedConnector(connector)}
-                                disabled={!isAvailable}
-                                className={`w-full text-left p-3 rounded-xl border-2 transition ${
-                                  isSelected
-                                    ? 'bg-emerald-500/20 border-emerald-500'
-                                    : isAvailable
-                                    ? 'bg-[#0a1f1a] border-emerald-900/30 hover:border-emerald-500/50'
-                                    : 'bg-[#0a1f1a] border-gray-700 opacity-50 cursor-not-allowed'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-white font-semibold text-sm">
-                                      {connector.type}
-                                    </span>
-                                  </div>
-                                  {isSelected && (
-                                    <CheckCircle className="text-emerald-400" size={18} />
-                                  )}
-                                </div>
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="text-gray-400">
-                                    {Number(connector.powerKw)} кВт
+                        {/* Compatibility Warning */}
+                        {activeVehicle && !selectedStation.connectors.some(c => c.type === activeVehicle.connectorType) && (
+                          <div className="mb-3 bg-yellow-500/10 border-2 border-yellow-500/30 rounded-xl p-4">
+                            <div className="flex items-start gap-3">
+                              <AlertTriangle className="text-yellow-400 flex-shrink-0 mt-0.5" size={20} />
+                              <div>
+                                <h4 className="text-yellow-400 font-semibold text-sm mb-1">
+                                  ⚠️ Несовместимо с вашим автомобилем
+                                </h4>
+                                <p className="text-gray-300 text-xs mb-2">
+                                  Ваш {activeVehicle.brand} {activeVehicle.model} использует разъём <span className="font-semibold text-yellow-400">{formatConnectorType(activeVehicle.connectorType)}</span>, 
+                                  но эта станция имеет только: <span className="font-semibold text-yellow-400">{selectedStation.connectors.map(c => formatConnectorType(c.type)).join(', ')}</span>
+                                </p>
+                                <Link
+                                  href="/vehicles"
+                                  className="text-yellow-400 hover:text-yellow-300 text-xs font-medium underline"
+                                >
+                                  Сменить активный автомобиль →
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {(() => {
+                          // Фильтруем коннекторы: если есть активный автомобиль, показываем только совместимые
+                          const displayConnectors = activeVehicle 
+                            ? selectedStation.connectors.filter(c => c.type === activeVehicle.connectorType)
+                            : selectedStation.connectors;
+                          
+                          return (
+                            <>
+                              <h4 className="text-white font-semibold text-sm mb-2">
+                                Коннекторы ({displayConnectors.length}{activeVehicle && displayConnectors.length < selectedStation.connectors.length ? ` из ${selectedStation.connectors.length}` : ''})
+                                {activeVehicle && displayConnectors.length < selectedStation.connectors.length && (
+                                  <span className="text-xs text-gray-400 font-normal ml-2">
+                                    (показаны только совместимые)
                                   </span>
-                                  <span className="text-emerald-400 font-semibold">
-                                    {Number(connector.pricePerMinute || connector.pricePerKwh || 0)} сом/мин
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
+                                )}
+                              </h4>
+                              <div className="space-y-2">
+                                {displayConnectors.map((connector) => {
+                                  const isSelected = selectedConnector?.id === connector.id;
+                                  const isAvailable = connector.status === 'available';
+                                  
+                                  return (
+                                    <button
+                                      key={connector.id}
+                                      onClick={() => setSelectedConnector(connector)}
+                                      disabled={!isAvailable}
+                                      className={`w-full text-left p-3 rounded-xl border-2 transition ${
+                                        isSelected
+                                          ? 'bg-emerald-500/20 border-emerald-500'
+                                          : isAvailable
+                                          ? 'bg-[#0a1f1a] border-emerald-900/30 hover:border-emerald-500/50'
+                                          : 'bg-[#0a1f1a] border-gray-700 opacity-50 cursor-not-allowed'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-white font-semibold text-sm">
+                                            {formatConnectorType(connector.type)}
+                                          </span>
+                                        </div>
+                                        {isSelected && (
+                                          <CheckCircle className="text-emerald-400" size={18} />
+                                        )}
+                                      </div>
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-400">
+                                          {Number(connector.powerKw)} кВт
+                                        </span>
+                                        <span className="text-emerald-400 font-semibold">
+                                          {Number(connector.pricePerMinute || connector.pricePerKwh || 0)} сом/мин
+                                        </span>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              
+                              {/* Кнопка для показа всех коннекторов */}
+                              {activeVehicle && displayConnectors.length < selectedStation.connectors.length && (
+                                <button
+                                  onClick={() => {
+                                    // Временно отключаем фильтр для просмотра всех коннекторов
+                                    // Можно добавить состояние showAllConnectors если нужно
+                                  }}
+                                  className="w-full mt-2 text-center text-xs text-gray-400 hover:text-white transition py-2"
+                                >
+                                  Показать все коннекторы ({selectedStation.connectors.length})
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     ) : (
                       /* Fallback для старых станций без коннекторов */
@@ -2073,6 +2184,65 @@ export default function MapPage() {
                 )}
               </button>
             </div>
+            
+            {/* Vehicle Compatibility Toggle */}
+            {activeVehicle ? (
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowOnlyCompatible(!showOnlyCompatible)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition ${
+                    showOnlyCompatible
+                      ? 'bg-emerald-500/20 border-emerald-500 text-white'
+                      : 'bg-[#0f2d26] border-emerald-900/30 text-gray-300 hover:border-emerald-500/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      showOnlyCompatible ? 'bg-emerald-500/30' : 'bg-emerald-500/10'
+                    }`}>
+                      <Plug className={showOnlyCompatible ? 'text-emerald-400' : 'text-gray-400'} size={20} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-medium text-sm">
+                        Только совместимые с моим авто
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {activeVehicle.brand} {activeVehicle.model} • {formatConnectorType(activeVehicle.connectorType)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`w-12 h-6 rounded-full transition relative ${
+                    showOnlyCompatible ? 'bg-emerald-500' : 'bg-gray-600'
+                  }`}>
+                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                      showOnlyCompatible ? 'translate-x-6' : 'translate-x-0.5'
+                    }`}></div>
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <Link
+                  href="/vehicles/add"
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 border-dashed border-emerald-900/30 text-gray-400 hover:border-emerald-500/50 hover:text-white transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                      <Plug className="text-gray-400" size={20} />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-medium text-sm">
+                        Добавьте автомобиль
+                      </div>
+                      <div className="text-xs">
+                        Для фильтрации по совместимости
+                      </div>
+                    </div>
+                  </div>
+                  <Plus size={20} />
+                </Link>
+              </div>
+            )}
           </div>
           
           {isLoadingStations ? (
@@ -2087,28 +2257,40 @@ export default function MapPage() {
               <div className="text-gray-400 mb-4">
                 <SlidersHorizontal size={48} className="mx-auto mb-4 opacity-50" />
                 <p className="text-lg">
-                  {searchQuery 
+                  {showOnlyCompatible && activeVehicle
+                    ? `Нет станций с разъёмом ${activeVehicle.connectorType}`
+                    : searchQuery 
                     ? `Не найдено станций по запросу "${searchQuery}"`
                     : activeFiltersCount > 0
                     ? 'Нет станций, соответствующих выбранным фильтрам'
                     : 'Станций пока нет'}
                 </p>
                 <p className="text-sm mt-2">
-                  {searchQuery
+                  {showOnlyCompatible && activeVehicle
+                    ? 'Попробуйте отключить фильтр совместимости или добавьте другой автомобиль'
+                    : searchQuery
                     ? 'Попробуйте изменить поисковый запрос'
                     : activeFiltersCount > 0
                     ? 'Попробуйте изменить параметры фильтрации'
                     : 'Администратор еще не добавил зарядные станции'}
                 </p>
               </div>
-              {(searchQuery || activeFiltersCount > 0) && (
-                <div className="flex gap-3 justify-center">
+              {(searchQuery || activeFiltersCount > 0 || showOnlyCompatible) && (
+                <div className="flex gap-3 justify-center flex-wrap">
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
                       className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition"
                     >
                       Очистить поиск
+                    </button>
+                  )}
+                  {showOnlyCompatible && (
+                    <button
+                      onClick={() => setShowOnlyCompatible(false)}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition"
+                    >
+                      Показать все станции
                     </button>
                   )}
                   {activeFiltersCount > 0 && (
@@ -2279,7 +2461,7 @@ export default function MapPage() {
                 {/* Connector Type */}
                 <div>
                   <label className="block text-white font-medium mb-2 text-center text-sm">Тип разъема:</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => {
                         const newTypes = filters.connectorType.includes('CCS2')
@@ -2324,6 +2506,21 @@ export default function MapPage() {
                       }`}
                     >
                       Type 2
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newTypes = filters.connectorType.includes('GB/T')
+                          ? filters.connectorType.filter(t => t !== 'GB/T')
+                          : [...filters.connectorType, 'GB/T'];
+                        setFilters({ ...filters, connectorType: newTypes });
+                      }}
+                      className={`py-2.5 px-2 rounded-lg border-2 transition text-xs font-medium ${
+                        filters.connectorType.includes('GB/T')
+                          ? 'bg-emerald-500/20 border-emerald-500 text-white'
+                          : 'bg-[#0a1f1a] border-emerald-900/30 text-white hover:border-emerald-500/50'
+                      }`}
+                    >
+                      GB/T
                     </button>
                   </div>
                 </div>
@@ -2529,7 +2726,14 @@ export default function MapPage() {
                     {/* Connector Selection */}
                     {bookingStation.connectors && bookingStation.connectors.length > 0 ? (
                       <div className="mb-4">
-                        <label className="block text-white font-medium mb-2 text-sm">Коннектор:</label>
+                        <label className="block text-white font-medium mb-2 text-sm">
+                          Коннектор:
+                          {activeVehicle && bookingStation.connectors.filter(c => c.type === activeVehicle.connectorType).length < bookingStation.connectors.length && (
+                            <span className="ml-2 text-xs text-gray-400 font-normal">
+                              (показаны только совместимые)
+                            </span>
+                          )}
+                        </label>
                         
                         {/* Custom Dropdown */}
                         <div className="relative connector-dropdown-container">
@@ -2540,7 +2744,7 @@ export default function MapPage() {
                           >
                             <span className={selectedConnector ? 'text-white' : 'text-gray-400'}>
                               {selectedConnector 
-                                ? `${selectedConnector.type} • ${Number(selectedConnector.powerKw)} кВт • ${Number(selectedConnector.pricePerMinute || selectedConnector.pricePerKwh || 0)} сом/мин`
+                                ? `${formatConnectorType(selectedConnector.type)} • ${Number(selectedConnector.powerKw)} кВт • ${Number(selectedConnector.pricePerMinute || selectedConnector.pricePerKwh || 0)} сом/мин`
                                 : 'Выберите коннектор'
                               }
                             </span>
@@ -2555,63 +2759,70 @@ export default function MapPage() {
                           </button>
                           
                           {/* Dropdown Menu */}
-                          {showConnectorDropdown && (
-                            <div className="absolute z-50 w-full mt-2 bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                              {bookingStation.connectors.map((connector, index) => {
-                                const isAvailable = connector.status === 'available';
-                                const pricePerMin = Number(connector.pricePerMinute || connector.pricePerKwh || 0);
-                                const isSelected = selectedConnector?.id === connector.id;
-                                
-                                return (
-                                  <button
-                                    key={connector.id}
-                                    type="button"
-                                    onClick={() => {
-                                      if (isAvailable) {
-                                        setSelectedConnector(connector);
-                                        setShowConnectorDropdown(false);
-                                        // Перезагружаем занятые слоты для нового коннектора
-                                        loadBookedSlots(bookingStation.id, connector.id);
-                                      }
-                                    }}
-                                    disabled={!isAvailable}
-                                    className={`w-full text-left px-4 py-3 transition ${
-                                      index !== bookingStation.connectors.length - 1 ? 'border-b border-emerald-900/20' : ''
-                                    } ${
-                                      isSelected 
-                                        ? 'bg-emerald-500/20 text-white' 
-                                        : isAvailable 
-                                        ? 'hover:bg-emerald-500/10 text-white' 
-                                        : 'text-gray-600 cursor-not-allowed'
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <Plug className={isAvailable ? 'text-emerald-400' : 'text-gray-600'} size={14} />
-                                          <span className="font-semibold text-sm">{connector.type}</span>
-                                          {!isAvailable && (
-                                            <span className="text-xs text-gray-500">(занят)</span>
-                                          )}
+                          {showConnectorDropdown && (() => {
+                            // Фильтруем коннекторы: если есть активный автомобиль, показываем только совместимые
+                            const displayConnectors = activeVehicle 
+                              ? bookingStation.connectors.filter(c => c.type === activeVehicle.connectorType)
+                              : bookingStation.connectors;
+                            
+                            return (
+                              <div className="absolute z-50 w-full mt-2 bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                {displayConnectors.map((connector, index) => {
+                                  const isAvailable = connector.status === 'available';
+                                  const pricePerMin = Number(connector.pricePerMinute || connector.pricePerKwh || 0);
+                                  const isSelected = selectedConnector?.id === connector.id;
+                                  
+                                  return (
+                                    <button
+                                      key={connector.id}
+                                      type="button"
+                                      onClick={() => {
+                                        if (isAvailable) {
+                                          setSelectedConnector(connector);
+                                          setShowConnectorDropdown(false);
+                                          // Перезагружаем занятые слоты для нового коннектора
+                                          loadBookedSlots(bookingStation.id, connector.id);
+                                        }
+                                      }}
+                                      disabled={!isAvailable}
+                                      className={`w-full text-left px-4 py-3 transition ${
+                                        index !== displayConnectors.length - 1 ? 'border-b border-emerald-900/20' : ''
+                                      } ${
+                                        isSelected 
+                                          ? 'bg-emerald-500/20 text-white' 
+                                          : isAvailable 
+                                          ? 'hover:bg-emerald-500/10 text-white' 
+                                          : 'text-gray-600 cursor-not-allowed'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <Plug className={isAvailable ? 'text-emerald-400' : 'text-gray-600'} size={14} />
+                                            <span className="font-semibold text-sm">{formatConnectorType(connector.type)}</span>
+                                            {!isAvailable && (
+                                              <span className="text-xs text-gray-500">(занят)</span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-3 text-xs">
+                                            <span className={isAvailable ? 'text-gray-400' : 'text-gray-600'}>
+                                              {Number(connector.powerKw)} кВт
+                                            </span>
+                                            <span className={isAvailable ? 'text-emerald-400 font-semibold' : 'text-gray-600'}>
+                                              {pricePerMin} сом/мин
+                                            </span>
+                                          </div>
                                         </div>
-                                        <div className="flex items-center gap-3 text-xs">
-                                          <span className={isAvailable ? 'text-gray-400' : 'text-gray-600'}>
-                                            {Number(connector.powerKw)} кВт
-                                          </span>
-                                          <span className={isAvailable ? 'text-emerald-400 font-semibold' : 'text-gray-600'}>
-                                            {pricePerMin} сом/мин
-                                          </span>
-                                        </div>
+                                        {isSelected && (
+                                          <CheckCircle className="text-emerald-400" size={18} />
+                                        )}
                                       </div>
-                                      {isSelected && (
-                                        <CheckCircle className="text-emerald-400" size={18} />
-                                      )}
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
                         
                         {/* Selected Connector Info Card */}
@@ -2619,7 +2830,7 @@ export default function MapPage() {
                           <div className="mt-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">
                             <div className="flex items-center gap-2 mb-2">
                               <Plug className="text-emerald-400" size={16} />
-                              <span className="text-white font-semibold text-sm">{selectedConnector.type}</span>
+                              <span className="text-white font-semibold text-sm">{formatConnectorType(selectedConnector.type)}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs">
                               <div>

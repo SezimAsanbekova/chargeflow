@@ -48,6 +48,75 @@ export default function NewStationPage() {
     },
   ]);
 
+  // Добавляем стили для кастомизации кнопок числовых полей
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      /* Кастомные стили для кнопок числовых полей */
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      
+      input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+      
+      .number-input-wrapper {
+        position: relative;
+      }
+      
+      .number-input-controls {
+        position: absolute;
+        right: 2px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      
+      .number-input-btn {
+        width: 24px;
+        height: 18px;
+        background: #0f2d26;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      
+      .number-input-btn:hover {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: rgba(16, 185, 129, 0.5);
+      }
+      
+      .number-input-btn:active {
+        background: rgba(16, 185, 129, 0.3);
+      }
+      
+      .number-input-btn svg {
+        width: 12px;
+        height: 12px;
+        color: #10b981;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // Состояния для кастомных dropdown'ов
+  const [openTypeDropdown, setOpenTypeDropdown] = useState<number | null>(null);
+  const [openStatusDropdown, setOpenStatusDropdown] = useState<number | null>(null);
+
   // Функции для управления коннекторами
   const addConnector = () => {
     if (connectors.length >= 6) {
@@ -355,7 +424,7 @@ export default function NewStationPage() {
                     <button
                       type="button"
                       onClick={() => setShowMap(!showMap)}
-                      className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition flex items-center gap-1"
+                      className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg transition flex items-center gap-1 shadow-lg shadow-emerald-500/20"
                     >
                       <MapPin size={16} />
                       {showMap ? 'Скрыть' : 'Карта'}
@@ -537,20 +606,52 @@ export default function NewStationPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     {/* Тип коннектора */}
+                    {/* Тип разъёма */}
                     <div>
                       <label className="block text-gray-300 mb-2 text-sm">
                         Тип разъёма *
                       </label>
-                      <select
-                        value={connector.type}
-                        onChange={(e) => updateConnector(index, 'type', e.target.value)}
-                        className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
-                      >
-                        <option value="CCS2">CCS2</option>
-                        <option value="CHAdeMO">CHAdeMO</option>
-                        <option value="Type2">Type 2</option>
-                        <option value="GB_T">GB/T</option>
-                      </select>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setOpenTypeDropdown(openTypeDropdown === index ? null : index)}
+                          className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white hover:border-emerald-500 focus:border-emerald-500 focus:outline-none transition flex items-center justify-between"
+                        >
+                          <span>{connector.type}</span>
+                          <svg 
+                            className={`w-5 h-5 text-emerald-400 transition-transform ${openTypeDropdown === index ? 'rotate-180' : ''}`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        {openTypeDropdown === index && (
+                          <div className="absolute z-50 w-full mt-2 bg-[#0f2d26] border border-emerald-900/30 rounded-lg shadow-xl overflow-hidden">
+                            {['CCS2', 'CHAdeMO', 'Type2', 'GB_T'].map((type, typeIndex) => (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => {
+                                  updateConnector(index, 'type', type);
+                                  setOpenTypeDropdown(null);
+                                }}
+                                className={`w-full text-left px-3 py-2.5 transition ${
+                                  typeIndex !== 3 ? 'border-b border-emerald-900/20' : ''
+                                } ${
+                                  connector.type === type
+                                    ? 'bg-emerald-500/20 text-white'
+                                    : 'hover:bg-emerald-500/10 text-white'
+                                }`}
+                              >
+                                {type === 'GB_T' ? 'GB/T' : type}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Мощность */}
@@ -558,15 +659,37 @@ export default function NewStationPage() {
                       <label className="block text-gray-300 mb-2 text-sm">
                         Мощность (кВт) *
                       </label>
-                      <input
-                        type="number"
-                        value={connector.powerKw}
-                        onChange={(e) => updateConnector(index, 'powerKw', parseFloat(e.target.value) || 0)}
-                        min="1"
-                        max="350"
-                        required
-                        className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
-                      />
+                      <div className="number-input-wrapper relative">
+                        <input
+                          type="number"
+                          value={connector.powerKw}
+                          onChange={(e) => updateConnector(index, 'powerKw', parseFloat(e.target.value) || 0)}
+                          min="1"
+                          max="350"
+                          required
+                          className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 pr-10 text-white focus:border-emerald-500 focus:outline-none"
+                        />
+                        <div className="number-input-controls">
+                          <button
+                            type="button"
+                            onClick={() => updateConnector(index, 'powerKw', Math.min(350, connector.powerKw + 1))}
+                            className="number-input-btn"
+                          >
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateConnector(index, 'powerKw', Math.max(1, connector.powerKw - 1))}
+                            className="number-input-btn"
+                          >
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Цена за минуту */}
@@ -574,15 +697,37 @@ export default function NewStationPage() {
                       <label className="block text-gray-300 mb-2 text-sm">
                         Цена (сом/мин) *
                       </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={connector.pricePerMinute}
-                        onChange={(e) => updateConnector(index, 'pricePerMinute', parseFloat(e.target.value) || 0)}
-                        min="0"
-                        required
-                        className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
-                      />
+                      <div className="number-input-wrapper relative">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={connector.pricePerMinute}
+                          onChange={(e) => updateConnector(index, 'pricePerMinute', parseFloat(e.target.value) || 0)}
+                          min="0"
+                          required
+                          className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 pr-10 text-white focus:border-emerald-500 focus:outline-none"
+                        />
+                        <div className="number-input-controls">
+                          <button
+                            type="button"
+                            onClick={() => updateConnector(index, 'pricePerMinute', Math.round((connector.pricePerMinute + 0.5) * 100) / 100)}
+                            className="number-input-btn"
+                          >
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateConnector(index, 'pricePerMinute', Math.max(0, Math.round((connector.pricePerMinute - 0.5) * 100) / 100))}
+                            className="number-input-btn"
+                          >
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Статус */}
@@ -590,15 +735,55 @@ export default function NewStationPage() {
                       <label className="block text-gray-300 mb-2 text-sm">
                         Статус *
                       </label>
-                      <select
-                        value={connector.status}
-                        onChange={(e) => updateConnector(index, 'status', e.target.value)}
-                        className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
-                      >
-                        <option value="available">🟢 Свободен</option>
-                        <option value="busy">🟡 Занят</option>
-                        <option value="maintenance">🔴 Обслуживание</option>
-                      </select>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setOpenStatusDropdown(openStatusDropdown === index ? null : index)}
+                          className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white hover:border-emerald-500 focus:border-emerald-500 focus:outline-none transition flex items-center justify-between"
+                        >
+                          <span>
+                            {connector.status === 'available' && '🟢 Свободен'}
+                            {connector.status === 'busy' && '🟡 Занят'}
+                            {connector.status === 'maintenance' && '🔴 Обслуживание'}
+                          </span>
+                          <svg 
+                            className={`w-5 h-5 text-emerald-400 transition-transform ${openStatusDropdown === index ? 'rotate-180' : ''}`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        {openStatusDropdown === index && (
+                          <div className="absolute z-50 w-full mt-2 bg-[#0f2d26] border border-emerald-900/30 rounded-lg shadow-xl overflow-hidden">
+                            {[
+                              { value: 'available', label: '🟢 Свободен' },
+                              { value: 'busy', label: '🟡 Занят' },
+                              { value: 'maintenance', label: '🔴 Обслуживание' }
+                            ].map((status, statusIndex) => (
+                              <button
+                                key={status.value}
+                                type="button"
+                                onClick={() => {
+                                  updateConnector(index, 'status', status.value);
+                                  setOpenStatusDropdown(null);
+                                }}
+                                className={`w-full text-left px-3 py-2.5 transition ${
+                                  statusIndex !== 2 ? 'border-b border-emerald-900/20' : ''
+                                } ${
+                                  connector.status === status.value
+                                    ? 'bg-emerald-500/20 text-white'
+                                    : 'hover:bg-emerald-500/10 text-white'
+                                }`}
+                              >
+                                {status.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

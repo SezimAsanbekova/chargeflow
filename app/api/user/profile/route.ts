@@ -65,14 +65,15 @@ export async function PATCH(request: Request) {
     }
 
     const userId = (session.user as any).id;
-    const { phone, name, email } = await request.json();
+    const { phone, name } = await request.json();
+    // email больше не принимаем - его нельзя изменить
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         ...(phone !== undefined && { phone }),
         ...(name !== undefined && { name }),
-        ...(email !== undefined && { email }),
+        // email исключён из обновления
       },
       select: {
         id: true,
