@@ -106,7 +106,7 @@ export default function MapPage() {
   
   // Новые состояния для симуляции навигации
   const [isSimulating, setIsSimulating] = useState(false);
-  const [simulationSpeed, setSimulationSpeed] = useState(40); // км/ч
+  const [simulationSpeed, setSimulationSpeed] = useState(100); // км/ч
   const [isSimulationPaused, setIsSimulationPaused] = useState(false);
   const [simulatedPosition, setSimulatedPosition] = useState<[number, number] | null>(null);
   const [simulatedBearing, setSimulatedBearing] = useState(0);
@@ -286,7 +286,6 @@ export default function MapPage() {
         const response = await fetch('/api/stations');
         if (response.ok) {
           const data = await response.json();
-          console.log('Loaded stations:', data);
           setStations(data);
         } else {
           console.error('Failed to fetch stations');
@@ -383,22 +382,6 @@ export default function MapPage() {
           setUserLocation(newLocation);
         },
         (error) => {
-          console.error('Error getting location:', error);
-          // Более детальная обработка ошибок геолокации
-          switch(error.code) {
-            case error.PERMISSION_DENIED:
-              console.log('Пользователь запретил доступ к геолокации');
-              break;
-            case error.POSITION_UNAVAILABLE:
-              console.log('Информация о местоположении недоступна');
-              break;
-            case error.TIMEOUT:
-              console.log('Время ожидания геолокации истекло');
-              break;
-            default:
-              console.log('Неизвестная ошибка геолокации');
-              break;
-          }
           // Используем центр Бишкека по умолчанию
           setUserLocation([74.6057, 42.8746]);
         },
@@ -409,20 +392,14 @@ export default function MapPage() {
         }
       );
     } else {
-      console.log('Геолокация не поддерживается браузером');
       setUserLocation([74.6057, 42.8746]);
     }
   }, []);
 
   // Функция для автоматического поиска ближайших станций при загрузке
   const findNearbyStationsAutomatically = (lat: number, lng: number) => {
-    console.log('🔍 Автоматический поиск ближайших станций...');
-    console.log('📍 Местоположение пользователя:', lat, lng);
-    console.log('🏢 Всего станций:', stations.length);
-    
     // Фильтруем только активные станции (исключаем обслуживание) и сортируем по расстоянию
     const activeStations = stations.filter(station => station.status === 'available');
-    console.log('✅ Активных станций:', activeStations.length);
     
     const stationsWithDistance = activeStations.map(station => {
       const distance = calculateDistance(lat, lng, station.latitude, station.longitude);
@@ -434,14 +411,10 @@ export default function MapPage() {
       .filter(station => station.distance <= 15) // Увеличиваем радиус до 15 км для автоматического поиска
       .sort((a, b) => a.distance - b.distance);
     
-    console.log('📍 Ближайших станций (в радиусе 15км):', nearbyStations.length);
-    
     if (nearbyStations.length > 0) {
       // Устанавливаем ближайшие станции и включаем режим "только ближайшие"
       setNearbyStations(nearbyStations);
       setShowOnlyNearby(true);
-      console.log('✅ Автоматически найдено', nearbyStations.length, 'активных станций рядом');
-      console.log('🗺️ Ближайшие станции:', nearbyStations.map(s => `${s.name} (${s.distance.toFixed(1)}км)`));
       
       // Центрируем карту на области с ближайшими станциями
       if (map.current && nearbyStations.length > 0) {
@@ -465,8 +438,6 @@ export default function MapPage() {
           });
         }
       }
-    } else {
-      console.log('❌ Ближайших активных станций не найдено');
     }
   };
 
@@ -540,13 +511,11 @@ export default function MapPage() {
     if (map.current) {
       setTimeout(() => {
         map.current?.resize();
-        console.log('Map resized');
       }, 100);
       return;
     }
 
     // Инициализируем карту
-    console.log('Initializing map...');
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: {
@@ -579,13 +548,11 @@ export default function MapPage() {
 
     // Добавляем обработку ошибок загрузки тайлов
     map.current.on('error', (e) => {
-      console.warn('Map error (non-critical):', e);
-      // Не показываем ошибку пользователю, так как это обычно временные проблемы с тайлами
+      // Игнорируем некритичные ошибки загрузки тайлов
     });
 
     // Ждём загрузки карты
     map.current.on('load', () => {
-      console.log('Map loaded successfully');
       setMapInitialized(true);
     });
 
@@ -613,15 +580,12 @@ export default function MapPage() {
   useEffect(() => {
     if (!map.current || isLoadingStations || !mapInitialized) return;
 
-    console.log('Updating markers, filtered stations:', filteredStations.length);
-
     // Удаляем все существующие маркеры станций
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
 
     // Добавляем маркеры отфильтрованных станций
     filteredStations.forEach((station) => {
-      console.log('Adding marker for station:', station.name);
       const el = document.createElement('div');
       el.className = 'station-marker';
       el.style.width = '40px';
@@ -713,43 +677,67 @@ export default function MapPage() {
       setRouteCoordinates(coordinates);
 
       // Извлекаем пошаговые инструкции
-      const steps = route.legs[0].steps.map((step: any) => ({
-        instruction: step.maneuver.type === 'depart' 
-          ? 'Начните движение' 
-          : step.maneuver.type === 'arrive' 
-          ? 'Вы прибыли к месту назначения'
-          : step.maneuver.type === 'turn' && step.maneuver.modifier === 'left'
-          ? 'Поверните налево'
-          : step.maneuver.type === 'turn' && step.maneuver.modifier === 'right'
-          ? 'Поверните направо'
-          : step.maneuver.type === 'turn' && step.maneuver.modifier === 'slight left'
-          ? 'Поверните слегка налево'
-          : step.maneuver.type === 'turn' && step.maneuver.modifier === 'slight right'
-          ? 'Поверните слегка направо'
-          : step.maneuver.type === 'turn' && step.maneuver.modifier === 'sharp left'
-          ? 'Резко поверните налево'
-          : step.maneuver.type === 'turn' && step.maneuver.modifier === 'sharp right'
-          ? 'Резко поверните направо'
-          : step.maneuver.type === 'continue'
-          ? 'Продолжайте движение прямо'
-          : step.maneuver.type === 'roundabout'
-          ? 'Въезжайте на круговое движение'
-          : step.maneuver.type === 'rotary'
-          ? 'Въезжайте на кольцо'
-          : step.maneuver.type === 'merge'
-          ? 'Перестройтесь'
-          : step.maneuver.type === 'fork' && step.maneuver.modifier === 'left'
-          ? 'На развилке держитесь левее'
-          : step.maneuver.type === 'fork' && step.maneuver.modifier === 'right'
-          ? 'На развилке держитесь правее'
-          : step.maneuver.type === 'end of road' && step.maneuver.modifier === 'left'
-          ? 'В конце дороги поверните налево'
-          : step.maneuver.type === 'end of road' && step.maneuver.modifier === 'right'
-          ? 'В конце дороги поверните направо'
-          : 'Продолжайте движение',
-        distance: step.distance,
-        duration: step.duration,
-      }));
+      const steps = route.legs[0].steps.map((step: any, index: number) => {
+        const bearingBefore = step.maneuver.bearing_before;
+        const bearingAfter = step.maneuver.bearing_after;
+        
+        // Вычисляем угол поворота
+        let turnAngle = bearingAfter - bearingBefore;
+        if (turnAngle > 180) turnAngle -= 360;
+        if (turnAngle < -180) turnAngle += 360;
+        
+        // Логируем для отладки
+        console.log(`📍 Шаг ${index}: ${step.maneuver.type}`, {
+          OSRM_modifier: step.maneuver.modifier,
+          bearing_before: bearingBefore,
+          bearing_after: bearingAfter,
+          угол: `${Math.round(turnAngle)}°`,
+          геометрический_поворот: turnAngle > 15 ? '➡️ ВПРАВО' : turnAngle < -15 ? '⬅️ ВЛЕВО' : '⬆️ ПРЯМО',
+          улица: step.name,
+          расстояние: `${Math.round(step.distance)}м`
+        });
+
+        // Используем ОРИГИНАЛЬНЫЕ направления от OSRM (без инверсии)
+        let instruction = '';
+        const modifier = step.maneuver.modifier;
+        
+        if (step.maneuver.type === 'depart') {
+          instruction = 'Начните движение';
+        } else if (step.maneuver.type === 'arrive') {
+          instruction = 'Вы прибыли к месту назначения';
+        } else if (step.maneuver.type === 'turn') {
+          if (modifier === 'left') instruction = 'Поверните налево';
+          else if (modifier === 'right') instruction = 'Поверните направо';
+          else if (modifier === 'slight left') instruction = 'Поверните слегка налево';
+          else if (modifier === 'slight right') instruction = 'Поверните слегка направо';
+          else if (modifier === 'sharp left') instruction = 'Резко поверните налево';
+          else if (modifier === 'sharp right') instruction = 'Резко поверните направо';
+          else if (modifier === 'uturn') instruction = 'Развернитесь';
+          else instruction = 'Поверните';
+        } else if (step.maneuver.type === 'continue') {
+          instruction = 'Продолжайте движение прямо';
+        } else if (step.maneuver.type === 'roundabout' || step.maneuver.type === 'rotary') {
+          instruction = 'Въезжайте на круговое движение';
+        } else if (step.maneuver.type === 'merge') {
+          instruction = 'Перестройтесь';
+        } else if (step.maneuver.type === 'fork') {
+          if (modifier === 'left') instruction = 'На развилке держитесь левее';
+          else if (modifier === 'right') instruction = 'На развилке держитесь правее';
+          else instruction = 'На развилке продолжайте движение';
+        } else if (step.maneuver.type === 'end of road') {
+          if (modifier === 'left') instruction = 'В конце дороги поверните налево';
+          else if (modifier === 'right') instruction = 'В конце дороги поверните направо';
+          else instruction = 'В конце дороги продолжайте движение';
+        } else {
+          instruction = 'Продолжайте движение';
+        }
+
+        return {
+          instruction,
+          distance: step.distance,
+          duration: step.duration,
+        };
+      });
 
       // Удаляем предыдущий маршрут, если есть
       if (map.current.getSource('route')) {
@@ -885,7 +873,6 @@ export default function MapPage() {
           }
         },
         (error) => {
-          console.error('Error tracking location:', error);
           alert('Ошибка получения GPS координат. Проверьте разрешения.');
         },
         {
@@ -919,12 +906,17 @@ export default function MapPage() {
         setDistanceToCurrentStep(distanceToStep);
         
         // Голосовые подсказки
-        const voiceNavigator = getVoiceNavigator();
-        voiceNavigator.announceManeuver(
-          currentStepIdx,
-          routeInfo.steps[currentStepIdx].instruction,
-          distanceToStep
-        );
+        // ВАЖНО: маневр находится в НАЧАЛЕ шага. Пока едем в шаге N,
+        // объявляем инструкцию ПРЕДСТОЯЩЕГО маневра — начало шага N+1
+        const upcomingStepIdx = currentStepIdx + 1;
+        if (upcomingStepIdx < routeInfo.steps.length) {
+          const voiceNavigator = getVoiceNavigator();
+          voiceNavigator.announceManeuver(
+            upcomingStepIdx,
+            routeInfo.steps[upcomingStepIdx].instruction,
+            distanceToStep
+          );
+        }
         
         break;
       }
@@ -1032,20 +1024,34 @@ export default function MapPage() {
       const el = document.createElement('div');
       el.style.width = '40px';
       el.style.height = '40px';
-      el.style.borderRadius = '50%';
-      el.style.backgroundColor = '#3b82f6';
-      el.style.border = '4px solid white';
-      el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
       el.style.display = 'flex';
       el.style.alignItems = 'center';
       el.style.justifyContent = 'center';
       
-      const arrow = document.createElement('div');
-      arrow.innerHTML = '▲';
-      arrow.style.color = 'white';
-      arrow.style.fontSize = '20px';
-      arrow.style.fontWeight = 'bold';
-      el.appendChild(arrow);
+      // Иконка машины (вид сверху) с тенью
+      const carIcon = document.createElement('div');
+      carIcon.innerHTML = `
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g filter="url(#shadow)">
+            <rect x="7" y="3" width="10" height="18" rx="2" fill="#3b82f6"/>
+            <rect x="8.5" y="5" width="7" height="4" rx="1" fill="white" opacity="0.9"/>
+            <rect x="8.5" y="13" width="7" height="3" rx="0.5" fill="white" opacity="0.9"/>
+            <circle cx="9" cy="11" r="0.8" fill="#1f2937"/>
+            <circle cx="15" cy="11" r="0.8" fill="#1f2937"/>
+            <rect x="6.5" y="7" width="0.8" height="2" fill="#1f2937"/>
+            <rect x="16.7" y="7" width="0.8" height="2" fill="#1f2937"/>
+          </g>
+          <defs>
+            <filter id="shadow" x="-2" y="-2" width="28" height="28">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.5"/>
+            </filter>
+          </defs>
+        </svg>
+      `;
+      carIcon.style.display = 'flex';
+      carIcon.style.alignItems = 'center';
+      carIcon.style.justifyContent = 'center';
+      el.appendChild(carIcon);
       
       simulatedMarkerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map' })
         .setLngLat(routeCoordinates[0])
@@ -1202,47 +1208,8 @@ export default function MapPage() {
       return;
     }
 
-    // Проверяем баланс (минимум 50 сом для начала зарядки)
-    if (userBalance < 50) {
-      const topUpConfirm = confirm(
-        `Недостаточно средств для начала зарядки!\n\n` +
-        `Текущий баланс: ${userBalance.toFixed(2)} сом\n` +
-        `Минимум для зарядки: 50 сом\n\n` +
-        `Пополнить баланс сейчас?`
-      );
-      
-      if (topUpConfirm) {
-        setShowTopUpModal(true);
-      }
-      return;
-    }
-
-    const pricePerMin = Number(selectedConnector.pricePerMinute || selectedConnector.pricePerKwh || 0);
-
-    const confirmStart = confirm(
-      `Начать зарядку на станции "${station.name}"?\n\n` +
-      `Коннектор: ${selectedConnector.type}\n` +
-      `Мощность: ${Number(selectedConnector.powerKw)} кВт\n` +
-      `Цена: ${pricePerMin} сом/мин\n` +
-      `Ваш баланс: ${userBalance.toFixed(2)} сом`
-    );
-
-    if (confirmStart) {
-      setIsCharging(true);
-      setChargingStartTime(Date.now());
-      setChargingStationId(station.id);
-      
-      // Здесь можно добавить API вызов для начала зарядки с connectorId
-      // await fetch('/api/charging/start', { 
-      //   method: 'POST', 
-      //   body: JSON.stringify({ 
-      //     stationId: station.id, 
-      //     connectorId: selectedConnector.id 
-      //   }) 
-      // });
-      
-      alert(`✅ Зарядка начата\nКоннектор: ${selectedConnector.type}\nСтанция: "${station.name}"`);
-    }
+    // Перенаправляем на страницу подтверждения зарядки
+    router.push(`/charging/confirm?stationId=${station.id}&connectorId=${selectedConnector.id}`);
   };
 
   // Функция для завершения зарядки
@@ -1483,11 +1450,9 @@ export default function MapPage() {
         const data = await response.json();
         setBookedSlots(data.bookedSlots || []);
       } else {
-        console.error('Failed to load booked slots');
         setBookedSlots([]);
       }
     } catch (error) {
-      console.error('Error loading booked slots:', error);
       setBookedSlots([]);
     } finally {
       setIsLoadingSlots(false);
@@ -1825,14 +1790,17 @@ export default function MapPage() {
               )}
 
               {/* Navigation Panel */}
+              {/* ВАЖНО: показываем СЛЕДУЮЩИЙ маневр (currentStepIndex + 1), 
+                  потому что в OSRM маневр находится в начале каждого шага.
+                  Пока едем в шаге N, объявляется маневр шага N+1 */}
               <NavigationPanel
-                currentStep={routeInfo.steps[currentStepIndex]}
-                nextStep={currentStepIndex < routeInfo.steps.length - 1 ? routeInfo.steps[currentStepIndex + 1] : undefined}
+                currentStep={routeInfo.steps[currentStepIndex + 1] || routeInfo.steps[currentStepIndex]}
+                nextStep={currentStepIndex + 2 < routeInfo.steps.length ? routeInfo.steps[currentStepIndex + 2] : undefined}
                 distanceToStep={distanceToCurrentStep || routeInfo.steps[currentStepIndex]?.distance || 0}
                 remainingDistance={routeInfo.steps.slice(currentStepIndex).reduce((sum, step) => sum + step.distance, 0) / 1000}
                 remainingTime={routeInfo.steps.slice(currentStepIndex).reduce((sum, step) => sum + step.duration, 0)}
                 allSteps={routeInfo.steps}
-                currentStepIndex={currentStepIndex}
+                currentStepIndex={currentStepIndex + 1}
                 onShowAllSteps={() => setShowNavigationDetails(!showNavigationDetails)}
                 onFinish={() => {
                   if (isSimulating) {

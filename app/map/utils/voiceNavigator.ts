@@ -10,7 +10,8 @@ export class VoiceNavigator {
   private isSpeaking: boolean = false;
   private lastAnnouncedStep: number = -1;
   private lastAnnouncedDistance: number = -1;
-  private announcementThresholds = [200, 100, 50]; // Метры для объявлений
+  private announcementThresholds = [200, 100, 50]; // Метры для объявлений (по умолчанию для 40 км/ч)
+  private currentSpeed: number = 40; // км/ч
   private isInitialized: boolean = false;
 
   constructor() {
@@ -18,6 +19,38 @@ export class VoiceNavigator {
       this.synthesis = window.speechSynthesis;
       this.initialize();
     }
+  }
+
+  /**
+   * Установить текущую скорость движения и адаптировать пороги объявлений
+   */
+  setSpeed(speedKmh: number): void {
+    this.currentSpeed = speedKmh;
+    this.announcementThresholds = this.calculateThresholds(speedKmh);
+  }
+
+  /**
+   * Расчёт порогов объявлений в зависимости от скорости
+   * Чем выше скорость, тем раньше нужно объявлять манёвр
+   */
+  private calculateThresholds(speedKmh: number): number[] {
+    // Время реакции водителя (в секундах) на разных скоростях
+    // Дальний порог: ~15 секунд до манёвра
+    // Средний порог: ~7 секунд до манёвра
+    // Ближний порог: ~3 секунды до манёвра
+    
+    const speedMps = (speedKmh * 1000) / 3600; // м/с
+    
+    const farThreshold = Math.round(speedMps * 15 / 50) * 50;     // округление до 50м
+    const midThreshold = Math.round(speedMps * 7 / 25) * 25;      // округление до 25м
+    const nearThreshold = Math.round(speedMps * 3 / 10) * 10;     // округление до 10м
+    
+    // Минимальные значения чтобы не было слишком близко
+    return [
+      Math.max(farThreshold, 150),
+      Math.max(midThreshold, 75),
+      Math.max(nearThreshold, 30)
+    ];
   }
 
   /**
@@ -32,16 +65,6 @@ export class VoiceNavigator {
       // Загружаем список голосов
       const loadVoices = () => {
         const voices = this.synthesis?.getVoices() || [];
-        console.log('[Voice] Available voices:', voices.length);
-        
-        // Ищем русский голос
-        const russianVoice = voices.find(voice => voice.lang.startsWith('ru'));
-        if (russianVoice) {
-          console.log('[Voice] Russian voice found:', russianVoice.name);
-        } else {
-          console.warn('[Voice] No Russian voice found, will use default');
-        }
-        
         this.isInitialized = true;
       };
 
@@ -108,19 +131,16 @@ export class VoiceNavigator {
 
     // Проверка на пустой текст
     if (!text || text.trim().length === 0) {
-      console.warn('[Voice] Empty text, skipping');
       return;
     }
 
     // Проверка доступности синтеза речи
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      console.warn('[Voice] Speech synthesis not available');
       return;
     }
 
     // Если уже говорит и приоритет не высокий - пропускаем
     if (this.isSpeakingNow() && priority !== 'high') {
-      console.log('[Voice] Skipping announcement (already speaking):', text);
       return;
     }
 
@@ -130,54 +150,38 @@ export class VoiceNavigator {
     }
 
     try {
-      console.log('[Voice] Speaking:', text);
+      console.log('🔊 Голос:', text);
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'ru-RU';
-      utterance.rate = 1.0; // Нормальная скорость
+      utterance.rate = 0.95; // Чуть медленнее для лучшей разборчивости
       utterance.pitch = 1.0; // Нормальная высота
-      utterance.volume = 0.8; // Средняя громкость (80%)
+      utterance.volume = 1.0; // Полная громкость для четкости
       
       // Пытаемся выбрать русский голос, если доступен
       const voices = this.synthesis.getVoices();
-      const russianVoice = voices.find(voice => voice.lang.startsWith('ru'));
+      // Приоритет: качественные русские голоса
+      const russianVoice = 
+        voices.find(v => v.lang === 'ru-RU' && v.localService) ||
+        voices.find(v => v.lang.startsWith('ru')) ||
+        voices.find(v => v.name.toLowerCase().includes('milena')) ||
+        voices.find(v => v.name.toLowerCase().includes('yuri')) ||
+        voices.find(v => v.name.toLowerCase().includes('alyona'));
+      
       if (russianVoice) {
         utterance.voice = russianVoice;
       }
 
       utterance.onstart = () => {
         this.isSpeaking = true;
-        console.log('[Voice] Started speaking');
       };
 
       utterance.onend = () => {
         this.isSpeaking = false;
         this.currentUtterance = null;
-        console.log('[Voice] Finished speaking');
       };
 
       utterance.onerror = (event) => {
-        // Более детальная обработка ошибок
-        const errorType = (event as any).error || 'unknown';
-        
-        // Некоторые ошибки не критичны и их можно игнорировать
-        if (errorType === 'interrupted' || errorType === 'canceled') {
-          // Это нормальное поведение - голос был прерван или отменен
-          console.log('[Voice] Speech was interrupted or canceled (non-critical)');
-        } else if (errorType === 'not-allowed') {
-          console.warn('[Voice] Speech not allowed - check browser permissions');
-        } else if (errorType === 'network') {
-          console.warn('[Voice] Network error - voice synthesis unavailable');
-        } else if (errorType === 'synthesis-failed' || errorType === 'synthesis-unavailable') {
-          console.warn('[Voice] Speech synthesis failed or unavailable');
-        } else if (errorType === 'unknown' || !errorType) {
-          // Пустые или неизвестные ошибки часто не критичны - игнорируем
-          console.log('[Voice] Non-critical speech event (ignored)');
-        } else {
-          // Только для действительно неожиданных ошибок
-          console.warn('[Voice] Unexpected speech error:', errorType);
-        }
-        
         this.isSpeaking = false;
         this.currentUtterance = null;
       };
@@ -193,7 +197,6 @@ export class VoiceNavigator {
         
         // Проверяем видимость страницы (если скрыта, не произносим)
         if (typeof document !== 'undefined' && document.hidden) {
-          console.log('[Voice] Page is hidden, skipping speech');
           this.isSpeaking = false;
           this.currentUtterance = null;
           return;
@@ -202,14 +205,12 @@ export class VoiceNavigator {
         try {
           this.synthesis.speak(this.currentUtterance);
         } catch (speakError) {
-          console.warn('[Voice] Error calling speak():', speakError);
           this.isSpeaking = false;
           this.currentUtterance = null;
         }
       }, 50);
       
     } catch (error) {
-      console.error('[Voice] Exception while speaking:', error);
       this.isSpeaking = false;
       this.currentUtterance = null;
     }
@@ -247,13 +248,11 @@ export class VoiceNavigator {
     distanceToStep: number
   ): void {
     if (!this.isEnabled || !this.synthesis) {
-      console.log('[Voice] Skipping: voice disabled or synthesis unavailable');
       return;
     }
 
     // Если уже говорит - не перебиваем
     if (this.isSpeakingNow()) {
-      console.log('[Voice] Skipping: already speaking');
       return;
     }
 
@@ -264,14 +263,11 @@ export class VoiceNavigator {
     );
 
     if (!shouldAnnounce) {
-      console.log(`[Voice] Skipping: step=${stepIndex}, distance=${Math.round(distanceToStep)}m, lastStep=${this.lastAnnouncedStep}, lastDist=${this.lastAnnouncedDistance}m`);
       return;
     }
 
     // Формируем текст объявления
     const announcement = this.formatAnnouncement(instruction, distanceToStep);
-    
-    console.log(`[Voice] ✅ Announcing: step=${stepIndex}, distance=${Math.round(distanceToStep)}m, text="${announcement}"`);
     
     // Запоминаем, что объявили
     this.lastAnnouncedStep = stepIndex;
@@ -288,45 +284,34 @@ export class VoiceNavigator {
     stepIndex: number,
     distanceToStep: number
   ): boolean {
-    console.log(`[Voice] Checking: step=${stepIndex}, distance=${Math.round(distanceToStep)}m, lastStep=${this.lastAnnouncedStep}, lastDist=${this.lastAnnouncedDistance}m`);
+    // Окно объявления зависит от скорости
+    const speedMps = (this.currentSpeed * 1000) / 3600;
+    const announceWindow = Math.max(40, Math.round(speedMps * 2)); // 2 секунды или минимум 40м
     
     // Если это новый шаг
     if (stepIndex !== this.lastAnnouncedStep) {
-      console.log('[Voice] New step detected');
-      
       // Объявляем, если расстояние в пределах порогов
-      // Используем более широкий диапазон: threshold-30 до threshold
       for (const threshold of this.announcementThresholds) {
-        if (distanceToStep <= threshold && distanceToStep > threshold - 30) {
-          console.log(`[Voice] ✅ Within threshold ${threshold}m (range: ${threshold-30}-${threshold}m)`);
+        if (distanceToStep <= threshold && distanceToStep > threshold - announceWindow) {
           return true;
         }
       }
       
-      // Или если очень близко (меньше 30м) - объявляем сразу
-      if (distanceToStep <= 30) {
-        console.log('[Voice] ✅ Very close (<30m)');
+      // Или если очень близко - объявляем сразу
+      const minThreshold = this.announcementThresholds[this.announcementThresholds.length - 1];
+      if (distanceToStep <= minThreshold) {
         return true;
       }
-      
-      console.log('[Voice] ❌ New step but distance not in announcement range');
     } else {
       // Если тот же шаг - проверяем, не пора ли объявить снова
-      // (например, было 200м, теперь 100м, потом 50м)
       const currentThreshold = Math.floor(distanceToStep / 10) * 10;
-      
-      console.log(`[Voice] Same step, currentThreshold=${currentThreshold}m`);
       
       if (currentThreshold !== this.lastAnnouncedDistance) {
         for (const threshold of this.announcementThresholds) {
-          if (distanceToStep <= threshold && distanceToStep > threshold - 30) {
-            console.log(`[Voice] ✅ Distance changed, within threshold ${threshold}m`);
+          if (distanceToStep <= threshold && distanceToStep > threshold - announceWindow) {
             return true;
           }
         }
-        console.log('[Voice] ❌ Distance changed but not in announcement range');
-      } else {
-        console.log('[Voice] ❌ Same distance threshold');
       }
     }
 
@@ -340,35 +325,71 @@ export class VoiceNavigator {
     const distance = Math.round(distanceToStep);
 
     // Если очень близко - объявляем без расстояния
-    if (distance <= 20) {
+    if (distance <= 30) {
       return this.formatInstruction(instruction);
     }
 
-    // Округляем расстояние для произношения
+    // Округляем расстояние для произношения с правильным склонением
     let distanceText = '';
     if (distance >= 1000) {
-      const km = (distance / 1000).toFixed(1);
-      distanceText = `через ${km} километра`;
+      const km = distance / 1000;
+      const kmRounded = Math.round(km * 10) / 10; // 1 знак после запятой
+      distanceText = `через ${this.formatKilometers(kmRounded)}`;
     } else if (distance >= 100) {
       const rounded = Math.round(distance / 50) * 50; // Округляем до 50м
-      distanceText = `через ${rounded} метров`;
+      distanceText = `через ${rounded} ${this.getMetersWord(rounded)}`;
     } else {
       const rounded = Math.round(distance / 10) * 10; // Округляем до 10м
-      distanceText = `через ${rounded} метров`;
+      distanceText = `через ${rounded} ${this.getMetersWord(rounded)}`;
     }
 
     const formattedInstruction = this.formatInstruction(instruction);
-    return `${distanceText} ${formattedInstruction}`;
+    return `${distanceText}, ${formattedInstruction}`;
+  }
+
+  /**
+   * Правильное склонение слова "метр"
+   */
+  private getMetersWord(meters: number): string {
+    const lastDigit = meters % 10;
+    const lastTwoDigits = meters % 100;
+    
+    if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return 'метров';
+    if (lastDigit === 1) return 'метр';
+    if (lastDigit >= 2 && lastDigit <= 4) return 'метра';
+    return 'метров';
+  }
+
+  /**
+   * Правильное склонение слова "километр"
+   */
+  private formatKilometers(km: number): string {
+    // Целое или дробное
+    if (km === Math.floor(km)) {
+      const intKm = Math.floor(km);
+      const lastDigit = intKm % 10;
+      const lastTwoDigits = intKm % 100;
+      
+      if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return `${intKm} километров`;
+      if (lastDigit === 1) return `${intKm} километр`;
+      if (lastDigit >= 2 && lastDigit <= 4) return `${intKm} километра`;
+      return `${intKm} километров`;
+    }
+    
+    // Дробные числа всегда "километра"
+    return `${km.toFixed(1).replace('.', ',')} километра`;
   }
 
   /**
    * Форматирование инструкции для произношения
+   * ВАЖНО: проверяем "направо" ПЕРЕД "налево", потому что слово "направо" 
+   * содержит "право", а не "лево". Аналогично для других пар.
    */
   private formatInstruction(instruction: string): string {
-    const lower = instruction.toLowerCase();
+    const lower = instruction.toLowerCase().trim();
 
-    // Специальные случаи для лучшего произношения
-    if (lower.includes('начните движение') || lower.includes('начало')) {
+    // Специальные случаи (проверяем первыми)
+    if (lower.includes('начните движение') || lower.includes('начало движения') || lower.includes('начинайте')) {
       return 'начинайте движение';
     }
 
@@ -376,48 +397,59 @@ export class VoiceNavigator {
       return 'вы прибыли к месту назначения';
     }
 
-    if (lower.includes('круг') || lower.includes('roundabout')) {
-      return 'круговое движение';
+    if (lower.includes('круг') || lower.includes('roundabout') || lower.includes('кольц')) {
+      return 'въезжайте на круговое движение';
     }
 
-    // Обработка поворотов - ВАЖНО: проверяем в правильном порядке
-    // Сначала проверяем "налево", потом "направо", чтобы избежать путаницы
-    if (lower.includes('налево')) {
-      if (lower.includes('резко')) {
-        return 'резко поверните налево';
-      } else if (lower.includes('слегка')) {
-        return 'поверните слегка налево';
-      } else if (lower.includes('конце дороги')) {
-        return 'в конце дороги поверните налево';
-      } else {
-        return 'поверните налево';
-      }
+    if (lower.includes('перестрой')) {
+      return 'перестройтесь';
     }
 
-    if (lower.includes('направо')) {
-      if (lower.includes('резко')) {
-        return 'резко поверните направо';
-      } else if (lower.includes('слегка')) {
-        return 'поверните слегка направо';
-      } else if (lower.includes('конце дороги')) {
-        return 'в конце дороги поверните направо';
-      } else {
-        return 'поверните направо';
-      }
-    }
+    // ============ ПРАВО (проверяем ПЕРВЫМ из-за пересечения букв) ============
+    // Используем точное совпадение слов через границы слов
+    const isRight = /\b(направо|правее|вправо)\b/i.test(lower) || 
+                    (/\bправ/i.test(lower) && !/\bлев/i.test(lower));
+    
+    // ============ ЛЕВО ============
+    const isLeft = /\b(налево|левее|влево)\b/i.test(lower) || 
+                   (/\bлев/i.test(lower) && !/\bправ/i.test(lower));
 
-    // Обработка развилок
-    if (lower.includes('развилк')) {
-      if (lower.includes('лев')) {
-        return 'на развилке держитесь левее';
-      } else if (lower.includes('прав')) {
+    // Обработка поворота НАПРАВО
+    if (isRight) {
+      if (lower.includes('развилк')) {
         return 'на развилке держитесь правее';
       }
-      return 'развилка';
+      if (lower.includes('конце дороги') || lower.includes('конец дороги')) {
+        return 'в конце дороги поверните направо';
+      }
+      if (lower.includes('резко')) {
+        return 'резко поверните направо';
+      }
+      if (lower.includes('слегка') || lower.includes('немного')) {
+        return 'поверните слегка направо';
+      }
+      return 'поверните направо';
+    }
+
+    // Обработка поворота НАЛЕВО
+    if (isLeft) {
+      if (lower.includes('развилк')) {
+        return 'на развилке держитесь левее';
+      }
+      if (lower.includes('конце дороги') || lower.includes('конец дороги')) {
+        return 'в конце дороги поверните налево';
+      }
+      if (lower.includes('резко')) {
+        return 'резко поверните налево';
+      }
+      if (lower.includes('слегка') || lower.includes('немного')) {
+        return 'поверните слегка налево';
+      }
+      return 'поверните налево';
     }
 
     // Обработка прямого движения
-    if (lower.includes('прямо') || lower.includes('продолжайте')) {
+    if (lower.includes('прямо') || lower.includes('продолжайте') || lower.includes('продолжить')) {
       return 'продолжайте движение прямо';
     }
 

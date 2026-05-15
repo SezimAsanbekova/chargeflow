@@ -7,75 +7,72 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Не авторизован' },
+        { status: 401 }
+      );
     }
 
-    // Получаем пользователя
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Пользователь не найден' },
+        { status: 404 }
+      );
     }
 
-    // Получаем историю зарядок с информацией о коннекторе и станции
-    const chargingSessions = await prisma.chargingSession.findMany({
+    // Получаем все завершенные сессии зарядки пользователя
+    const sessions = await prisma.chargingSession.findMany({
       where: {
         userId: user.id,
         status: {
-          in: ['completed', 'cancelled'],
-        },
+          in: ['completed', 'cancelled']
+        }
       },
       include: {
         connector: {
           include: {
-            station: true,
-          },
-        },
-        vehicle: true,
+            station: true
+          }
+        }
       },
       orderBy: {
-        createdAt: 'desc',
+        startTime: 'desc'
       },
-      take: 50, // Последние 50 сессий
+      take: 50 // Последние 50 сессий
     });
 
     // Форматируем данные для фронтенда
-    const formattedSessions = chargingSessions.map((session) => ({
+    const formattedSessions = sessions.map(session => ({
       id: session.id,
-      startTime: session.startTime,
-      endTime: session.endTime,
-      energyKwh: Number(session.energyKwh),
-      costTotal: Number(session.costTotal),
-      status: session.status,
-      startedVia: session.startedVia,
       station: {
-        id: session.connector.station.id,
         name: session.connector.station.name,
-        address: session.connector.station.address,
+        address: session.connector.station.address
       },
       connector: {
-        id: session.connector.id,
         type: session.connector.type,
-        powerKw: Number(session.connector.powerKw),
-        pricePerMinute: Number(session.connector.pricePerMinute),
+        powerKw: Number(session.connector.powerKw)
       },
-      vehicle: session.vehicle ? {
-        brand: session.vehicle.brand,
-        model: session.vehicle.model,
-      } : null,
+      startTime: session.startTime.toISOString(),
+      endTime: session.endTime ? session.endTime.toISOString() : null,
+      energyKwh: Number(session.energyKwh),
+      costTotal: Number(session.costTotal),
+      status: session.status
     }));
 
     return NextResponse.json({
-      sessions: formattedSessions,
-      total: formattedSessions.length,
+      success: true,
+      sessions: formattedSessions
     });
+
   } catch (error) {
-    console.error('Error fetching charging history:', error);
+    console.error('Get charging history error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch charging history' },
+      { error: 'Внутренняя ошибка сервера' },
       { status: 500 }
     );
   }

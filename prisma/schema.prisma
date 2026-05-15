@@ -1,63 +1,51 @@
-// Prisma Schema для системы зарядных станций электромобилей
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-} 
+}
 
-// ============================================
-// 🧠 1. USERS (Пользователи)
-// ============================================
 model User {
-  id               String    @id @default(uuid()) @db.Uuid
-  email            String    @unique @db.VarChar(255)
-  phone            String?   @db.VarChar(20)
-  passwordHash     String?   @map("password_hash") @db.Text
-  name             String?   @db.VarChar(255)
-  image            String?   @db.Text
-  emailVerified    DateTime? @map("email_verified") @db.Timestamp(6)
-  role             UserRole  @default(user)
-  status           UserStatus @default(active)
-  
-  // Защита от брутфорса
-  loginAttempts    Int       @default(0) @map("login_attempts")
-  lockedUntil      DateTime? @map("locked_until") @db.Timestamp(6)
-  
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
-
-  // Relations
-  vehicles         Vehicle[]
+  id               String            @id @default(uuid()) @db.Uuid
+  passwordHash     String?           @map("password_hash")
+  role             UserRole          @default(user)
+  status           UserStatus        @default(active)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
+  email            String            @unique @db.VarChar(255)
+  emailVerified    DateTime?         @map("email_verified") @db.Timestamp(6)
+  image            String?
+  name             String?           @db.VarChar(255)
+  phone            String?           @db.VarChar(20)
+  lockedUntil      DateTime?         @map("locked_until") @db.Timestamp(6)
+  loginAttempts    Int               @default(0) @map("login_attempts")
+  accounts         Account[]
   bookings         Booking[]
   chargingSessions ChargingSession[]
-  payments         Payment[]
-  balance          UserBalance?
   invoices         Invoice[]
-  accounts         Account[]
+  payments         Payment[]
   sessions         Session[]
+  balance          UserBalance?
+  vehicles         Vehicle[]
 
   @@map("users")
 }
 
-// NextAuth Models
 model Account {
   id                String  @id @default(uuid()) @db.Uuid
   userId            String  @map("user_id") @db.Uuid
   type              String
   provider          String
   providerAccountId String  @map("provider_account_id")
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -82,41 +70,19 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-enum UserRole {
-  user
-  admin
-}
-
-enum UserStatus {
-  active
-  blocked
-}
-
-// ============================================
-// 🔐 2. EMAIL_VERIFICATION_CODES
-// ============================================
 model EmailVerificationCode {
   id        String   @id @default(uuid()) @db.Uuid
   email     String   @db.VarChar(255)
   code      String   @db.VarChar(6)
   expiresAt DateTime @map("expires_at") @db.Timestamp(6)
   isUsed    Boolean  @default(false) @map("is_used")
-  type      CodeType @default(login) // login или registration
+  type      CodeType @default(login)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([email, code])
   @@map("email_verification_codes")
 }
 
-enum CodeType {
-  login
-  registration
-  reset_password
-}
-
-// ============================================
-// 🔐 3. SMS_VERIFICATION_CODES
-// ============================================
 model SmsVerificationCode {
   id        String   @id @default(uuid()) @db.Uuid
   phone     String   @db.VarChar(20)
@@ -128,50 +94,197 @@ model SmsVerificationCode {
   @@map("sms_verification_codes")
 }
 
-
-
-// ============================================
-// 🚗 3. VEHICLES (Транспорт)
-// ============================================
 model Vehicle {
-  id                 String        @id @default(uuid()) @db.Uuid
-  userId             String        @map("user_id") @db.Uuid
-  brand              String        @db.VarChar(50)
-  model              String        @db.VarChar(50)
+  id                 String            @id @default(uuid()) @db.Uuid
+  userId             String            @map("user_id") @db.Uuid
+  brand              String            @db.VarChar(50)
+  model              String            @db.VarChar(50)
   year               Int
-  connectorType      ConnectorType @map("connector_type")
-  maxPowerKw         Decimal       @map("max_power_kw") @db.Decimal(5, 2)
-  batteryCapacityKwh Decimal       @map("battery_capacity_kwh") @db.Decimal(6, 2)
-  currentChargeLevel Decimal       @map("current_charge_level") @db.Decimal(5, 2)
-  isActive           Boolean       @default(true) @map("is_active")
-  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
-
-  // Relations
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chargingSessions ChargingSession[]
+  connectorType      ConnectorType     @map("connector_type")
+  maxPowerKw         Decimal           @map("max_power_kw") @db.Decimal(5, 2)
+  batteryCapacityKwh Decimal           @map("battery_capacity_kwh") @db.Decimal(6, 2)
+  currentChargeLevel Decimal           @map("current_charge_level") @db.Decimal(5, 2)
+  isActive           Boolean           @default(true) @map("is_active")
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  chargingSessions   ChargingSession[]
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("vehicles")
 }
 
-// ============================================
-// ⚡ 4. STATIONS (Станции)
-// ============================================
 model Station {
-  id           String        @id @default(uuid()) @db.Uuid
-  name         String        @db.VarChar(100)
-  address      String        @db.Text
-  latitude     Decimal       @db.Decimal(10, 7)
-  longitude    Decimal       @db.Decimal(10, 7)
-  status       StationStatus @default(active)
-  workingHours Json          @map("working_hours") @db.JsonB
-  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
-
-  // Relations
-  connectors Connector[]
-  photos     StationPhoto[]
-  analytics  StationAnalytics[]
+  id           String             @id @default(uuid()) @db.Uuid
+  name         String             @db.VarChar(100)
+  address      String
+  latitude     Decimal            @db.Decimal(10, 7)
+  longitude    Decimal            @db.Decimal(10, 7)
+  status       StationStatus      @default(active)
+  workingHours Json               @map("working_hours")
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamp(6)
+  connectors   Connector[]
+  analytics    StationAnalytics[]
+  photos       StationPhoto[]
 
   @@map("stations")
+}
+
+model Connector {
+  id               String            @id @default(uuid()) @db.Uuid
+  stationId        String            @map("station_id") @db.Uuid
+  type             ConnectorType
+  powerKw          Decimal           @map("power_kw") @db.Decimal(5, 2)
+  pricePerKwh      Decimal           @map("price_per_kwh") @db.Decimal(6, 2)
+  status           ConnectorStatus   @default(available)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  pricePerMinute   Decimal           @default(0) @map("price_per_minute") @db.Decimal(6, 2)
+  bookings         Booking[]
+  chargingSessions ChargingSession[]
+  station          Station           @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@map("connectors")
+}
+
+model StationPhoto {
+  id        String   @id @default(uuid()) @db.Uuid
+  stationId String   @map("station_id") @db.Uuid
+  imageUrl  String   @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  station   Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@map("station_photos")
+}
+
+model Booking {
+  id               String            @id @default(uuid()) @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  connectorId      String            @map("connector_id") @db.Uuid
+  startTime        DateTime          @map("start_time") @db.Timestamp(6)
+  endTime          DateTime          @map("end_time") @db.Timestamp(6)
+  status           BookingStatus     @default(active)
+  depositAmount    Decimal           @map("deposit_amount") @db.Decimal(6, 2)
+  depositStatus    DepositStatus     @default(held) @map("deposit_status")
+  cancelDeadline   DateTime          @map("cancel_deadline") @db.Timestamp(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  connector        Connector         @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chargingSessions ChargingSession[]
+  payments         Payment[]
+
+  @@map("bookings")
+}
+
+model ChargingSession {
+  id             String                @id @default(uuid()) @db.Uuid
+  userId         String                @map("user_id") @db.Uuid
+  vehicleId      String                @map("vehicle_id") @db.Uuid
+  connectorId    String                @map("connector_id") @db.Uuid
+  bookingId      String?               @map("booking_id") @db.Uuid
+  startTime      DateTime              @map("start_time") @db.Timestamp(6)
+  endTime        DateTime?             @map("end_time") @db.Timestamp(6)
+  energyKwh      Decimal               @default(0) @map("energy_kwh") @db.Decimal(6, 3)
+  costTotal      Decimal               @default(0) @map("cost_total") @db.Decimal(8, 2)
+  status         ChargingSessionStatus @default(created)
+  startedVia     StartMethod           @map("started_via")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamp(6)
+  chargingEvents ChargingEvent[]
+  booking        Booking?              @relation(fields: [bookingId], references: [id])
+  connector      Connector             @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle        Vehicle               @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  invoices       Invoice[]
+  payments       Payment[]
+
+  @@map("charging_sessions")
+}
+
+model Payment {
+  id            String           @id @default(uuid()) @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  bookingId     String?          @map("booking_id") @db.Uuid
+  sessionId     String?          @map("session_id") @db.Uuid
+  amount        Decimal          @db.Decimal(8, 2)
+  type          PaymentType
+  method        String           @db.VarChar(50)
+  status        PaymentStatus    @default(pending)
+  transactionId String?          @map("transaction_id") @db.VarChar(100)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  booking       Booking?         @relation(fields: [bookingId], references: [id])
+  session       ChargingSession? @relation(fields: [sessionId], references: [id])
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model UserBalance {
+  userId    String   @id @map("user_id") @db.Uuid
+  balance   Decimal  @default(0) @db.Decimal(10, 2)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_balance")
+}
+
+model ChargingEvent {
+  id        String            @id @default(uuid()) @db.Uuid
+  sessionId String            @map("session_id") @db.Uuid
+  eventType ChargingEventType @map("event_type")
+  data      Json
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  session   ChargingSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("charging_events")
+}
+
+model Invoice {
+  id          String          @id @default(uuid()) @db.Uuid
+  userId      String          @map("user_id") @db.Uuid
+  sessionId   String          @map("session_id") @db.Uuid
+  totalAmount Decimal         @map("total_amount") @db.Decimal(8, 2)
+  energyKwh   Decimal         @map("energy_kwh") @db.Decimal(6, 3)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  session     ChargingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+model StationAnalytics {
+  id             String   @id @default(uuid()) @db.Uuid
+  stationId      String   @map("station_id") @db.Uuid
+  date           DateTime @db.Date
+  totalSessions  Int      @default(0) @map("total_sessions")
+  totalEnergyKwh Decimal  @default(0) @map("total_energy_kwh") @db.Decimal(10, 3)
+  revenue        Decimal  @default(0) @db.Decimal(10, 2)
+  avgSessionTime Int      @default(0) @map("avg_session_time")
+  station        Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([stationId, date])
+  @@map("station_analytics")
+}
+
+model Setting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.VarChar(100)
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("settings")
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+enum UserStatus {
+  active
+  blocked
+}
+
+enum CodeType {
+  login
+  registration
+  reset_password
 }
 
 enum StationStatus {
@@ -180,77 +293,17 @@ enum StationStatus {
   maintenance
 }
 
-// ============================================
-// 🔌 5. CONNECTORS (Разъёмы)
-// ============================================
-model Connector {
-  id            String          @id @default(uuid()) @db.Uuid
-  stationId     String          @map("station_id") @db.Uuid
-  type          ConnectorType
-  powerKw       Decimal         @map("power_kw") @db.Decimal(5, 2)
-  pricePerKwh   Decimal         @map("price_per_kwh") @db.Decimal(6, 2)
-  pricePerMinute Decimal        @map("price_per_minute") @db.Decimal(6, 2) @default(0)
-  status        ConnectorStatus @default(available)
-  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
-
-  // Relations
-  station          Station           @relation(fields: [stationId], references: [id], onDelete: Cascade)
-  bookings         Booking[]
-  chargingSessions ChargingSession[]
-
-  @@map("connectors")
-}
-
 enum ConnectorType {
   CCS2
   CHAdeMO
   Type2
-  GB_T @map("GB/T")
+  GB_T    @map("GB/T")
 }
 
 enum ConnectorStatus {
   available
   busy
   maintenance
-}
-
-// ============================================
-// 📍 6. STATION_PHOTOS (Фото станций)
-// ============================================
-model StationPhoto {
-  id        String   @id @default(uuid()) @db.Uuid
-  stationId String   @map("station_id") @db.Uuid
-  imageUrl  String   @map("image_url") @db.Text
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-
-  // Relations
-  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
-
-  @@map("station_photos")
-}
-
-// ============================================
-// 📅 7. BOOKINGS (Бронирование)
-// ============================================
-model Booking {
-  id             String        @id @default(uuid()) @db.Uuid
-  userId         String        @map("user_id") @db.Uuid
-  connectorId    String        @map("connector_id") @db.Uuid
-  startTime      DateTime      @map("start_time") @db.Timestamp(6)
-  endTime        DateTime      @map("end_time") @db.Timestamp(6)
-  status         BookingStatus @default(active)
-  depositAmount  Decimal       @map("deposit_amount") @db.Decimal(6, 2)
-  depositStatus  DepositStatus @map("deposit_status") @default(held)
-  cancelDeadline DateTime      @map("cancel_deadline") @db.Timestamp(6)
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
-
-  // Relations
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  connector        Connector         @relation(fields: [connectorId], references: [id], onDelete: Cascade)
-  chargingSessions ChargingSession[]
-  payments         Payment[]
-
-  @@map("bookings")
 }
 
 enum BookingStatus {
@@ -266,35 +319,6 @@ enum DepositStatus {
   lost
 }
 
-// ============================================
-// ⚡ 8. CHARGING_SESSIONS (Зарядные сессии)
-// ============================================
-model ChargingSession {
-  id          String               @id @default(uuid()) @db.Uuid
-  userId      String               @map("user_id") @db.Uuid
-  vehicleId   String               @map("vehicle_id") @db.Uuid
-  connectorId String               @map("connector_id") @db.Uuid
-  bookingId   String?              @map("booking_id") @db.Uuid
-  startTime   DateTime             @map("start_time") @db.Timestamp(6)
-  endTime     DateTime?            @map("end_time") @db.Timestamp(6)
-  energyKwh   Decimal              @default(0) @map("energy_kwh") @db.Decimal(6, 3)
-  costTotal   Decimal              @default(0) @map("cost_total") @db.Decimal(8, 2)
-  status      ChargingSessionStatus @default(created)
-  startedVia  StartMethod          @map("started_via")
-  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
-
-  // Relations
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  connector      Connector       @relation(fields: [connectorId], references: [id], onDelete: Cascade)
-  booking        Booking?        @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  payments       Payment[]
-  chargingEvents ChargingEvent[]
-  invoices       Invoice[]
-
-  @@map("charging_sessions")
-}
-
 enum ChargingSessionStatus {
   created
   active
@@ -306,29 +330,6 @@ enum ChargingSessionStatus {
 enum StartMethod {
   qr
   app
-}
-
-// ============================================
-// 💳 9. PAYMENTS (Платежи)
-// ============================================
-model Payment {
-  id            String        @id @default(uuid()) @db.Uuid
-  userId        String        @map("user_id") @db.Uuid
-  bookingId     String?       @map("booking_id") @db.Uuid
-  sessionId     String?       @map("session_id") @db.Uuid
-  amount        Decimal       @db.Decimal(8, 2)
-  type          PaymentType
-  method        String        @db.VarChar(50)
-  status        PaymentStatus @default(pending)
-  transactionId String?       @map("transaction_id") @db.VarChar(100)
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
-
-  // Relations
-  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  booking Booking?         @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  session ChargingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-
-  @@map("payments")
 }
 
 enum PaymentType {
@@ -344,89 +345,10 @@ enum PaymentStatus {
   failed
 }
 
-// ============================================
-// 💰 10. USER_BALANCE (Баланс пользователя)
-// ============================================
-model UserBalance {
-  userId    String   @id @map("user_id") @db.Uuid
-  balance   Decimal  @default(0) @db.Decimal(10, 2)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_balance")
-}
-
-// ============================================
-// 📡 11. CHARGING_EVENTS (События зарядки)
-// ============================================
-model ChargingEvent {
-  id        String           @id @default(uuid()) @db.Uuid
-  sessionId String           @map("session_id") @db.Uuid
-  eventType ChargingEventType @map("event_type")
-  data      Json             @db.JsonB
-  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
-
-  // Relations
-  session ChargingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@map("charging_events")
-}
-
 enum ChargingEventType {
   start
   stop
   pause
   resume
   error
-}
-
-// ============================================
-// 🧾 12. INVOICES (Счета)
-// ============================================
-model Invoice {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  sessionId   String   @map("session_id") @db.Uuid
-  totalAmount Decimal  @map("total_amount") @db.Decimal(8, 2)
-  energyKwh   Decimal  @map("energy_kwh") @db.Decimal(6, 3)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-
-  // Relations
-  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  session ChargingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@map("invoices")
-}
-
-// ============================================
-// 📊 13. STATION_ANALYTICS (Аналитика по станциям)
-// ============================================
-model StationAnalytics {
-  id              String   @id @default(uuid()) @db.Uuid
-  stationId       String   @map("station_id") @db.Uuid
-  date            DateTime @db.Date
-  totalSessions   Int      @default(0) @map("total_sessions")
-  totalEnergyKwh  Decimal  @default(0) @map("total_energy_kwh") @db.Decimal(10, 3)
-  revenue         Decimal  @default(0) @db.Decimal(10, 2)
-  avgSessionTime  Int      @default(0) @map("avg_session_time")
-
-  // Relations
-  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
-
-  @@unique([stationId, date])
-  @@map("station_analytics")
-}
-
-// ============================================
-// 📦 14. SETTINGS (Настройки)
-// ============================================
-model Setting {
-  id        String   @id @default(uuid()) @db.Uuid
-  key       String   @unique @db.VarChar(100)
-  value     String   @db.Text
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
-
-  @@map("settings")
 }

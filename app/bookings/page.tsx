@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Clock, MapPin, X, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, X, AlertCircle, Zap, Battery } from 'lucide-react';
 import BottomNavigation from '@/app/components/BottomNavigation';
 
 interface Booking {
@@ -31,10 +31,31 @@ interface Booking {
   createdAt: string;
 }
 
+interface ChargingSession {
+  id: string;
+  station: {
+    name: string;
+    address: string;
+  };
+  connector: {
+    type: string;
+    powerKw: number;
+  };
+  startTime: string;
+  endTime: string | null;
+  energyKwh: number;
+  costTotal: number;
+  status: 'active' | 'completed' | 'cancelled';
+}
+
+type TabType = 'bookings' | 'sessions';
+
 export default function BookingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<TabType>('bookings');
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [chargingSessions, setChargingSessions] = useState<ChargingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
@@ -47,28 +68,34 @@ export default function BookingsPage() {
   }, [status, router]);
 
   useEffect(() => {
-    const fetchBookings = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/user/bookings');
-        if (response.ok) {
-          const data = await response.json();
-          setBookings(data);
-        } else {
-          console.error('Failed to fetch bookings');
+        // Загружаем бронирования
+        const bookingsResponse = await fetch('/api/user/bookings');
+        if (bookingsResponse.ok) {
+          const bookingsData = await bookingsResponse.json();
+          setBookings(bookingsData);
+        }
+
+        // Загружаем историю зарядок
+        const sessionsResponse = await fetch('/api/user/charging-history');
+        if (sessionsResponse.ok) {
+          const sessionsData = await sessionsResponse.json();
+          setChargingSessions(sessionsData.sessions || []);
         }
       } catch (error) {
-        console.error('Error fetching bookings:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
     if (session) {
-      fetchBookings();
+      fetchData();
       
       // Автоматически обновляем каждые 30 секунд
       const interval = setInterval(() => {
-        fetchBookings();
+        fetchData();
       }, 30000);
       
       return () => clearInterval(interval);
@@ -207,17 +234,44 @@ export default function BookingsPage() {
     <div className="min-h-screen bg-[#0a1f1a] text-white pb-20">
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-6">
           <Link
             href="/profile"
             className="w-10 h-10 bg-[#0f2d26] border border-emerald-900/30 rounded-full flex items-center justify-center hover:border-emerald-500/50 transition"
           >
             <ArrowLeft className="text-emerald-400" size={20} />
           </Link>
-          <h1 className="text-2xl font-bold">Мои брони</h1>
+          <h1 className="text-2xl font-bold">История</h1>
         </div>
 
-        {/* Active Bookings */}
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-1">
+          <button
+            onClick={() => setActiveTab('bookings')}
+            className={`flex-1 py-3 rounded-lg font-medium transition ${
+              activeTab === 'bookings'
+                ? 'bg-emerald-600 text-white shadow-lg'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Бронирования
+          </button>
+          <button
+            onClick={() => setActiveTab('sessions')}
+            className={`flex-1 py-3 rounded-lg font-medium transition ${
+              activeTab === 'sessions'
+                ? 'bg-emerald-600 text-white shadow-lg'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Зарядки
+          </button>
+        </div>
+
+        {/* Bookings Tab */}
+        {activeTab === 'bookings' && (
+          <>
+            {/* Active Bookings */}
         {activeBookings.length > 0 && (
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-emerald-400 mb-4">Активные бронирования</h2>
@@ -394,6 +448,120 @@ export default function BookingsPage() {
               Найти станцию
             </Link>
           </div>
+        )}
+          </>
+        )}
+
+        {/* Charging Sessions Tab */}
+        {activeTab === 'sessions' && (
+          <>
+            {chargingSessions.length > 0 ? (
+              <div className="mb-8">
+                <h2 className="text-lg font-semibold text-gray-400 mb-4 text-center">История зарядок</h2>
+                <div className="space-y-4">
+                  {chargingSessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-6"
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-white mb-1">{session.station.name}</h3>
+                          <p className="text-gray-400 text-sm flex items-center gap-1">
+                            <MapPin size={14} />
+                            {session.station.address}
+                          </p>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          session.status === 'completed' 
+                            ? 'text-emerald-400 bg-emerald-500/20'
+                            : session.status === 'active'
+                            ? 'text-blue-400 bg-blue-500/20'
+                            : 'text-gray-400 bg-gray-500/20'
+                        }`}>
+                          {session.status === 'completed' ? 'Завершено' : session.status === 'active' ? 'Активно' : 'Отменено'}
+                        </div>
+                      </div>
+
+                      {/* Session Details */}
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="bg-[#0a1f1a] rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                            <Calendar size={14} />
+                            Дата
+                          </div>
+                          <div className="text-white font-medium">{formatDate(session.startTime)}</div>
+                        </div>
+                        <div className="bg-[#0a1f1a] rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                            <Clock size={14} />
+                            Время
+                          </div>
+                          <div className="text-white font-medium">
+                            {formatTime(session.startTime)}
+                            {session.endTime && ` – ${formatTime(session.endTime)}`}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Charging Stats */}
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="bg-[#0a1f1a] rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                            <Battery size={14} />
+                            Энергия
+                          </div>
+                          <div className="text-white font-medium">{session.energyKwh.toFixed(2)} кВт⋅ч</div>
+                        </div>
+                        <div className="bg-[#0a1f1a] rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                            <Zap size={14} />
+                            Мощность
+                          </div>
+                          <div className="text-white font-medium">{session.connector.powerKw} кВт</div>
+                        </div>
+                      </div>
+
+                      {/* Cost and Connector */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-[#0a1f1a] rounded-lg p-3">
+                          <div className="text-gray-400 text-sm mb-1">Коннектор</div>
+                          <div className="text-white font-medium">{session.connector.type}</div>
+                        </div>
+                        <div className="bg-[#0a1f1a] rounded-lg p-3">
+                          <div className="text-gray-400 text-sm mb-1">Стоимость</div>
+                          <div className="text-emerald-400 font-bold text-lg">{Math.round(session.costTotal)} сом</div>
+                        </div>
+                      </div>
+
+                      {/* Session ID */}
+                      <div className="mt-4 pt-4 border-t border-emerald-900/30">
+                        <div className="text-gray-400 text-xs">
+                          Сессия: {session.id.slice(0, 8).toUpperCase()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Zap className="text-emerald-400" size={40} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Нет зарядок</h3>
+                <p className="text-gray-400 mb-6">У вас пока нет истории зарядок</p>
+                <Link
+                  href="/map"
+                  className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition"
+                >
+                  <MapPin size={20} />
+                  Начать зарядку
+                </Link>
+              </div>
+            )}
+          </>
         )}
       </div>
 

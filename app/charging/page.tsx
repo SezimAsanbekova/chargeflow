@@ -182,24 +182,150 @@ export default function ChargingPage() {
         <p className="text-emerald-100 text-xs mt-1">{activeSession.stationAddress}</p>
       </div>
 
-      {/* Battery Animation */}
+      {/* Charging Animation */}
       <div className="bg-[#0f2820] p-8 flex flex-col items-center">
-        <div className="relative w-32 h-48 border-4 border-emerald-500 rounded-lg flex items-end justify-center overflow-hidden">
-          {/* Battery Fill */}
-          <div 
-            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-500 to-emerald-400 transition-all duration-1000"
-            style={{ height: `${activeSession.batteryPercent}%` }}
-          />
-          {/* Battery Percentage */}
-          <div className="relative z-10 text-white text-3xl font-bold mb-4">
+        {/* Charging Station Icon */}
+        <div className="relative w-64 h-48 flex items-center justify-center">
+          <svg viewBox="0 0 400 300" className="w-full h-full">
+            {/* Charging Station (теперь слева) */}
+            <g>
+              {/* Station Base */}
+              <rect
+                x="50"
+                y="130"
+                width="70"
+                height="100"
+                rx="8"
+                fill="#065f46"
+                stroke="#10b981"
+                strokeWidth="3"
+              />
+              
+              {/* Station Screen */}
+              <rect
+                x="65"
+                y="145"
+                width="40"
+                height="30"
+                rx="4"
+                fill="#10b981"
+                className="animate-pulse"
+              />
+              
+              {/* Station Display Lines */}
+              <line x1="70" y1="152" x2="100" y2="152" stroke="#064e3b" strokeWidth="2" />
+              <line x1="70" y1="160" x2="95" y2="160" stroke="#064e3b" strokeWidth="2" />
+              <line x1="70" y1="168" x2="90" y2="168" stroke="#064e3b" strokeWidth="2" />
+
+              {/* Lightning Bolt on Station */}
+              <path
+                d="M 90 195 L 80 210 L 88 210 L 78 225 L 93 207 L 85 207 L 95 195 Z"
+                fill="#10b981"
+                className="animate-pulse"
+              />
+
+              {/* Station Top Circle */}
+              <circle
+                cx="85"
+                cy="90"
+                r="25"
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="3"
+              />
+              
+              {/* Lightning in Circle */}
+              <path
+                d="M 90 75 L 80 90 L 88 90 L 78 105 L 93 87 L 85 87 L 95 75 Z"
+                fill="#10b981"
+              />
+
+              {/* Station Pole */}
+              <rect
+                x="80"
+                y="115"
+                width="10"
+                height="15"
+                fill="#065f46"
+              />
+            </g>
+
+            {/* Charging Cable */}
+            <path
+              d="M 120 130 Q 140 150 160 160 L 180 160"
+              stroke="#10b981"
+              strokeWidth="4"
+              fill="none"
+              strokeLinecap="round"
+              className="animate-pulse"
+            />
+
+            {/* Car (теперь справа) */}
+            <g className="animate-pulse">
+              {/* Car Body */}
+              <path
+                d="M 180 180 L 180 150 Q 180 140 190 140 L 220 140 L 230 120 Q 235 110 245 110 L 290 110 Q 300 110 305 120 L 315 140 L 350 140 Q 360 140 360 150 L 360 180 Q 360 190 350 190 L 190 190 Q 180 190 180 180 Z"
+                fill="#10b981"
+                stroke="#059669"
+                strokeWidth="2"
+              />
+              {/* Car Windows */}
+              <path
+                d="M 235 120 L 245 115 L 285 115 L 295 120 L 290 135 L 240 135 Z"
+                fill="#064e3b"
+                opacity="0.6"
+              />
+              {/* Car Wheels */}
+              <circle cx="210" cy="190" r="12" fill="#1f2937" stroke="#059669" strokeWidth="2" />
+              <circle cx="210" cy="190" r="6" fill="#374151" />
+              <circle cx="330" cy="190" r="12" fill="#1f2937" stroke="#059669" strokeWidth="2" />
+              <circle cx="330" cy="190" r="6" fill="#374151" />
+              {/* Car Details */}
+              <line x1="200" y1="165" x2="220" y2="165" stroke="#059669" strokeWidth="1.5" />
+              <line x1="320" y1="165" x2="340" y2="165" stroke="#059669" strokeWidth="1.5" />
+            </g>
+
+            {/* Energy Flow Particles */}
+            <g className="animate-pulse">
+              <circle cx="130" cy="140" r="3" fill="#10b981" opacity="0.8">
+                <animate attributeName="cx" from="130" to="180" dur="1.5s" repeatCount="indefinite" />
+                <animate attributeName="opacity" from="0.8" to="0" dur="1.5s" repeatCount="indefinite" />
+              </circle>
+              <circle cx="140" cy="150" r="2" fill="#34d399" opacity="0.6">
+                <animate attributeName="cx" from="140" to="180" dur="1.8s" repeatCount="indefinite" />
+                <animate attributeName="opacity" from="0.6" to="0" dur="1.8s" repeatCount="indefinite" />
+              </circle>
+              <circle cx="135" cy="145" r="2.5" fill="#6ee7b7" opacity="0.7">
+                <animate attributeName="cx" from="135" to="180" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" from="0.7" to="0" dur="2s" repeatCount="indefinite" />
+              </circle>
+            </g>
+
+            {/* Ambient Glow Circles */}
+            <circle cx="85" cy="90" r="30" fill="#10b981" opacity="0.1" className="animate-ping" />
+            <circle cx="85" cy="210" r="20" fill="#10b981" opacity="0.1" className="animate-ping" style={{ animationDelay: '0.5s' }} />
+          </svg>
+        </div>
+
+        {/* Battery Percentage Display */}
+        <div className="mt-6 flex flex-col items-center">
+          <div className="text-emerald-400 text-5xl font-bold mb-2">
             {activeSession.batteryPercent}%
           </div>
-          {/* Battery Top */}
-          <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 w-12 h-3 bg-emerald-500 rounded-t" />
-        </div>
-        <div className="mt-4 text-emerald-400 text-sm flex items-center gap-2">
-          <Zap className="w-4 h-4" />
-          <span>{activeSession.currentPowerKw.toFixed(1)} кВт</span>
+          <div className="text-gray-400 text-sm mb-3">Уровень заряда</div>
+          
+          {/* Progress Bar */}
+          <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-1000 rounded-full"
+              style={{ width: `${activeSession.batteryPercent}%` }}
+            />
+          </div>
+          
+          <div className="mt-4 text-emerald-400 text-sm flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            <span>{activeSession.currentPowerKw.toFixed(1)} кВт</span>
+          </div>
         </div>
       </div>
 

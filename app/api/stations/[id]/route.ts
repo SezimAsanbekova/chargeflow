@@ -66,8 +66,9 @@ export async function GET(
         id: c.id,
         type: c.type,
         status: c.status,
-        maxPowerKw: Number(c.powerKw),
-        pricePerKwh: Number(c.pricePerKwh)
+        powerKw: Number(c.powerKw),
+        pricePerKwh: Number(c.pricePerKwh),
+        pricePerMinute: Number(c.pricePerMinute)
       }))
     });
 

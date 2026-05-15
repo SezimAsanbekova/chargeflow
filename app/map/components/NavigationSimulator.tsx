@@ -40,6 +40,7 @@ export function NavigationSimulator({
   // Объявляем начало навигации при первом запуске
   useEffect(() => {
     if (isActive && !hasAnnouncedStartRef.current) {
+      voiceNavigator.setSpeed(speed); // Передаём скорость голосовому навигатору
       voiceNavigator.announceNavigationStart(stationName);
       hasAnnouncedStartRef.current = true;
     }
@@ -47,7 +48,14 @@ export function NavigationSimulator({
     if (!isActive) {
       hasAnnouncedStartRef.current = false;
     }
-  }, [isActive, stationName, voiceNavigator]);
+  }, [isActive, stationName, voiceNavigator, speed]);
+
+  // Обновляем скорость в голосовом навигаторе при её изменении
+  useEffect(() => {
+    if (isActive) {
+      voiceNavigator.setSpeed(speed);
+    }
+  }, [speed, isActive, voiceNavigator]);
 
   useEffect(() => {
     if (!isActive || routeCoordinates.length < 2) {
@@ -157,11 +165,16 @@ export function NavigationSimulator({
         }, 0);
         
         // Голосовые подсказки через VoiceNavigator
-        voiceNavigator.announceManeuver(
-          currentStepIndex,
-          routeSteps[currentStepIndex].instruction,
-          distanceToStep
-        );
+        // ВАЖНО: маневр в OSRM находится в НАЧАЛЕ шага, поэтому пока мы едем в шаге N,
+        // мы должны объявлять инструкцию ПРЕДСТОЯЩЕГО маневра — это начало шага N+1
+        const upcomingStepIndex = currentStepIndex + 1;
+        if (upcomingStepIndex < routeSteps.length) {
+          voiceNavigator.announceManeuver(
+            upcomingStepIndex,
+            routeSteps[upcomingStepIndex].instruction,
+            distanceToStep
+          );
+        }
         
         break;
       }

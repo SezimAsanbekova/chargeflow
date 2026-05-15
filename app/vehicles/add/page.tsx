@@ -31,7 +31,6 @@ export default function AddVehiclePage() {
     connectorType: 'CCS2',
     maxPowerKw: '',
     batteryCapacityKwh: '',
-    currentChargeLevel: '80',
     isActive: false,
   });
 
@@ -58,10 +57,6 @@ export default function AddVehiclePage() {
 
       if (parseFloat(formData.batteryCapacityKwh) <= 0) {
         throw new Error('Ёмкость батареи должна быть больше 0');
-      }
-
-      if (parseFloat(formData.currentChargeLevel) < 0 || parseFloat(formData.currentChargeLevel) > 100) {
-        throw new Error('Уровень заряда должен быть от 0 до 100');
       }
 
       const response = await fetch('/api/vehicles', {
@@ -327,38 +322,27 @@ export default function AddVehiclePage() {
                   required
                 />
               </div>
-
-              <div>
-                <label className="block text-gray-300 mb-1.5 text-xs flex items-center gap-1.5">
-                  <Battery size={14} />
-                  Уровень заряда (%)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={formData.currentChargeLevel}
-                    onChange={(e) => setFormData({ ...formData, currentChargeLevel: e.target.value })}
-                    className="flex-1"
-                  />
-                  <div className="w-14 text-center bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-2 py-1.5 text-emerald-400 font-bold text-sm">
-                    {formData.currentChargeLevel}%
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
           {/* Active Vehicle */}
           <div className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-4">
-            <label className="flex items-start gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="mt-0.5 w-4 h-4 rounded border-emerald-900/30 bg-[#0a1f1a] text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
-              />
+            <label className="flex items-start gap-2.5 cursor-pointer group">
+              <div className="relative flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-5 h-5 border-2 border-emerald-900/50 rounded bg-[#0a1f1a] peer-checked:bg-emerald-600 peer-checked:border-emerald-600 transition-all duration-200 flex items-center justify-center group-hover:border-emerald-500">
+                  {formData.isActive && (
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+              </div>
               <div>
                 <div className="text-white font-medium text-sm mb-0.5">Активный автомобиль</div>
                 <div className="text-gray-400 text-xs">
