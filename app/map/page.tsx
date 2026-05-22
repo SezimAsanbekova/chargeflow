@@ -698,13 +698,14 @@ export default function MapPage() {
       el.style.border = "3px solid white";
       el.style.boxShadow = "0 2px 8px rgba(0,0,0,0.3)";
 
-      // Цвет в зависимости от статуса - все темно-зеленые
+      // Цвет в зависимости от статуса
       if (station.status === "available") {
-        el.style.backgroundColor = "#065f46"; // темно-зеленый для доступных
+        el.style.backgroundColor = "#065f46"; // тёмно-зелёный для доступных
       } else if (station.status === "busy") {
-        el.style.backgroundColor = "#064e3b"; // еще более темно-зеленый для занятых
+        el.style.backgroundColor = "#dc2626"; // красный для занятых
+        el.style.border = "3px solid #fca5a5";
       } else {
-        el.style.backgroundColor = "#052e16"; // самый темно-зеленый для обслуживания
+        el.style.backgroundColor = "#4b5563"; // серый для обслуживания
       }
 
       // Создаем SVG иконку молнии
@@ -807,44 +808,44 @@ export default function MapPage() {
         const modifier = step.maneuver.modifier;
 
         if (step.maneuver.type === "depart") {
-          instruction = "Начните движение";
+          instruction = t?.nav?.depart ?? "Начните движение";
         } else if (step.maneuver.type === "arrive") {
-          instruction = "Вы прибыли к месту назначения";
+          instruction = t?.nav?.arrive ?? "Вы прибыли к месту назначения";
         } else if (step.maneuver.type === "turn") {
-          if (modifier === "left") instruction = "Поверните налево";
-          else if (modifier === "right") instruction = "Поверните направо";
+          if (modifier === "left") instruction = t?.nav?.turnLeft ?? "Поверните налево";
+          else if (modifier === "right") instruction = t?.nav?.turnRight ?? "Поверните направо";
           else if (modifier === "slight left")
-            instruction = "Поверните слегка налево";
+            instruction = t?.nav?.slightLeft ?? "Поверните слегка налево";
           else if (modifier === "slight right")
-            instruction = "Поверните слегка направо";
+            instruction = t?.nav?.slightRight ?? "Поверните слегка направо";
           else if (modifier === "sharp left")
-            instruction = "Резко поверните налево";
+            instruction = t?.nav?.sharpLeft ?? "Резко поверните налево";
           else if (modifier === "sharp right")
-            instruction = "Резко поверните направо";
-          else if (modifier === "uturn") instruction = "Развернитесь";
-          else instruction = "Поверните";
+            instruction = t?.nav?.sharpRight ?? "Резко поверните направо";
+          else if (modifier === "uturn") instruction = t?.nav?.uturn ?? "Развернитесь";
+          else instruction = t?.nav?.turn ?? "Поверните";
         } else if (step.maneuver.type === "continue") {
-          instruction = "Продолжайте движение прямо";
+          instruction = t?.nav?.straight ?? "Продолжайте движение прямо";
         } else if (
           step.maneuver.type === "roundabout" ||
           step.maneuver.type === "rotary"
         ) {
-          instruction = "Въезжайте на круговое движение";
+          instruction = t?.nav?.roundabout ?? "Въезжайте на круговое движение";
         } else if (step.maneuver.type === "merge") {
-          instruction = "Перестройтесь";
+          instruction = t?.nav?.merge ?? "Перестройтесь";
         } else if (step.maneuver.type === "fork") {
-          if (modifier === "left") instruction = "На развилке держитесь левее";
+          if (modifier === "left") instruction = t?.nav?.forkLeft ?? "На развилке держитесь левее";
           else if (modifier === "right")
-            instruction = "На развилке держитесь правее";
-          else instruction = "На развилке продолжайте движение";
+            instruction = t?.nav?.forkRight ?? "На развилке держитесь правее";
+          else instruction = t?.nav?.forkStraight ?? "На развилке продолжайте движение";
         } else if (step.maneuver.type === "end of road") {
           if (modifier === "left")
-            instruction = "В конце дороги поверните налево";
+            instruction = t?.nav?.endLeft ?? "В конце дороги поверните налево";
           else if (modifier === "right")
-            instruction = "В конце дороги поверните направо";
-          else instruction = "В конце дороги продолжайте движение";
+            instruction = t?.nav?.endRight ?? "В конце дороги поверните направо";
+          else instruction = t?.nav?.endStraight ?? "В конце дороги продолжайте движение";
         } else {
-          instruction = "Продолжайте движение";
+          instruction = t?.nav?.continue ?? "Продолжайте движение";
         }
 
         return {
@@ -960,6 +961,7 @@ export default function MapPage() {
 
     // Объявляем начало навигации голосом
     const voiceNavigator = getVoiceNavigator();
+    voiceNavigator.setLocale(locale);
     voiceNavigator.announceNavigationStart(selectedStation.name);
 
     // Отслеживаем местоположение пользователя в реальном времени
@@ -1109,10 +1111,10 @@ export default function MapPage() {
     voiceNavigator.announceArrival(selectedStation.name);
 
     alert(
-      `🎉 Вы прибыли к станции!\n\n` +
-        `📍 Расстояние: ${routeInfo.distance.toFixed(1)} км\n` +
-        `⏱️ Время в пути: ${Math.round(tripDuration)} мин\n` +
-        `📊 Запланировано: ${Math.round(estimatedDuration)} мин`,
+      (t?.alerts?.arrivedAtStation ?? 'Вы прибыли к станции!\n\nРасстояние: {distance} км\nВремя в пути: {duration} мин')
+        .replace('{distance}', routeInfo.distance.toFixed(1))
+        .replace('{duration}', String(Math.round(tripDuration)))
+        .replace('{speed}', String(Math.round(routeInfo.distance / (tripDuration / 60)))),
     );
 
     stopNavigation();
@@ -1283,10 +1285,10 @@ export default function MapPage() {
     voiceNavigator.announceArrival(selectedStation.name);
 
     alert(
-      `🎉 Вы прибыли к станции!\n\n` +
-        `📍 Расстояние: ${routeInfo.distance.toFixed(1)} км\n` +
-        `⏱️ Время в пути: ${Math.round(tripDuration)} мин\n` +
-        `📊 Запланировано: ${Math.round(estimatedDuration)} мин`,
+      (t?.alerts?.arrivedAtStation ?? 'Вы прибыли к станции!\n\nРасстояние: {distance} км\nВремя в пути: {duration} мин')
+        .replace('{distance}', routeInfo.distance.toFixed(1))
+        .replace('{duration}', String(Math.round(tripDuration)))
+        .replace('{speed}', String(Math.round(routeInfo.distance / (tripDuration / 60)))),
     );
 
     stopSimulation();
@@ -1513,7 +1515,7 @@ export default function MapPage() {
       date.setDate(today.getDate() + i);
       dates.push({
         value: date.toISOString().split("T")[0],
-        label: date.toLocaleDateString("ru-RU", {
+        label: date.toLocaleDateString(getIntlLocale(locale), {
           weekday: "short",
           day: "numeric",
           month: "short",
@@ -1660,7 +1662,7 @@ export default function MapPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Ошибка при создании бронирования");
+        throw new Error(data.error || (t?.alerts?.bookingError ?? "Ошибка при создании бронирования"));
       }
 
       // Обновляем баланс пользователя
@@ -1809,7 +1811,7 @@ export default function MapPage() {
                     <div className="text-emerald-100 text-xs">
                       {(() => {
                         if (!isClient || !chargingStartTime)
-                          return "0 мин • 0 сом";
+                          return `0 ${t?.units?.min ?? 'мин'} • 0 ${t?.units?.som ?? 'сом'}`;
                         const station = stations.find(
                           (s) => s.id === chargingStationId,
                         );
@@ -1819,7 +1821,7 @@ export default function MapPage() {
                         const cost = station
                           ? duration * station.pricePerMinute
                           : 0;
-                        return `${duration} мин • ${cost.toFixed(0)} сом`;
+                        return `${duration} ${t?.units?.min ?? 'мин'} • ${cost.toFixed(0)} ${t?.units?.som ?? 'сом'}`;
                       })()}
                     </div>
                   </div>
@@ -1937,6 +1939,7 @@ export default function MapPage() {
                       stopSimulation();
                       setIsNavigating(false);
                     }}
+                    t={t}
                   />
 
                   <NavigationSimulator
@@ -1947,7 +1950,8 @@ export default function MapPage() {
                     onStepChange={handleSimulationStepChange}
                     onArrival={handleSimulationArrival}
                     isActive={!isSimulationPaused}
-                    stationName={selectedStation?.name || "зарядки"}
+                    stationName={selectedStation?.name || (t?.station?.charging ?? "зарядки")}
+                    locale={locale}
                   />
                 </>
               )}
@@ -1993,6 +1997,7 @@ export default function MapPage() {
                 }}
                 showAllSteps={showNavigationDetails}
                 onStepClick={setCurrentStepIndex}
+                t={t}
               />
             </>
           )}
@@ -2376,11 +2381,11 @@ export default function MapPage() {
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
                 <div className="flex-1">
-                  <div className="font-bold text-lg">⚡ Идет зарядка</div>
+                  <div className="font-bold text-lg">{t?.charging?.activeList ?? '⚡ Идет зарядка'}</div>
                   <div className="text-emerald-100 text-sm">
                     {(() => {
                       if (!isClient || !chargingStartTime)
-                        return "0 мин • 0.00 сом • Станция";
+                        return `0 ${t?.units?.min ?? 'мин'} • 0.00 ${t?.units?.som ?? 'сом'} • ${t?.station?.station ?? 'Станция'}`;
                       const station = stations.find(
                         (s) => s.id === chargingStationId,
                       );
@@ -2390,7 +2395,7 @@ export default function MapPage() {
                       const cost = station
                         ? duration * station.pricePerMinute
                         : 0;
-                      return `${duration} мин • ${cost.toFixed(2)} сом • ${station?.name || "Станция"}`;
+                      return `${duration} ${t?.units?.min ?? 'мин'} • ${cost.toFixed(2)} ${t?.units?.som ?? 'сом'} • ${station?.name || (t?.station?.station ?? 'Станция')}`;
                     })()}
                   </div>
                 </div>
@@ -2405,7 +2410,7 @@ export default function MapPage() {
           )}
 
           <h2 className="text-2xl font-bold text-white mb-4 text-center">
-            Зарядные станции
+            {t?.list?.title ?? 'Зарядные станции'}
           </h2>
 
           {/* Search Bar and Filter Button */}
@@ -2420,7 +2425,7 @@ export default function MapPage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Поиск станций по названию или адресу..."
+                  placeholder={t?.list?.searchPlaceholder ?? "Поиск станций..."}
                   className="w-full pl-10 pr-4 py-3 bg-[#0f2d26] border border-emerald-900/30 rounded-xl text-white placeholder-gray-400 focus:border-emerald-500 focus:outline-none"
                 />
                 {searchQuery && (
@@ -2477,7 +2482,7 @@ export default function MapPage() {
                     </div>
                     <div className="text-left">
                       <div className="font-medium text-sm">
-                        Только совместимые с моим авто
+                        {t?.list?.compatibleOnly ?? 'Только совместимые с моим авто'}
                       </div>
                       <div className="text-xs text-gray-400">
                         {activeVehicle.brand} {activeVehicle.model} •{" "}
@@ -2510,10 +2515,10 @@ export default function MapPage() {
                     </div>
                     <div className="text-left">
                       <div className="font-medium text-sm">
-                        Добавьте автомобиль
+                        {t?.list?.addVehicle ?? 'Добавьте автомобиль'}
                       </div>
                       <div className="text-xs">
-                        Для фильтрации по совместимости
+                        {t?.list?.forCompatibility ?? 'Для фильтрации по совместимости'}
                       </div>
                     </div>
                   </div>
@@ -2527,7 +2532,7 @@ export default function MapPage() {
             <div className="max-w-2xl mx-auto bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-12 text-center">
               <div className="text-gray-400">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400 mb-4"></div>
-                <p className="text-lg">Загрузка станций...</p>
+                <p className="text-lg">{t?.loadingStations ?? 'Загрузка...'}</p>
               </div>
             </div>
           ) : filteredStations.length === 0 ? (
@@ -2539,21 +2544,21 @@ export default function MapPage() {
                 />
                 <p className="text-lg">
                   {showOnlyCompatible && activeVehicle
-                    ? `Нет станций с разъёмом ${activeVehicle.connectorType}`
+                    ? (t?.list?.noCompatible ?? `Нет станций с разъёмом`).replace('{connector}', activeVehicle.connectorType)
                     : searchQuery
-                      ? `Не найдено станций по запросу "${searchQuery}"`
+                      ? (t?.list?.notFound ?? `Не найдено станций по запросу "{query}"`).replace('{query}', searchQuery)
                       : activeFiltersCount > 0
-                        ? "Нет станций, соответствующих выбранным фильтрам"
-                        : "Станций пока нет"}
+                        ? (t?.list?.noFiltered ?? "Нет станций, соответствующих фильтрам")
+                        : (t?.noStations ?? "Станций пока нет")}
                 </p>
                 <p className="text-sm mt-2">
                   {showOnlyCompatible && activeVehicle
-                    ? "Попробуйте отключить фильтр совместимости или добавьте другой автомобиль"
+                    ? (t?.list?.tryDisableCompatible ?? "Попробуйте отключить фильтр совместимости")
                     : searchQuery
-                      ? "Попробуйте изменить поисковый запрос"
+                      ? (t?.list?.tryChangeSearch ?? "Попробуйте изменить поиск")
                       : activeFiltersCount > 0
-                        ? "Попробуйте изменить параметры фильтрации"
-                        : "Администратор еще не добавил зарядные станции"}
+                        ? (t?.list?.tryChangeFilters ?? "Попробуйте изменить фильтры")
+                        : (t?.notAdded ?? "Станции еще не добавлены")}
                 </p>
               </div>
               {(searchQuery ||
@@ -2565,7 +2570,7 @@ export default function MapPage() {
                       onClick={() => setSearchQuery("")}
                       className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition"
                     >
-                      Очистить поиск
+                      {t?.list?.clearSearch ?? 'Очистить поиск'}
                     </button>
                   )}
                   {showOnlyCompatible && (
@@ -2573,7 +2578,7 @@ export default function MapPage() {
                       onClick={() => setShowOnlyCompatible(false)}
                       className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition"
                     >
-                      Показать все станции
+                      {t?.list?.showAll ?? 'Показать все станции'}
                     </button>
                   )}
                   {activeFiltersCount > 0 && (
@@ -2588,7 +2593,7 @@ export default function MapPage() {
                       }}
                       className="bg-emerald-800 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-medium transition"
                     >
-                      Сбросить фильтры
+                      {t?.filter?.reset ?? 'Сбросить'}
                     </button>
                   )}
                 </div>
@@ -2643,7 +2648,7 @@ export default function MapPage() {
                         {distance && (
                           <div className="flex items-center gap-1 text-gray-400 text-sm">
                             <MapPin size={16} />
-                            <span>{distance.toFixed(1)} км</span>
+                            <span>{distance.toFixed(1)} {t?.units?.km ?? 'км'}</span>
                           </div>
                         )}
                       </div>
@@ -2655,7 +2660,7 @@ export default function MapPage() {
                         <div className="flex items-center gap-2 text-sm text-emerald-400 mb-2">
                           <Zap size={16} />
                           <span>
-                            {availableConnectors} из {totalConnectors} доступно
+                            {availableConnectors} {t?.list?.of ?? 'из'} {totalConnectors} {t?.list?.available ?? 'доступно'}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -2710,50 +2715,6 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* Balance View */}
-      {activeTab === "balance" && (
-        <div className="flex-1 w-full overflow-y-auto p-4 pb-24">
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-6">Баланс</h2>
-
-            {/* Balance Card */}
-            <div
-              className={`rounded-2xl p-8 mb-6 shadow-xl ${
-                userBalance < 50
-                  ? "bg-gradient-to-br from-red-500 to-red-600"
-                  : "bg-gradient-to-br from-emerald-500 to-emerald-600"
-              }`}
-            >
-              <div className="text-white/80 text-sm mb-2">Текущий баланс</div>
-              <div className="text-white text-5xl font-bold mb-2">
-                {userBalance.toFixed(2)} сом
-              </div>
-              {userBalance < 50 && (
-                <div className="text-white/90 text-sm mb-4 bg-white/20 rounded-lg px-3 py-2 flex items-center gap-2">
-                  <AlertTriangle size={16} />
-                  <span>Низкий баланс! Пополните для продолжения зарядки</span>
-                </div>
-              )}
-              <button
-                onClick={() => setShowTopUpModal(true)}
-                className="bg-white text-emerald-600 px-6 py-3 rounded-full font-medium hover:bg-gray-100 transition"
-              >
-                Пополнить баланс
-              </button>
-            </div>
-
-            {/* Recent Transactions */}
-            <div className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-white mb-4">
-                Последние операции
-              </h3>
-              <div className="text-gray-400 text-center py-8">
-                История операций пуста
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Filter Bottom Sheet */}
       <Sheet
@@ -2768,7 +2729,7 @@ export default function MapPage() {
             <div className="px-6 pb-6 bg-[#0f2d26]">
               <div className="mb-4">
                 <h2 className="text-xl font-bold text-white text-center">
-                  Фильтры
+                  {t?.filter?.title ?? 'Фильтры'}
                 </h2>
               </div>
 
@@ -2776,7 +2737,7 @@ export default function MapPage() {
                 {/* Connector Type */}
                 <div>
                   <label className="block text-white font-medium mb-2 text-center text-sm">
-                    Тип разъема:
+                    {t?.filter?.connectorType ?? 'Тип разъема:'}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -2932,7 +2893,7 @@ export default function MapPage() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
           <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">Пополнить счет</h2>
+              <h2 className="text-2xl font-bold text-white">{t?.topUp?.title ?? 'Пополнить счет'}</h2>
               <button
                 onClick={() => {
                   setShowTopUpModal(false);
@@ -2947,20 +2908,20 @@ export default function MapPage() {
 
             {/* Current Balance */}
             <div className="bg-[#0a1f1a] rounded-xl p-4 mb-6 text-center">
-              <div className="text-gray-400 text-sm mb-1">Текущий баланс:</div>
+              <div className="text-gray-400 text-sm mb-1">{t?.topUp?.currentBalance ?? 'Текущий баланс:'}</div>
               <div className="text-white text-2xl font-bold">
-                {userBalance.toFixed(2)} сом
+                {userBalance.toFixed(2)} {t?.units?.som ?? 'сом'}
               </div>
               {userBalance < 50 && (
                 <div className="text-red-400 text-xs mt-1 px-3 py-1 bg-red-500/20 rounded-full inline-block">
-                  Требуется пополнение
+                  {t?.topUp?.refillRequired ?? 'Требуется пополнение'}
                 </div>
               )}
             </div>
 
             {/* Quick Amount Selection */}
             <div className="mb-6">
-              <h3 className="text-white font-medium mb-4">Пополнить счет</h3>
+              <h3 className="text-white font-medium mb-4">{t?.topUp?.fillTitle ?? 'Пополнить счет'}</h3>
               <div className="grid grid-cols-3 gap-3 mb-4">
                 {[100, 200, 300, 500, 1000, 2000].map((amount) => (
                   <button
@@ -2981,10 +2942,10 @@ export default function MapPage() {
               {selectedAmount && (
                 <div className="text-center mb-4">
                   <div className="text-2xl font-bold text-emerald-400">
-                    {selectedAmount} сом
+                    {selectedAmount} {t?.units?.som ?? 'сом'}
                   </div>
                   <div className="text-gray-400 text-sm">
-                    Минимальная сумма пополнения — {selectedAmount} сом
+                    {(t?.topUp?.minAmountNote ?? 'Минимальная сумма пополнения — {amount} сом').replace('{amount}', String(selectedAmount))}
                   </div>
                 </div>
               )}
@@ -2993,13 +2954,13 @@ export default function MapPage() {
             {/* Custom Amount Input */}
             <div className="mb-6">
               <label className="block text-white font-medium mb-2">
-                Или введите сумму:
+                {t?.topUp?.customLabel ?? 'Или введите сумму:'}
               </label>
               <input
                 type="number"
                 value={customAmount}
                 onChange={(e) => handleCustomAmountChange(e.target.value)}
-                placeholder="Введите сумму"
+                placeholder={t?.topUp?.placeholder ?? "Введите сумму"}
                 min="10"
                 max="10000"
                 className="w-full px-4 py-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-lg text-white placeholder-gray-400 focus:border-emerald-500 focus:outline-none"
@@ -3007,7 +2968,7 @@ export default function MapPage() {
               {customAmount && (
                 <div className="text-center mt-2">
                   <div className="text-2xl font-bold text-emerald-400">
-                    {customAmount} сом
+                    {customAmount} {t?.units?.som ?? 'сом'}
                   </div>
                 </div>
               )}
@@ -3024,20 +2985,20 @@ export default function MapPage() {
               {isProcessingPayment ? (
                 <>
                   <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Обработка платежа...</span>
+                  <span>{t?.topUp?.processing ?? 'Обработка платежа...'}</span>
                 </>
               ) : (
                 <>
                   <span>💳</span>
-                  <span>Пополнить</span>
+                  <span>{t?.topUp?.button ?? 'Пополнить'}</span>
                 </>
               )}
             </button>
 
             {/* Payment Info */}
             <div className="mt-4 text-center text-gray-400 text-xs">
-              <p>Минимальная сумма: 10 сом</p>
-              <p>Максимальная сумма: 10,000 сом</p>
+              <p>{t?.topUp?.minAmount ?? 'Минимальная сумма: 10 сом'}</p>
+              <p>{t?.topUp?.maxAmount ?? 'Максимальная сумма: 10,000 сом'}</p>
             </div>
           </div>
         </div>
@@ -3060,7 +3021,7 @@ export default function MapPage() {
                     {/* Booking Form */}
                     <div className="mb-4">
                       <h2 className="text-xl font-bold text-white text-center">
-                        Бронирование
+                        {t?.booking?.title ?? 'Бронирование'}
                       </h2>
                     </div>
 
@@ -3079,13 +3040,13 @@ export default function MapPage() {
                     bookingStation.connectors.length > 0 ? (
                       <div className="mb-4">
                         <label className="block text-white font-medium mb-2 text-sm">
-                          Коннектор:
+                          {t?.booking?.connectorLabel ?? 'Коннектор:'}
                           {activeVehicle &&
                             bookingStation.connectors.filter(
                               (c) => c.type === activeVehicle.connectorType,
                             ).length < bookingStation.connectors.length && (
                               <span className="ml-2 text-xs text-gray-400 font-normal">
-                                (показаны только совместимые)
+                                {t?.booking?.onlyCompatible ?? '(показаны только совместимые)'}
                               </span>
                             )}
                         </label>
@@ -3289,7 +3250,7 @@ export default function MapPage() {
                     {/* Date Selection */}
                     <div className="mb-4">
                       <label className="block text-white font-medium mb-2 text-center text-sm">
-                        Дата:
+                        {t?.booking?.dateLabel ?? 'Дата:'}
                       </label>
                       <div className="space-y-3">
                         <button
@@ -3299,7 +3260,7 @@ export default function MapPage() {
                           <span className="text-sm">
                             {selectedDate
                               ? new Date(selectedDate).toLocaleDateString(
-                                  "ru-RU",
+                                  getIntlLocale(locale),
                                   {
                                     weekday: "short",
                                     day: "numeric",
@@ -3307,7 +3268,7 @@ export default function MapPage() {
                                     year: "numeric",
                                   },
                                 )
-                              : "Выберите дату"}
+                              : (t?.booking?.selectDate ?? "Выберите дату")}
                           </span>
                           <svg
                             className={`w-5 h-5 text-emerald-400 transition-transform ${showDateSelector ? "rotate-180" : ""}`}
@@ -3329,7 +3290,7 @@ export default function MapPage() {
                             {/* Calendar Header - Month/Year */}
                             <div className="text-center mb-3">
                               <div className="text-white font-bold text-base">
-                                {new Date().toLocaleDateString("ru-RU", {
+                                {new Date().toLocaleDateString(getIntlLocale(locale), {
                                   month: "long",
                                   year: "numeric",
                                 })}
@@ -3338,8 +3299,8 @@ export default function MapPage() {
 
                             {/* Days of Week */}
                             <div className="grid grid-cols-7 gap-1 mb-2">
-                              {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(
-                                (day) => (
+                              {(t?.booking?.days ?? ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]).map(
+                                (day: string) => (
                                   <div
                                     key={day}
                                     className="text-center text-gray-400 text-xs font-medium py-1"
@@ -3447,7 +3408,7 @@ export default function MapPage() {
                     {/* Time Selection */}
                     <div className="mb-4">
                       <label className="block text-white font-medium mb-2 text-center text-sm">
-                        Время:
+                        {t?.booking?.timeLabel ?? 'Время:'}
                       </label>
                       <div className="space-y-3">
                         <button
@@ -3456,8 +3417,8 @@ export default function MapPage() {
                         >
                           <span>
                             {selectedTime
-                              ? `${selectedTime} (${selectedDuration} мин)`
-                              : "Выберите время"}
+                              ? `${selectedTime} (${selectedDuration} ${t?.units?.min ?? 'мин'})`
+                              : (t?.booking?.selectTime ?? "Выберите время")}
                           </span>
                           <svg
                             className={`w-5 h-5 text-emerald-400 transition-transform ${showTimeSelector ? "rotate-180" : ""}`}
@@ -3479,7 +3440,7 @@ export default function MapPage() {
                             {/* Duration Selection */}
                             <div className="mb-4">
                               <label className="block text-white text-sm font-medium mb-3 text-center">
-                                Продолжительность:
+                                {t?.booking?.durationLabel ?? 'Продолжительность:'}
                               </label>
                               <div className="grid grid-cols-3 gap-2">
                                 {[15, 30, 60].map((duration) => (
@@ -3496,7 +3457,7 @@ export default function MapPage() {
                                         : "bg-[#0f2d26] text-gray-400 hover:text-white hover:bg-emerald-600/20 border border-emerald-900/30"
                                     }`}
                                   >
-                                    {duration} мин
+                                    {duration} {t?.units?.min ?? 'мин'}
                                   </button>
                                 ))}
                               </div>
@@ -3507,11 +3468,11 @@ export default function MapPage() {
                               <div className="text-white text-sm font-medium mb-3 text-center">
                                 {isLoadingSlots ? (
                                   <span className="text-gray-400">
-                                    Загрузка доступных слотов...
+                                    {t?.booking?.loadingSlots ?? 'Загрузка доступных слотов...'}
                                   </span>
                                 ) : (
                                   <>
-                                    Доступные слоты:{" "}
+                                    {t?.booking?.availableSlots ?? 'Доступные слоты:'}{" "}
                                     {
                                       getAvailableTimeSlots().filter((time) =>
                                         isTimeSlotAvailable(
@@ -3624,10 +3585,10 @@ export default function MapPage() {
                         </div>
                         <div className="flex-1">
                           <h4 className="text-white font-medium text-sm mb-1">
-                            Депозит
+                            {t?.booking?.deposit ?? 'Депозит'}
                           </h4>
                           <p className="text-gray-400 text-sm">
-                            100 сом будет списано при подтверждении
+                            {t?.booking?.depositDesc ?? '100 сом будет списано при подтверждении'}
                           </p>
                         </div>
                       </div>
@@ -3636,17 +3597,17 @@ export default function MapPage() {
                     {/* Balance Info */}
                     <div className="bg-[#0a1f1a] rounded-xl p-3 mb-4">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">Баланс:</span>
+                        <span className="text-gray-400">{t?.booking?.balance ?? 'Баланс:'}</span>
                         <span
                           className={`font-bold ${userBalance >= 100 ? "text-emerald-400" : "text-red-400"}`}
                         >
-                          {userBalance.toFixed(0)} сом
+                          {userBalance.toFixed(0)} {t?.units?.som ?? 'сом'}
                         </span>
                       </div>
                       {userBalance < 100 && (
                         <div className="mt-1.5 text-red-400 text-xs flex items-center gap-1">
                           <AlertTriangle size={12} />
-                          <span>Недостаточно средств</span>
+                          <span>{t?.booking?.insufficientFunds ?? 'Недостаточно средств'}</span>
                         </div>
                       )}
                     </div>
@@ -3661,7 +3622,7 @@ export default function MapPage() {
                           }}
                           className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2.5 rounded-xl font-medium transition text-sm"
                         >
-                          Пополнить
+                          {t?.topUp?.button ?? 'Пополнить'}
                         </button>
                       )}
 
@@ -3678,10 +3639,10 @@ export default function MapPage() {
                         {isProcessingBooking ? (
                           <>
                             <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>Создание...</span>
+                            <span>{t?.booking?.processing ?? 'Создание...'}</span>
                           </>
                         ) : (
-                          "Подтвердить"
+                          t?.booking?.confirmButton ?? "Подтвердить"
                         )}
                       </button>
 
@@ -3689,7 +3650,7 @@ export default function MapPage() {
                         onClick={closeBookingModal}
                         className="w-full bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-white py-2.5 rounded-xl font-medium transition border border-emerald-900/30 text-sm"
                       >
-                        Назад
+                        {t?.booking?.cancelButton ?? 'Назад'}
                       </button>
                     </div>
                   </>
@@ -3702,30 +3663,30 @@ export default function MapPage() {
                       </div>
 
                       <h2 className="text-xl font-bold text-white mb-4">
-                        Успешно!
+                        {t?.booking?.success?.title ?? 'Успешно!'}
                       </h2>
 
                       <div className="bg-[#0a1f1a] rounded-xl p-4 mb-4 text-left">
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Станция:</span>
+                            <span className="text-gray-400">{t?.station?.station ?? 'Станция'}:</span>
                             <span className="text-white font-medium">
                               {currentBooking?.station.name}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Дата:</span>
+                            <span className="text-gray-400">{t?.booking?.dateLabel ?? 'Дата:'}</span>
                             <span className="text-white font-medium">
                               {new Date(
                                 currentBooking?.date,
-                              ).toLocaleDateString("ru-RU", {
+                              ).toLocaleDateString(getIntlLocale(locale), {
                                 day: "numeric",
                                 month: "short",
                               })}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Время:</span>
+                            <span className="text-gray-400">{t?.booking?.timeLabel ?? 'Время:'}</span>
                             <span className="text-white font-medium">
                               {currentBooking?.time} –{" "}
                               {calculateEndTime(
@@ -3735,9 +3696,9 @@ export default function MapPage() {
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Списано:</span>
+                            <span className="text-gray-400">{t?.booking?.charged ?? 'Списано'}:</span>
                             <span className="text-red-400 font-medium">
-                              100 сом
+                              100 {t?.units?.som ?? 'сом'}
                             </span>
                           </div>
                         </div>
@@ -3745,7 +3706,7 @@ export default function MapPage() {
 
                       <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3 mb-4">
                         <p className="text-blue-100 text-xs">
-                          Отмена за 30 мин до начала
+                          {t?.booking?.cancelNote ?? 'Отмена за 30 мин до начала'}
                         </p>
                       </div>
 
@@ -3756,7 +3717,7 @@ export default function MapPage() {
                           }}
                           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-semibold transition text-sm"
                         >
-                          Мои брони
+                          {t?.booking?.myBookings ?? 'Мои брони'}
                         </button>
 
                         <div className="flex gap-2">
@@ -3764,7 +3725,7 @@ export default function MapPage() {
                             onClick={closeBookingModal}
                             className="flex-1 bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-white py-2.5 rounded-xl font-medium transition border border-emerald-900/30 text-xs"
                           >
-                            Главная
+                            {t?.booking?.home ?? 'Главная'}
                           </button>
                         </div>
                       </div>
@@ -3814,37 +3775,23 @@ export default function MapPage() {
                         : "text-white"
                     }`}
                   >
-                    Главная
+                    {t?.bottomNav?.home ?? 'Главная'}
                   </span>
                 </button>
 
                 {/* Кошелек */}
                 <button
-                  onClick={() => setActiveTab("balance")}
+                  onClick={() => router.push("/balance")}
                   className="flex flex-col items-center gap-1 min-w-[60px]"
                 >
-                  <div
-                    className={`p-2 rounded-lg transition ${
-                      activeTab === "balance" ? "bg-emerald-500/20" : ""
-                    }`}
-                  >
+                  <div className="p-2 rounded-lg transition">
                     <Wallet
                       size={24}
-                      className={
-                        activeTab === "balance"
-                          ? "text-emerald-400"
-                          : "text-white"
-                      }
+                      className="text-white"
                     />
                   </div>
-                  <span
-                    className={`text-xs ${
-                      activeTab === "balance"
-                        ? "text-emerald-400 font-medium"
-                        : "text-white"
-                    }`}
-                  >
-                    Кошелек
+                  <span className="text-xs text-white">
+                    {t?.bottomNav?.wallet ?? 'Кошелек'}
                   </span>
                 </button>
 
@@ -3856,7 +3803,7 @@ export default function MapPage() {
                   <div className="p-2 rounded-lg transition">
                     <History size={24} className="text-white" />
                   </div>
-                  <span className="text-xs text-white">История</span>
+                  <span className="text-xs text-white">{t?.bottomNav?.history ?? 'История'}</span>
                 </button>
 
                 {/* Еще */}
@@ -3867,7 +3814,7 @@ export default function MapPage() {
                   <div className="p-2 rounded-lg transition">
                     <MoreHorizontal size={24} className="text-white" />
                   </div>
-                  <span className="text-xs text-white">Еще</span>
+                  <span className="text-xs text-white">{t?.bottomNav?.more ?? 'Еще'}</span>
                 </button>
               </div>
             </div>

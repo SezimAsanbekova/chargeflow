@@ -41,6 +41,58 @@ export async function POST(request: Request) {
 
     const pricePerMinute = Number(activeSession.connector.pricePerKwh);
 
+    // Проверяем дедлайн бронирования (5 минут до следующего бронирования)
+    const nowForDeadline = new Date();
+    const nextBooking = await prisma.booking.findFirst({
+      where: {
+        connectorId: activeSession.connectorId,
+        status: 'active',
+        startTime: { gt: nowForDeadline },
+        userId: { not: userId },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+
+    if (nextBooking) {
+      const deadline = new Date(nextBooking.startTime.getTime() - 5 * 60 * 1000);
+      if (nowForDeadline >= deadline) {
+        // Автоматически останавливаем зарядку из-за бронирования
+        const stopResult = await prisma.$transaction(async (tx) => {
+          const endTime = new Date();
+          const updatedSession = await tx.chargingSession.update({
+            where: { id: activeSession.id },
+            data: { endTime, status: 'completed' }
+          });
+          await tx.connector.update({
+            where: { id: activeSession.connectorId },
+            data: { status: 'available' }
+          });
+          await tx.invoice.create({
+            data: {
+              userId,
+              sessionId: updatedSession.id,
+              totalAmount: updatedSession.costTotal,
+              energyKwh: updatedSession.energyKwh
+            }
+          });
+          return updatedSession;
+        });
+        const durationMs = stopResult.endTime!.getTime() - stopResult.startTime.getTime();
+        const durationMinutes = Math.ceil(durationMs / 60000);
+        return NextResponse.json({
+          stopped: true,
+          reason: 'booking_deadline',
+          session: {
+            id: stopResult.id,
+            stationName: activeSession.connector.station.name,
+            durationMinutes,
+            energyKwh: Number(stopResult.energyKwh),
+            totalCost: Number(stopResult.costTotal),
+          }
+        });
+      }
+    }
+
     // Получаем баланс пользователя
     const userBalance = await prisma.userBalance.findUnique({
       where: { userId }

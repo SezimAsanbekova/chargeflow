@@ -11,6 +11,7 @@ interface SimulationControlsProps {
   onReset: () => void;
   onSpeedChange: (speed: number) => void;
   onExit: () => void;
+  t?: any;
 }
 
 const SPEED_OPTIONS = [10, 20, 40, 60];
@@ -22,6 +23,7 @@ export function SimulationControls({
   onReset,
   onSpeedChange,
   onExit,
+  t,
 }: SimulationControlsProps) {
   const voiceNavigator = getVoiceNavigator();
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(voiceNavigator.getEnabled());
@@ -43,7 +45,7 @@ export function SimulationControls({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
-            <span className="text-white font-bold text-lg">Тест-драйв</span>
+            <span className="text-white font-bold text-lg">{t?.sim?.title ?? 'Тест-драйв'}</span>
           </div>
           <div className="flex items-center gap-2">
             {/* Voice Toggle Button */}
@@ -54,7 +56,7 @@ export function SimulationControls({
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                   : 'bg-gray-600 hover:bg-gray-700 text-gray-300'
               }`}
-              title={isVoiceEnabled ? 'Выключить голос' : 'Включить голос'}
+              title={isVoiceEnabled ? (t?.sim?.voiceOff ?? 'Выключить голос') : (t?.sim?.voiceOn ?? 'Включить голос')}
             >
               {isVoiceEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
             </button>
@@ -71,7 +73,7 @@ export function SimulationControls({
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-3">
             <Gauge size={18} className="text-emerald-400" />
-            <span className="text-white text-sm font-medium">Скорость: {speed} км/ч</span>
+            <span className="text-white text-sm font-medium">{t?.sim?.speed ?? 'Скорость'}: {speed} {t?.sim?.kmh ?? 'км/ч'}</span>
           </div>
           <div className="grid grid-cols-4 gap-2">
             {SPEED_OPTIONS.map((speedOption) => (
@@ -103,12 +105,12 @@ export function SimulationControls({
             {isPlaying ? (
               <>
                 <Pause size={18} />
-                <span>Пауза</span>
+                <span>{t?.sim?.pause ?? 'Пауза'}</span>
               </>
             ) : (
               <>
                 <Play size={18} />
-                <span>Старт</span>
+                <span>{t?.sim?.start ?? 'Старт'}</span>
               </>
             )}
           </button>
@@ -118,7 +120,7 @@ export function SimulationControls({
             className="flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition shadow-lg"
           >
             <RotateCcw size={18} />
-            <span>Сброс</span>
+            <span>{t?.sim?.reset ?? 'Сброс'}</span>
           </button>
 
           <button
@@ -126,13 +128,13 @@ export function SimulationControls({
             className="flex items-center justify-center gap-2 py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition shadow-lg"
           >
             <X size={18} />
-            <span>Выход</span>
+            <span>{t?.sim?.exit ?? 'Выход'}</span>
           </button>
         </div>
 
         {/* Info */}
         <div className="mt-3 text-center text-xs text-gray-400">
-          Имитация движения по маршруту
+          {t?.sim?.info ?? 'Имитация движения по маршруту'}
         </div>
       </div>
     </div>

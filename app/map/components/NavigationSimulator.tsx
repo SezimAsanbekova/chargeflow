@@ -19,6 +19,7 @@ interface NavigationSimulatorProps {
   onArrival: () => void;
   isActive: boolean;
   stationName?: string;
+  locale?: string;
 }
 
 export function NavigationSimulator({
@@ -30,6 +31,7 @@ export function NavigationSimulator({
   onArrival,
   isActive,
   stationName = 'зарядки',
+  locale = 'ru',
 }: NavigationSimulatorProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -40,6 +42,7 @@ export function NavigationSimulator({
   // Объявляем начало навигации при первом запуске
   useEffect(() => {
     if (isActive && !hasAnnouncedStartRef.current) {
+      voiceNavigator.setLocale(locale);
       voiceNavigator.setSpeed(speed); // Передаём скорость голосовому навигатору
       voiceNavigator.announceNavigationStart(stationName);
       hasAnnouncedStartRef.current = true;

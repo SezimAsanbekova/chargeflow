@@ -13,12 +13,20 @@ export class VoiceNavigator {
   private announcementThresholds = [200, 100, 50]; // Метры для объявлений (по умолчанию для 40 км/ч)
   private currentSpeed: number = 40; // км/ч
   private isInitialized: boolean = false;
+  private locale: string = 'ru';
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       this.synthesis = window.speechSynthesis;
       this.initialize();
     }
+  }
+
+  /**
+   * Установить локаль для голосовой навигации
+   */
+  setLocale(locale: string): void {
+    this.locale = locale;
   }
 
   /**
@@ -153,23 +161,35 @@ export class VoiceNavigator {
       console.log('🔊 Голос:', text);
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ru-RU';
+      // Устанавливаем язык в зависимости от локали
+      utterance.lang = this.locale === 'kg' ? 'ky-KG' : 'ru-RU';
       utterance.rate = 0.95; // Чуть медленнее для лучшей разборчивости
       utterance.pitch = 1.0; // Нормальная высота
       utterance.volume = 1.0; // Полная громкость для четкости
       
-      // Пытаемся выбрать русский голос, если доступен
+      // Пытаемся выбрать голос в зависимости от локали
       const voices = this.synthesis.getVoices();
-      // Приоритет: качественные русские голоса
-      const russianVoice = 
-        voices.find(v => v.lang === 'ru-RU' && v.localService) ||
-        voices.find(v => v.lang.startsWith('ru')) ||
-        voices.find(v => v.name.toLowerCase().includes('milena')) ||
-        voices.find(v => v.name.toLowerCase().includes('yuri')) ||
-        voices.find(v => v.name.toLowerCase().includes('alyona'));
+      let selectedVoice;
       
-      if (russianVoice) {
-        utterance.voice = russianVoice;
+      if (this.locale === 'kg') {
+        // Для кыргызского: пробуем ky, затем tr (близкий тюркский), затем ru
+        selectedVoice = 
+          voices.find(v => v.lang.startsWith('ky')) ||
+          voices.find(v => v.lang.startsWith('tr')) ||
+          voices.find(v => v.lang === 'ru-RU' && v.localService) ||
+          voices.find(v => v.lang.startsWith('ru'));
+      } else {
+        // Для русского
+        selectedVoice = 
+          voices.find(v => v.lang === 'ru-RU' && v.localService) ||
+          voices.find(v => v.lang.startsWith('ru')) ||
+          voices.find(v => v.name.toLowerCase().includes('milena')) ||
+          voices.find(v => v.name.toLowerCase().includes('yuri')) ||
+          voices.find(v => v.name.toLowerCase().includes('alyona'));
+      }
+      
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
       }
 
       utterance.onstart = () => {
@@ -222,21 +242,28 @@ export class VoiceNavigator {
   announceNavigationStart(stationName: string): void {
     this.lastAnnouncedStep = -1;
     this.lastAnnouncedDistance = -1;
-    this.speak(`Начинаем движение до станции ${stationName}`, 'high');
+    const text = this.locale === 'kg'
+      ? `${stationName} станциясына жолго чыгабыз`
+      : `Начинаем движение до станции ${stationName}`;
+    this.speak(text, 'high');
   }
 
   /**
    * Объявить завершение навигации
    */
   announceNavigationEnd(): void {
-    this.speak('Навигация завершена', 'high');
+    const text = this.locale === 'kg' ? 'Навигация аякталды' : 'Навигация завершена';
+    this.speak(text, 'high');
   }
 
   /**
    * Объявить прибытие
    */
   announceArrival(stationName: string): void {
-    this.speak(`Вы прибыли к месту назначения. Станция ${stationName}`, 'high');
+    const text = this.locale === 'kg'
+      ? `Сиз көздөгөн жериңизге жеттиңиз. ${stationName} станциясы`
+      : `Вы прибыли к месту назначения. Станция ${stationName}`;
+    this.speak(text, 'high');
   }
 
   /**
@@ -331,26 +358,34 @@ export class VoiceNavigator {
 
     // Округляем расстояние для произношения с правильным склонением
     let distanceText = '';
+    const prefix = this.locale === 'kg' ? '' : 'через ';
+    const suffix = this.locale === 'kg' ? ' кийин' : '';
+    
     if (distance >= 1000) {
       const km = distance / 1000;
-      const kmRounded = Math.round(km * 10) / 10; // 1 знак после запятой
-      distanceText = `через ${this.formatKilometers(kmRounded)}`;
+      const kmRounded = Math.round(km * 10) / 10;
+      distanceText = `${prefix}${this.formatKilometers(kmRounded)}${suffix}`;
     } else if (distance >= 100) {
-      const rounded = Math.round(distance / 50) * 50; // Округляем до 50м
-      distanceText = `через ${rounded} ${this.getMetersWord(rounded)}`;
+      const rounded = Math.round(distance / 50) * 50;
+      distanceText = `${prefix}${rounded} ${this.getMetersWord(rounded)}${suffix}`;
     } else {
-      const rounded = Math.round(distance / 10) * 10; // Округляем до 10м
-      distanceText = `через ${rounded} ${this.getMetersWord(rounded)}`;
+      const rounded = Math.round(distance / 10) * 10;
+      distanceText = `${prefix}${rounded} ${this.getMetersWord(rounded)}${suffix}`;
     }
 
     const formattedInstruction = this.formatInstruction(instruction);
-    return `${distanceText}, ${formattedInstruction}`;
+    return this.locale === 'kg'
+      ? `${distanceText}, ${formattedInstruction}`
+      : `${distanceText}, ${formattedInstruction}`;
   }
 
   /**
    * Правильное склонение слова "метр"
    */
   private getMetersWord(meters: number): string {
+    if (this.locale === 'kg') {
+      return 'метр';
+    }
     const lastDigit = meters % 10;
     const lastTwoDigits = meters % 100;
     
@@ -364,6 +399,10 @@ export class VoiceNavigator {
    * Правильное склонение слова "километр"
    */
   private formatKilometers(km: number): string {
+    if (this.locale === 'kg') {
+      return `${km === Math.floor(km) ? Math.floor(km) : km.toFixed(1).replace('.', ',')} километр`;
+    }
+    
     // Целое или дробное
     if (km === Math.floor(km)) {
       const intKm = Math.floor(km);
@@ -386,6 +425,11 @@ export class VoiceNavigator {
    * содержит "право", а не "лево". Аналогично для других пар.
    */
   private formatInstruction(instruction: string): string {
+    // Для кыргызского языка инструкция уже приходит переведённая из i18n
+    if (this.locale === 'kg') {
+      return instruction.toLowerCase();
+    }
+    
     const lower = instruction.toLowerCase().trim();
 
     // Специальные случаи (проверяем первыми)

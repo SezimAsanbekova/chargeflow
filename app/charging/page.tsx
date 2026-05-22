@@ -111,10 +111,10 @@ export default function ChargingPage() {
         const data = await response.json();
 
         if (data.stopped) {
-          // Зарядка остановлена из-за недостатка средств
+          // Зарядка остановлена автоматически
           clearIntervals();
           router.push(
-            `/charging/stopped?reason=insufficient_funds&sessionId=${data.session.id}`,
+            `/charging/stopped?reason=${data.reason ?? 'insufficient_funds'}&sessionId=${data.session.id}`,
           );
         } else {
           // Обновляем данные сессии

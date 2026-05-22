@@ -85,6 +85,31 @@ export async function POST(request: Request) {
       );
     }
 
+    // Ищем ближайшее активное бронирование на этом коннекторе (не текущего пользователя)
+    const now = new Date();
+    const nextBooking = await prisma.booking.findFirst({
+      where: {
+        connectorId,
+        status: 'active',
+        startTime: { gt: now },
+        userId: { not: userId },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+
+    // Если есть ближайшее бронирование — deadline = startTime - 5 минут
+    let chargingDeadline: Date | null = null;
+    if (nextBooking) {
+      chargingDeadline = new Date(nextBooking.startTime.getTime() - 5 * 60 * 1000);
+      // Если deadline уже прошёл или меньше 1 минуты — блокируем старт
+      if (chargingDeadline.getTime() - now.getTime() < 60 * 1000) {
+        return NextResponse.json(
+          { error: 'Коннектор скоро будет занят бронированием. Зарядка невозможна.' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Создаем сессию зарядки и списываем депозит (если есть бронирование) в транзакции
     const chargingSession = await prisma.$transaction(async (tx) => {
       // Создаем сессию зарядки
@@ -163,7 +188,8 @@ export async function POST(request: Request) {
         maxPowerKw: Number(connector.powerKw),
         startTime: chargingSession.startTime.toISOString(),
         depositAmount,
-        status: chargingSession.status
+        status: chargingSession.status,
+        chargingDeadline: chargingDeadline ? chargingDeadline.toISOString() : null,
       }
     });
 

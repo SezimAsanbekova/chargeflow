@@ -47,6 +47,7 @@ export default function ConfirmChargingPage() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const [chargingDeadline, setChargingDeadline] = useState<string | null>(null);
   const [locale, setLocale] = useState<Locale>(defaultLocale);
   const [t, setT] = useState<any>(null);
 
@@ -150,7 +151,16 @@ export default function ConfirmChargingPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Успешно начали зарядку - переходим на экран активной зарядки
+        // Если есть дедлайн — показываем уведомление перед переходом
+        if (data.session?.chargingDeadline) {
+          const deadline = new Date(data.session.chargingDeadline);
+          const timeStr = deadline.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          alert(
+            (t?.confirm?.deadlineWarning ?? 'Внимание! Следующее бронирование в {time}. Зарядка автоматически остановится в {stop}.')
+              .replace('{time}', timeStr)
+              .replace('{stop}', timeStr)
+          );
+        }
         router.push("/charging");
       } else {
         setError(
@@ -335,6 +345,18 @@ export default function ConfirmChargingPage() {
           </div>
         </div>
 
+        {/* Connector Busy Warning */}
+        {connector.status !== "available" && (
+          <div className="bg-red-500/10 border-2 border-red-500/40 rounded-xl p-4 flex items-start gap-3">
+            <AlertTriangle className="text-red-400 flex-shrink-0 mt-0.5" size={20} />
+            <div>
+              <p className="text-red-400 font-semibold text-sm">
+                {t?.confirm?.connectorBusy ?? "Станция занята. Дождитесь окончания зарядки."}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Warning */}
         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
           <div className="flex items-start gap-3">
@@ -381,7 +403,7 @@ export default function ConfirmChargingPage() {
 
           <button
             onClick={handleStartCharging}
-            disabled={!hasEnoughBalance || starting}
+            disabled={!hasEnoughBalance || starting || connector.status !== "available"}
             className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2"
           >
             {starting ? (

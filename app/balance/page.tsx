@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import "./printer-receipt.css";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -33,6 +34,7 @@ export default function BalancePage() {
   const [showTransactions, setShowTransactions] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [printerReady, setPrinterReady] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState(100);
   const [customAmount, setCustomAmount] = useState("");
@@ -66,6 +68,15 @@ export default function BalancePage() {
     getTranslations(locale, "balance").then(setT);
   }, [locale]);
 
+  useEffect(() => {
+    if (showReceipt) {
+      const timer = setTimeout(() => setPrinterReady(true), 100);
+      return () => clearTimeout(timer);
+    } else {
+      setPrinterReady(false);
+    }
+  }, [showReceipt]);
+
   // Переводит описание транзакции по type + stationName
   const getTransactionDescription = (tx: {
     type: string;
@@ -95,7 +106,7 @@ export default function BalancePage() {
   };
 
   const downloadReceipt = async () => {
-    const receiptElement = document.getElementById("receipt-content");
+    const receiptElement = document.querySelector(".paper") as HTMLElement;
     if (!receiptElement) return;
 
     try {
@@ -103,7 +114,7 @@ export default function BalancePage() {
       const html2canvas = (await import("html2canvas")).default;
 
       const canvas = await html2canvas(receiptElement, {
-        backgroundColor: "#10b981",
+        backgroundColor: "#ffffff",
         scale: 2,
         logging: false,
         useCORS: true,
@@ -441,160 +452,93 @@ export default function BalancePage() {
         </>
       )}
 
-      {/* Receipt Modal */}
+      {/* Receipt Modal - Printer Style */}
       {showReceipt && selectedTransaction && (
-        <div className="fixed inset-0 bg-[#0f2d26] z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md">
-            {/* Receipt Content */}
-            <div
-              id="receipt-content"
-              className="rounded-3xl p-8 shadow-2xl"
-              style={{ backgroundColor: "#10b981", color: "#ffffff" }}
-            >
-              {/* Header */}
-              <div className="text-center mb-6">
-                <div
-                  className="text-3xl font-bold mb-2"
-                  style={{ color: "#ffffff" }}
-                >
-                  ChargeFlow
-                </div>
-                <div className="text-base mb-3" style={{ color: "#e0f2e9" }}>
-                  {t?.receipt?.systemName ?? "Система зарядных станций"}
-                </div>
-                <div className="text-sm" style={{ color: "#d1f4e0" }}>
-                  {new Date(selectedTransaction.date).toLocaleString(
-                    getIntlLocale(locale),
-                    {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    },
-                  )}
-                </div>
-              </div>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md receipt-modal-enter">
 
-              {/* Divider */}
+            {/* Printer */}
+            <div className="printer-container">
               <div
-                className="my-6"
-                style={{ borderTop: "2px dashed rgba(255, 255, 255, 0.3)" }}
-              ></div>
-
-              {/* Transaction Details */}
-              <div className="space-y-4 mb-6">
-                <div className="flex justify-between items-center">
-                  <span
-                    className="text-base flex items-center gap-2"
-                    style={{ color: "#e0f2e9" }}
-                  >
-                    <Hash size={16} />
-                    {t?.receipt?.operationNumber ?? "Номер операции:"}
-                  </span>
-                  <span
-                    className="text-base font-semibold"
-                    style={{ color: "#ffffff" }}
-                  >
-                    {selectedTransaction.id.slice(0, 8).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span
-                    className="text-base flex items-center gap-2"
-                    style={{ color: "#e0f2e9" }}
-                  >
-                    <FileText size={16} />
-                    {t?.receipt?.operationType ?? "Тип операции:"}
-                  </span>
-                  <span
-                    className="text-base font-medium text-right"
-                    style={{ color: "#ffffff", maxWidth: "60%" }}
-                  >
-                    {getTransactionDescription(selectedTransaction)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span
-                    className="text-base flex items-center gap-2"
-                    style={{ color: "#e0f2e9" }}
-                  >
-                    <Check size={16} />
-                    {t?.receipt?.status ?? "Статус:"}
-                  </span>
-                  <span
-                    className="text-base font-medium flex items-center gap-1"
-                    style={{ color: "#ffffff" }}
-                  >
-                    {selectedTransaction.status === "success" ? (
-                      <>
-                        <Check size={18} />
-                        {t?.receipt?.statusSuccess ?? "Успешно"}
-                      </>
-                    ) : (
-                      (t?.receipt?.statusProcessing ?? "Обработка")
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div
-                className="my-6"
-                style={{ borderTop: "2px dashed rgba(255, 255, 255, 0.3)" }}
-              ></div>
-
-              {/* Amount */}
-              <div className="text-center py-6">
-                <div className="text-lg mb-2" style={{ color: "#e0f2e9" }}>
-                  {t?.receipt?.amountLabel ?? "Сумма:"}
-                </div>
-                <div
-                  className="text-4xl font-bold"
-                  style={{
-                    color:
-                      selectedTransaction.amount > 0 ? "#ffffff" : "#fef3c7",
-                  }}
-                >
-                  {selectedTransaction.amount > 0 ? "+" : ""}
-                  {Math.abs(selectedTransaction.amount).toFixed(2)} сом
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div
-                className="my-6"
-                style={{ borderTop: "1px solid rgba(255, 255, 255, 0.2)" }}
-              ></div>
-
-              {/* Footer */}
-              <div
-                className="text-center space-y-2"
-                style={{ color: "#d1f4e0" }}
+                className={`printer${printerReady ? ' show-receipt' : ''}`}
+                id="receipt-content"
               >
-                <div className="text-sm">
-                  {t?.receipt?.footerThanks ??
-                    "Спасибо за использование ChargeFlow!"}
-                </div>
-                <div className="text-sm flex items-center justify-center gap-2">
-                  <Mail size={14} />
-                  support@chargeflow.kg
-                </div>
-                <div
-                  className="text-xs mt-4"
-                  style={{ color: "rgba(255, 255, 255, 0.6)" }}
-                >
-                  {t?.receipt?.footerConfirmation ??
-                    "Этот чек является подтверждением операции"}
+                <span className="printer-name">ChargeFlow</span>
+                <div className="signal"></div>
+                <div className="mouth">
+                  <div className="paper">
+                    {/* Receipt Title */}
+                    <div className="receipt-title">ChargeFlow</div>
+                    <div className="receipt-subtitle">
+                      {t?.receipt?.systemName ?? "Система зарядных станций"}
+                    </div>
+                    <div className="receipt-date">
+                      {new Date(selectedTransaction.date).toLocaleString(
+                        getIntlLocale(locale),
+                        {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )}
+                    </div>
+
+                    <hr className="receipt-divider" />
+
+                    {/* Details */}
+                    <div className="payment-section">
+                      <div className="receipt-row">
+                        <span className="label">#{" "}</span>
+                        <span className="value">
+                          {selectedTransaction.id.slice(0, 8).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="receipt-row">
+                        <span className="label">
+                          {t?.receipt?.operationType ?? "Операция:"}
+                        </span>
+                        <span className="value">
+                          {getTransactionDescription(selectedTransaction)}
+                        </span>
+                      </div>
+                      <div className="receipt-row">
+                        <span className="label">
+                          {t?.receipt?.status ?? "Статус:"}
+                        </span>
+                        <span className="value">
+                          {selectedTransaction.status === "success"
+                            ? `✓ ${t?.receipt?.statusSuccess ?? "Успешно"}`
+                            : (t?.receipt?.statusProcessing ?? "Обработка")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <hr className="receipt-divider" />
+
+                    {/* Total */}
+                    <div className={`receipt-total ${selectedTransaction.amount > 0 ? 'positive' : 'negative'}`}>
+                      {selectedTransaction.amount > 0 ? "+" : ""}
+                      {Math.abs(selectedTransaction.amount).toFixed(2)}{" "}
+                      {t?.topUp?.currency ?? "сом"}
+                    </div>
+
+                    <div className="receipt-footer">
+                      {t?.receipt?.footerThanks ?? "Спасибо за использование ChargeFlow!"}
+                      <br />
+                      support@chargeflow.kg
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="mt-4 space-y-3">
+            <div className="mt-8 space-y-3 px-4">
               <button
                 onClick={downloadReceipt}
-                className="w-full bg-[#065f46] hover:bg-[#047857] text-white py-4 rounded-2xl font-semibold transition flex items-center justify-center gap-2 text-base"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold transition flex items-center justify-center gap-2 text-base"
               >
                 <ArrowDownLeft size={20} />
                 {t?.receipt?.downloadButton ?? "Скачать чек (PNG)"}
@@ -604,7 +548,7 @@ export default function BalancePage() {
                   setShowReceipt(false);
                   setSelectedTransaction(null);
                 }}
-                className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-4 rounded-2xl font-semibold transition text-base"
+                className="w-full bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-semibold transition text-base"
               >
                 {t?.receipt?.closeButton ?? "Закрыть"}
               </button>

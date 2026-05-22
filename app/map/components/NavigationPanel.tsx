@@ -20,6 +20,7 @@ interface NavigationPanelProps {
   onFinish: () => void;
   showAllSteps: boolean;
   onStepClick: (index: number) => void;
+  t?: any;
 }
 
 export function NavigationPanel({
@@ -34,22 +35,23 @@ export function NavigationPanel({
   onFinish,
   showAllSteps,
   onStepClick,
+  t,
 }: NavigationPanelProps) {
   const formatDistance = (meters: number) => {
     if (meters < 1000) {
-      return `${Math.round(meters)} м`;
+      return `${Math.round(meters)} ${t?.route?.m ?? 'м'}`;
     }
-    return `${(meters / 1000).toFixed(1)} км`;
+    return `${(meters / 1000).toFixed(1)} ${t?.route?.km ?? 'км'}`;
   };
 
   const formatTime = (seconds: number) => {
     const minutes = Math.round(seconds / 60);
     if (minutes < 60) {
-      return `${minutes} мин`;
+      return `${minutes} ${t?.route?.min ?? 'мин'}`;
     }
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours} ч ${mins} мин`;
+    return `${hours} ${t?.navPanel?.hour ?? 'ч'} ${mins} ${t?.route?.min ?? 'мин'}`;
   };
 
   return (
@@ -70,7 +72,7 @@ export function NavigationPanel({
                 <div className="text-white text-2xl font-bold leading-none">
                   {formatDistance(remainingDistance * 1000)}
                 </div>
-                <div className="text-gray-400 text-xs mt-1">до станции</div>
+                <div className="text-gray-400 text-xs mt-1">{t?.navPanel?.toStation ?? 'до станции'}</div>
               </div>
             </div>
 
@@ -83,7 +85,7 @@ export function NavigationPanel({
                 <div className="text-white text-2xl font-bold leading-none">
                   {formatTime(remainingTime)}
                 </div>
-                <div className="text-gray-400 text-xs mt-1">в пути</div>
+                <div className="text-gray-400 text-xs mt-1">{t?.navPanel?.enRoute ?? 'в пути'}</div>
               </div>
             </div>
           </div>
@@ -110,10 +112,11 @@ export function NavigationPanel({
           <div className="px-6 pb-6">
             {/* Distance to next maneuver */}
             <div className="text-emerald-400 text-base font-medium mb-4">
-              Через {distanceToStep < 1000 
-                ? `${Math.round(distanceToStep)} м`
-                : `${(distanceToStep / 1000).toFixed(1)} км`
-              }
+              {(t?.navPanel?.inDistance ?? 'Через {distance}').replace('{distance}',
+                distanceToStep < 1000 
+                  ? `${Math.round(distanceToStep)} ${t?.route?.m ?? 'м'}`
+                  : `${(distanceToStep / 1000).toFixed(1)} ${t?.route?.km ?? 'км'}`
+              )}
             </div>
 
             {/* Main instruction - крупная надпись */}
@@ -144,7 +147,7 @@ export function NavigationPanel({
                 className="flex items-center gap-2 text-emerald-400 font-medium text-sm py-2 hover:bg-emerald-500/10 rounded-lg transition"
               >
                 <List size={20} />
-                <span>Все шаги</span>
+                <span>{t?.navPanel?.allSteps ?? 'Все шаги'}</span>
               </button>
 
               {/* Time */}
@@ -159,7 +162,7 @@ export function NavigationPanel({
               onClick={onFinish}
               className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-2xl font-bold text-lg transition shadow-lg"
             >
-              Завершить
+              {t?.navPanel?.finish ?? 'Завершить'}
             </button>
           </div>
         </div>
@@ -203,7 +206,7 @@ export function NavigationPanel({
                   </div>
                   {idx === currentStepIndex && (
                     <div className="text-emerald-400 text-xs font-bold bg-emerald-600/20 px-2 py-1 rounded">
-                      Сейчас
+                      {t?.navPanel?.now ?? 'Сейчас'}
                     </div>
                   )}
                 </button>
