@@ -1,10 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { Battery, Zap, Clock, DollarSign, AlertTriangle, X } from 'lucide-react';
-import BottomNavigation from '@/app/components/BottomNavigation';
+import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import {
+  getTranslations,
+  getLocaleCookie,
+  getIntlLocale,
+  defaultLocale,
+  type Locale,
+} from "@/app/i18n";
+import {
+  Battery,
+  Zap,
+  Clock,
+  DollarSign,
+  AlertTriangle,
+  X,
+} from "lucide-react";
+import BottomNavigation from "@/app/components/BottomNavigation";
 
 interface ActiveSession {
   id: string;
@@ -29,45 +43,58 @@ interface ActiveSession {
 export default function ChargingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   const [showBalanceWarning, setShowBalanceWarning] = useState(false);
-  const [warningType, setWarningType] = useState<'low' | 'critical'>('low');
+  const [warningType, setWarningType] = useState<"low" | "critical">("low");
   const [stopping, setStopping] = useState(false);
+  const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [t, setT] = useState<any>(null);
   const tickIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
     }
   }, [status, router]);
+
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    getTranslations(locale, "charging").then(setT);
+  }, [locale]);
 
   // Загрузка активной сессии
   const loadActiveSession = async () => {
     try {
-      const response = await fetch('/api/charging/active');
+      const response = await fetch("/api/charging/active");
       if (response.ok) {
         const data = await response.json();
         if (data.active) {
           setActiveSession(data.session);
-          
+
           // Показываем предупреждение о балансе
           if (data.session.criticalBalanceWarning && !showBalanceWarning) {
-            setWarningType('critical');
+            setWarningType("critical");
             setShowBalanceWarning(true);
           } else if (data.session.lowBalanceWarning && !showBalanceWarning) {
-            setWarningType('low');
+            setWarningType("low");
             setShowBalanceWarning(true);
           }
         } else {
           // Нет активной сессии - перенаправляем на карту
-          router.push('/map');
+          router.push("/map");
         }
       }
     } catch (error) {
-      console.error('Error loading active session:', error);
+      console.error("Error loading active session:", error);
     } finally {
       setLoading(false);
     }
@@ -76,24 +103,26 @@ export default function ChargingPage() {
   // Поминутное списание
   const chargingTick = async () => {
     try {
-      const response = await fetch('/api/charging/tick', {
-        method: 'POST'
+      const response = await fetch("/api/charging/tick", {
+        method: "POST",
       });
 
       if (response.ok) {
         const data = await response.json();
-        
+
         if (data.stopped) {
           // Зарядка остановлена из-за недостатка средств
           clearIntervals();
-          router.push(`/charging/stopped?reason=insufficient_funds&sessionId=${data.session.id}`);
+          router.push(
+            `/charging/stopped?reason=insufficient_funds&sessionId=${data.session.id}`,
+          );
         } else {
           // Обновляем данные сессии
           loadActiveSession();
         }
       }
     } catch (error) {
-      console.error('Error in charging tick:', error);
+      console.error("Error in charging tick:", error);
     }
   };
 
@@ -109,7 +138,7 @@ export default function ChargingPage() {
   };
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === "authenticated") {
       loadActiveSession();
 
       // Обновляем данные каждые 5 секунд
@@ -129,10 +158,10 @@ export default function ChargingPage() {
 
     setStopping(true);
     try {
-      const response = await fetch('/api/charging/stop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: activeSession.id })
+      const response = await fetch("/api/charging/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: activeSession.id }),
       });
 
       if (response.ok) {
@@ -141,11 +170,11 @@ export default function ChargingPage() {
         router.push(`/charging/completed?sessionId=${data.session.id}`);
       } else {
         const error = await response.json();
-        alert(error.error || 'Ошибка при остановке зарядки');
+        alert(error.error || "Ошибка при остановке зарядки");
       }
     } catch (error) {
-      console.error('Error stopping charging:', error);
-      alert('Ошибка при остановке зарядки');
+      console.error("Error stopping charging:", error);
+      alert("Ошибка при остановке зарядки");
     } finally {
       setStopping(false);
       setShowStopConfirm(false);
@@ -161,10 +190,10 @@ export default function ChargingPage() {
     return `${mins}мин`;
   };
 
-  if (status === 'loading' || loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
-        <div className="text-white text-xl">Загрузка...</div>
+        <div className="text-white text-xl">{t?.loading ?? "Загрузка..."}</div>
       </div>
     );
   }
@@ -176,14 +205,18 @@ export default function ChargingPage() {
   return (
     <div className="min-h-screen bg-[#0a1f1a] pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-b from-emerald-600 to-emerald-500 text-white p-6">
-        <h1 className="text-2xl font-bold mb-2">Активная зарядка</h1>
-        <p className="text-emerald-100 text-sm">{activeSession.stationName}</p>
-        <p className="text-emerald-100 text-xs mt-1">{activeSession.stationAddress}</p>
+      <div className="bg-[#0a1f1a] text-white p-6">
+        <h1 className="text-2xl font-bold mb-2">
+          {t?.active?.title ?? "Активная зарядка"}
+        </h1>
+        <p className="text-gray-400 text-sm">{activeSession.stationName}</p>
+        <p className="text-gray-400 text-xs mt-1">
+          {activeSession.stationAddress}
+        </p>
       </div>
 
       {/* Charging Animation */}
-      <div className="bg-[#0f2820] p-8 flex flex-col items-center">
+      <div className="bg-[#0a1f1a] p-8 flex flex-col items-center">
         {/* Charging Station Icon */}
         <div className="relative w-64 h-48 flex items-center justify-center">
           <svg viewBox="0 0 400 300" className="w-full h-full">
@@ -200,7 +233,7 @@ export default function ChargingPage() {
                 stroke="#10b981"
                 strokeWidth="3"
               />
-              
+
               {/* Station Screen */}
               <rect
                 x="65"
@@ -211,11 +244,32 @@ export default function ChargingPage() {
                 fill="#10b981"
                 className="animate-pulse"
               />
-              
+
               {/* Station Display Lines */}
-              <line x1="70" y1="152" x2="100" y2="152" stroke="#064e3b" strokeWidth="2" />
-              <line x1="70" y1="160" x2="95" y2="160" stroke="#064e3b" strokeWidth="2" />
-              <line x1="70" y1="168" x2="90" y2="168" stroke="#064e3b" strokeWidth="2" />
+              <line
+                x1="70"
+                y1="152"
+                x2="100"
+                y2="152"
+                stroke="#064e3b"
+                strokeWidth="2"
+              />
+              <line
+                x1="70"
+                y1="160"
+                x2="95"
+                y2="160"
+                stroke="#064e3b"
+                strokeWidth="2"
+              />
+              <line
+                x1="70"
+                y1="168"
+                x2="90"
+                y2="168"
+                stroke="#064e3b"
+                strokeWidth="2"
+              />
 
               {/* Lightning Bolt on Station */}
               <path
@@ -233,7 +287,7 @@ export default function ChargingPage() {
                 stroke="#10b981"
                 strokeWidth="3"
               />
-              
+
               {/* Lightning in Circle */}
               <path
                 d="M 90 75 L 80 90 L 88 90 L 78 105 L 93 87 L 85 87 L 95 75 Z"
@@ -241,13 +295,7 @@ export default function ChargingPage() {
               />
 
               {/* Station Pole */}
-              <rect
-                x="80"
-                y="115"
-                width="10"
-                height="15"
-                fill="#065f46"
-              />
+              <rect x="80" y="115" width="10" height="15" fill="#065f46" />
             </g>
 
             {/* Charging Cable */}
@@ -276,34 +324,113 @@ export default function ChargingPage() {
                 opacity="0.6"
               />
               {/* Car Wheels */}
-              <circle cx="210" cy="190" r="12" fill="#1f2937" stroke="#059669" strokeWidth="2" />
+              <circle
+                cx="210"
+                cy="190"
+                r="12"
+                fill="#1f2937"
+                stroke="#059669"
+                strokeWidth="2"
+              />
               <circle cx="210" cy="190" r="6" fill="#374151" />
-              <circle cx="330" cy="190" r="12" fill="#1f2937" stroke="#059669" strokeWidth="2" />
+              <circle
+                cx="330"
+                cy="190"
+                r="12"
+                fill="#1f2937"
+                stroke="#059669"
+                strokeWidth="2"
+              />
               <circle cx="330" cy="190" r="6" fill="#374151" />
               {/* Car Details */}
-              <line x1="200" y1="165" x2="220" y2="165" stroke="#059669" strokeWidth="1.5" />
-              <line x1="320" y1="165" x2="340" y2="165" stroke="#059669" strokeWidth="1.5" />
+              <line
+                x1="200"
+                y1="165"
+                x2="220"
+                y2="165"
+                stroke="#059669"
+                strokeWidth="1.5"
+              />
+              <line
+                x1="320"
+                y1="165"
+                x2="340"
+                y2="165"
+                stroke="#059669"
+                strokeWidth="1.5"
+              />
             </g>
 
             {/* Energy Flow Particles */}
             <g className="animate-pulse">
               <circle cx="130" cy="140" r="3" fill="#10b981" opacity="0.8">
-                <animate attributeName="cx" from="130" to="180" dur="1.5s" repeatCount="indefinite" />
-                <animate attributeName="opacity" from="0.8" to="0" dur="1.5s" repeatCount="indefinite" />
+                <animate
+                  attributeName="cx"
+                  from="130"
+                  to="180"
+                  dur="1.5s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="opacity"
+                  from="0.8"
+                  to="0"
+                  dur="1.5s"
+                  repeatCount="indefinite"
+                />
               </circle>
               <circle cx="140" cy="150" r="2" fill="#34d399" opacity="0.6">
-                <animate attributeName="cx" from="140" to="180" dur="1.8s" repeatCount="indefinite" />
-                <animate attributeName="opacity" from="0.6" to="0" dur="1.8s" repeatCount="indefinite" />
+                <animate
+                  attributeName="cx"
+                  from="140"
+                  to="180"
+                  dur="1.8s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="opacity"
+                  from="0.6"
+                  to="0"
+                  dur="1.8s"
+                  repeatCount="indefinite"
+                />
               </circle>
               <circle cx="135" cy="145" r="2.5" fill="#6ee7b7" opacity="0.7">
-                <animate attributeName="cx" from="135" to="180" dur="2s" repeatCount="indefinite" />
-                <animate attributeName="opacity" from="0.7" to="0" dur="2s" repeatCount="indefinite" />
+                <animate
+                  attributeName="cx"
+                  from="135"
+                  to="180"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="opacity"
+                  from="0.7"
+                  to="0"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
               </circle>
             </g>
 
             {/* Ambient Glow Circles */}
-            <circle cx="85" cy="90" r="30" fill="#10b981" opacity="0.1" className="animate-ping" />
-            <circle cx="85" cy="210" r="20" fill="#10b981" opacity="0.1" className="animate-ping" style={{ animationDelay: '0.5s' }} />
+            <circle
+              cx="85"
+              cy="90"
+              r="30"
+              fill="#10b981"
+              opacity="0.1"
+              className="animate-ping"
+            />
+            <circle
+              cx="85"
+              cy="210"
+              r="20"
+              fill="#10b981"
+              opacity="0.1"
+              className="animate-ping"
+              style={{ animationDelay: "0.5s" }}
+            />
           </svg>
         </div>
 
@@ -312,16 +439,18 @@ export default function ChargingPage() {
           <div className="text-emerald-400 text-5xl font-bold mb-2">
             {activeSession.batteryPercent}%
           </div>
-          <div className="text-gray-400 text-sm mb-3">Уровень заряда</div>
-          
+          <div className="text-gray-400 text-sm mb-3">
+            {t?.active?.chargeLevel ?? "Уровень заряда"}
+          </div>
+
           {/* Progress Bar */}
           <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-1000 rounded-full"
               style={{ width: `${activeSession.batteryPercent}%` }}
             />
           </div>
-          
+
           <div className="mt-4 text-emerald-400 text-sm flex items-center gap-2">
             <Zap className="w-4 h-4" />
             <span>{activeSession.currentPowerKw.toFixed(1)} кВт</span>
@@ -332,8 +461,10 @@ export default function ChargingPage() {
       {/* Session Info */}
       <div className="p-6 space-y-4">
         {/* Session Number */}
-        <div className="bg-[#0f2820] rounded-lg p-4">
-          <div className="text-gray-400 text-sm mb-1">Номер сессии</div>
+        <div className="bg-[#0a1f1a] border border-emerald-500/20 rounded-lg p-4">
+          <div className="text-gray-400 text-sm mb-1">
+            {t?.active?.sessionNumber ?? "Номер сессии"}
+          </div>
           <div className="text-white font-mono text-lg">
             {activeSession.id.slice(0, 8).toUpperCase()}
           </div>
@@ -342,10 +473,12 @@ export default function ChargingPage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4">
           {/* Duration */}
-          <div className="bg-[#0f2820] rounded-lg p-4">
+          <div className="bg-[#0a1f1a] border border-emerald-500/20 rounded-lg p-4">
             <div className="flex items-center gap-2 text-emerald-400 mb-2">
               <Clock className="w-5 h-5" />
-              <span className="text-sm">Время зарядки</span>
+              <span className="text-sm">
+                {t?.active?.stats?.duration ?? "Время зарядки"}
+              </span>
             </div>
             <div className="text-white text-2xl font-bold">
               {formatTime(activeSession.durationMinutes)}
@@ -353,10 +486,12 @@ export default function ChargingPage() {
           </div>
 
           {/* Energy */}
-          <div className="bg-[#0f2820] rounded-lg p-4">
+          <div className="bg-[#0a1f1a] border border-emerald-500/20 rounded-lg p-4">
             <div className="flex items-center gap-2 text-emerald-400 mb-2">
               <Battery className="w-5 h-5" />
-              <span className="text-sm">Энергия</span>
+              <span className="text-sm">
+                {t?.active?.stats?.energy ?? "Энергия"}
+              </span>
             </div>
             <div className="text-white text-2xl font-bold">
               {activeSession.energyKwh.toFixed(2)}
@@ -365,10 +500,12 @@ export default function ChargingPage() {
           </div>
 
           {/* Price per minute */}
-          <div className="bg-[#0f2820] rounded-lg p-4">
+          <div className="bg-[#0a1f1a] border border-emerald-500/20 rounded-lg p-4">
             <div className="flex items-center gap-2 text-emerald-400 mb-2">
               <DollarSign className="w-5 h-5" />
-              <span className="text-sm">Цена/мин</span>
+              <span className="text-sm">
+                {t?.active?.stats?.pricePerMin ?? "Цена/мин"}
+              </span>
             </div>
             <div className="text-white text-2xl font-bold">
               {activeSession.pricePerMinute}
@@ -377,10 +514,12 @@ export default function ChargingPage() {
           </div>
 
           {/* Total Cost */}
-          <div className="bg-[#0f2820] rounded-lg p-4">
+          <div className="bg-[#0a1f1a] border border-emerald-500/20 rounded-lg p-4">
             <div className="flex items-center gap-2 text-emerald-400 mb-2">
               <DollarSign className="w-5 h-5" />
-              <span className="text-sm">Списано</span>
+              <span className="text-sm">
+                {t?.active?.stats?.charged ?? "Списано"}
+              </span>
             </div>
             <div className="text-white text-2xl font-bold">
               {Math.round(activeSession.totalCost)}
@@ -390,29 +529,39 @@ export default function ChargingPage() {
         </div>
 
         {/* Balance */}
-        <div className="bg-[#0f2820] rounded-lg p-4">
+        <div className="bg-[#0a1f1a] border border-emerald-500/20 rounded-lg p-4">
           <div className="flex justify-between items-center">
-            <span className="text-gray-400">Баланс</span>
+            <span className="text-gray-400">
+              {t?.active?.balance ?? "Баланс"}
+            </span>
             <span className="text-white text-xl font-bold">
               {Math.round(activeSession.balance)} сом
             </span>
           </div>
           <div className="mt-2 text-sm text-gray-400">
-            Хватит на ~{activeSession.minutesRemaining} мин
+            {(t?.active?.balanceDuration ?? "Хватит на ~{minutes} мин").replace(
+              "{minutes}",
+              activeSession.minutesRemaining,
+            )}
           </div>
         </div>
 
         {/* Start Time */}
-        <div className="bg-[#0f2820] rounded-lg p-4">
-          <div className="text-gray-400 text-sm mb-1">Время начала</div>
+        <div className="bg-[#0a1f1a] border border-emerald-500/20 rounded-lg p-4">
+          <div className="text-gray-400 text-sm mb-1">
+            {t?.active?.startTime ?? "Время начала"}
+          </div>
           <div className="text-white">
-            {new Date(activeSession.startTime).toLocaleString('ru-RU', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
+            {new Date(activeSession.startTime).toLocaleString(
+              getIntlLocale(locale),
+              {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              },
+            )}
           </div>
         </div>
 
@@ -421,36 +570,47 @@ export default function ChargingPage() {
           onClick={() => setShowStopConfirm(true)}
           className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-lg font-semibold transition-colors"
         >
-          Остановить зарядку
+          {t?.active?.stopButton ?? "Остановить зарядку"}
         </button>
       </div>
 
       {/* Stop Confirmation Modal */}
       {showStopConfirm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0f2820] rounded-lg p-6 max-w-sm w-full">
+          <div className="bg-[#0a1f1a] border border-emerald-500/30 rounded-lg p-6 max-w-sm w-full">
             <h3 className="text-white text-xl font-bold mb-4">
-              Остановить зарядку?
+              {t?.active?.stopModal?.title ?? "Остановить зарядку?"}
             </h3>
             <div className="text-gray-300 mb-6 space-y-2">
-              <p>Время зарядки: {formatTime(activeSession.durationMinutes)}</p>
-              <p>Списано: {Math.round(activeSession.totalCost)} сом</p>
-              <p>Энергия: {activeSession.energyKwh.toFixed(2)} кВт⋅ч</p>
+              <p>
+                {t?.active?.stopModal?.durationLabel ?? "Время зарядки:"}{" "}
+                {formatTime(activeSession.durationMinutes)}
+              </p>
+              <p>
+                {t?.active?.stopModal?.chargedLabel ?? "Списано:"}{" "}
+                {Math.round(activeSession.totalCost)} сом
+              </p>
+              <p>
+                {t?.active?.stopModal?.energyLabel ?? "Энергия:"}{" "}
+                {activeSession.energyKwh.toFixed(2)} кВт⋅ч
+              </p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowStopConfirm(false)}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-semibold transition-colors"
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
                 disabled={stopping}
               >
-                Отмена
+                {t?.active?.stopModal?.cancelButton ?? "Отмена"}
               </button>
               <button
                 onClick={handleStopCharging}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
                 disabled={stopping}
               >
-                {stopping ? 'Остановка...' : 'Остановить'}
+                {stopping
+                  ? (t?.active?.stopModal?.stopping ?? "Остановка...")
+                  : (t?.active?.stopModal?.stopButton ?? "Остановить")}
               </button>
             </div>
           </div>
@@ -460,33 +620,40 @@ export default function ChargingPage() {
       {/* Balance Warning Modal */}
       {showBalanceWarning && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0f2820] rounded-lg p-6 max-w-sm w-full">
+          <div className="bg-[#0a1f1a] border border-emerald-500/30 rounded-lg p-6 max-w-sm w-full">
             <div className="flex items-center gap-3 mb-4">
               <AlertTriangle className="w-8 h-8 text-yellow-500" />
               <h3 className="text-white text-xl font-bold">
-                {warningType === 'critical' ? 'Критически мало средств!' : 'Мало средств!'}
+                {warningType === "critical"
+                  ? (t?.active?.balanceWarning?.criticalTitle ??
+                    "Критически мало средств!")
+                  : (t?.active?.balanceWarning?.lowTitle ?? "Мало средств!")}
               </h3>
             </div>
             <div className="text-gray-300 mb-6">
               <p className="mb-2">
-                На вашем балансе осталось {Math.round(activeSession.balance)} сом.
+                {(
+                  t?.active?.balanceWarning?.balanceLeft ??
+                  "На вашем балансе осталось {balance} сом."
+                ).replace("{balance}", Math.round(activeSession.balance))}
               </p>
               <p className="text-yellow-400 font-semibold">
-                Хватит еще на {activeSession.minutesRemaining} {activeSession.minutesRemaining === 1 ? 'минуту' : 'минуты'}.
+                Хватит еще на {activeSession.minutesRemaining}{" "}
+                {activeSession.minutesRemaining === 1 ? "минуту" : "минуты"}.
               </p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowBalanceWarning(false)}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-semibold transition-colors"
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
               >
-                Продолжить
+                {t?.active?.balanceWarning?.continueButton ?? "Продолжить"}
               </button>
               <button
-                onClick={() => router.push('/balance')}
+                onClick={() => router.push("/balance")}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-semibold transition-colors"
               >
-                Пополнить баланс
+                {t?.active?.balanceWarning?.topUpButton ?? "Пополнить баланс"}
               </button>
             </div>
           </div>

@@ -1,35 +1,40 @@
-'use client';
+"use client";
 
-import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { useEffect, useState, Suspense } from 'react';
-
-const errorMessages: Record<string, string> = {
-  Configuration: 'Ошибка конфигурации сервера. Обратитесь к администратору.',
-  AccessDenied: 'Доступ запрещен. У вас нет прав для входа.',
-  Verification: 'Токен верификации истек или уже был использован.',
-  OAuthSignin: 'Ошибка при попытке входа через OAuth провайдера.',
-  OAuthCallback: 'Ошибка при обработке ответа от OAuth провайдера.',
-  OAuthCreateAccount: 'Не удалось создать аккаунт через OAuth провайдера.',
-  EmailCreateAccount: 'Не удалось создать аккаунт с этим email.',
-  Callback: 'Ошибка при обработке callback.',
-  OAuthAccountNotLinked: 'Email уже используется с другим методом входа.',
-  EmailSignin: 'Не удалось отправить письмо для входа.',
-  CredentialsSignin: 'Неверный email или пароль.',
-  SessionRequired: 'Требуется авторизация для доступа к этой странице.',
-  Default: 'Произошла неизвестная ошибка. Попробуйте снова.',
-};
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useEffect, useState, Suspense } from "react";
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from "@/app/i18n";
 
 function ErrorContent() {
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
+  const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [t, setT] = useState<any>(null);
 
   useEffect(() => {
-    const errorParam = searchParams.get('error');
-    setError(errorParam || 'Default');
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    getTranslations(locale, "auth").then(setT);
+  }, [locale]);
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    setError(errorParam || "Default");
   }, [searchParams]);
 
-  const errorMessage = errorMessages[error] || errorMessages.Default;
+  const messages = t?.error?.messages ?? {};
+  const errorMessage =
+    messages[error] ??
+    messages["Default"] ??
+    "Произошла неизвестная ошибка. Попробуйте снова.";
 
   return (
     <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center px-4">
@@ -50,7 +55,9 @@ function ErrorContent() {
           </svg>
         </div>
 
-        <h1 className="text-2xl font-bold text-white mb-2">Ошибка авторизации</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">
+          {t?.error?.title ?? "Ошибка авторизации"}
+        </h1>
         <p className="text-gray-400 mb-6">{errorMessage}</p>
 
         <div className="space-y-3">
@@ -58,19 +65,21 @@ function ErrorContent() {
             href="/auth/signin"
             className="block w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-lg font-semibold transition"
           >
-            Попробовать снова
+            {t?.error?.retryButton ?? "Попробовать снова"}
           </Link>
           <Link
             href="/"
             className="block w-full bg-[#0a1f1a] hover:bg-[#0a1f1a]/80 text-gray-300 py-3 rounded-lg font-semibold transition border border-emerald-900/30"
           >
-            Вернуться на главную
+            {t?.error?.backToHome ?? "Вернуться на главную"}
           </Link>
         </div>
 
-        {error && error !== 'Default' && (
+        {error && error !== "Default" && (
           <div className="mt-6 p-3 bg-gray-900/50 rounded-lg">
-            <p className="text-xs text-gray-500">Код ошибки: {error}</p>
+            <p className="text-xs text-gray-500">
+              {t?.error?.errorCodePrefix ?? "Код ошибки:"} {error}
+            </p>
           </div>
         )}
       </div>
@@ -80,11 +89,13 @@ function ErrorContent() {
 
 export default function AuthErrorPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
-        <div className="text-white">Загрузка...</div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
+          <div className="text-white">Загрузка...</div>
+        </div>
+      }
+    >
       <ErrorContent />
     </Suspense>
   );

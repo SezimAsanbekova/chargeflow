@@ -4,11 +4,28 @@ import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { User, LogOut, Wallet, Calendar } from 'lucide-react';
 import Link from 'next/link';
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from '@/app/i18n';
 
 export default function UserMenu() {
   const { data: session, status } = useSession();
   const [showDropdown, setShowDropdown] = useState(false);
   const [balance, setBalance] = useState(0);
+  const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [t, setT] = useState<any>(null);
+
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    getTranslations(locale, 'common').then(setT);
+  }, [locale]);
 
   useEffect(() => {
     if (session?.user) {
@@ -44,7 +61,7 @@ export default function UserMenu() {
         href="/auth/signin"
         className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-full transition"
       >
-        Войти
+        {t?.userMenu?.login ?? 'Войти'}
       </Link>
     );
   }
@@ -81,7 +98,7 @@ export default function UserMenu() {
             {user?.name || user?.email}
           </div>
           <div className="text-emerald-400 text-xs">
-            {typeof balance === 'number' ? balance.toFixed(2) : '0.00'} сом
+            {typeof balance === 'number' ? balance.toFixed(2) : '0.00'} {t?.som ?? 'сом'}
           </div>
         </div>
       </button>
@@ -107,15 +124,15 @@ export default function UserMenu() {
                   </div>
                 )}
                 <div>
-                  <div className="text-white font-medium">{user?.name || 'Пользователь'}</div>
+                  <div className="text-white font-medium">{user?.name || (t?.userMenu?.user ?? 'Пользователь')}</div>
                   <div className="text-gray-400 text-xs">{user?.email}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-emerald-500/10 rounded-lg px-3 py-2">
                 <Wallet size={16} className="text-emerald-400" />
-                <span className="text-white text-sm">Баланс:</span>
+                <span className="text-white text-sm">{t?.userMenu?.balance ?? 'Баланс:'}</span>
                 <span className="text-emerald-400 font-bold ml-auto">
-                  {typeof balance === 'number' ? balance.toFixed(2) : '0.00'} сом
+                  {typeof balance === 'number' ? balance.toFixed(2) : '0.00'} {t?.som ?? 'сом'}
                 </span>
               </div>
             </div>
@@ -127,7 +144,7 @@ export default function UserMenu() {
                 onClick={() => setShowDropdown(false)}
               >
                 <User size={18} />
-                <span>Профиль</span>
+                <span>{t?.userMenu?.profile ?? 'Профиль'}</span>
               </Link>
               <Link
                 href="/bookings"
@@ -135,7 +152,7 @@ export default function UserMenu() {
                 onClick={() => setShowDropdown(false)}
               >
                 <Calendar size={18} />
-                <span>Мои бронирования</span>
+                <span>{t?.userMenu?.myBookings ?? 'Мои бронирования'}</span>
               </Link>
             </div>
 
@@ -145,7 +162,7 @@ export default function UserMenu() {
                 className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition"
               >
                 <LogOut size={18} />
-                <span>Выйти</span>
+                <span>{t?.userMenu?.logout ?? 'Выйти'}</span>
               </button>
             </div>
           </div>

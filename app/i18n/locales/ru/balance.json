@@ -1,0 +1,59 @@
+{
+  "title": "Баланс",
+  "loading": "Загрузка...",
+  "currency": "сом",
+  "balanceCard": {
+    "logoText": "ChargeFlow",
+    "currencyLabel": "сом"
+  },
+  "quickActions": {
+    "title": "Быстрые действия",
+    "addCard": {
+      "title": "Добавить карту",
+      "subtitle": "Для автопополнения"
+    },
+    "history": {
+      "title": "История операций",
+      "subtitle": "Все транзакции"
+    }
+  },
+  "transactions": {
+    "title": "Последние операции",
+    "empty": {
+      "message": "История транзакций пуста",
+      "hint": "Пополните баланс или совершите зарядку"
+    }
+  },
+  "topUp": {
+    "title": "Пополнить счет",
+    "customAmountPlaceholder": "Введите сумму",
+    "currency": "KGZ",
+    "minAmountNote": "Минимальная сумма пополнения - 100 KGZ",
+    "topUpButton": "Пополнить",
+    "minAmountAlert": "Минимальная сумма пополнения - 100 сом",
+    "topUpAlert": "Пополнение на {amount} сом"
+  },
+  "receipt": {
+    "systemName": "Система зарядных станций",
+    "operationNumber": "Номер операции:",
+    "operationType": "Тип операции:",
+    "status": "Статус:",
+    "statusSuccess": "Успешно",
+    "statusProcessing": "Обработка",
+    "amountLabel": "Сумма:",
+    "footerThanks": "Спасибо за использование ChargeFlow!",
+    "footerEmail": "support@chargeflow.kg",
+    "footerConfirmation": "Этот чек является подтверждением операции",
+    "downloadButton": "Скачать чек (PNG)",
+    "closeButton": "Закрыть"
+  },
+  "topUpButton": "Пополнить баланс",
+  "transactionTypes": {
+    "topup": "Пополнение баланса",
+    "charge": "Зарядка на станции {station}",
+    "chargeUnknown": "Зарядка на станции",
+    "deposit": "Депозит за бронирование",
+    "refund": "Возврат средств",
+    "default": "Операция"
+  }
+}

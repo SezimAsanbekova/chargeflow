@@ -1,0 +1,150 @@
+{
+  "loading": "Загрузка карты...",
+  "loadingStations": "Загрузка...",
+  "viewMode": {
+    "map": "На карте",
+    "list": "Списком"
+  },
+  "noStations": "Станций нет",
+  "notFound": "Не найдено",
+  "notAdded": "Станции еще не добавлены",
+  "changeFilters": "Измените фильтры",
+  "filtersButton": "Фильтры",
+  "charging": {
+    "active": "⚡ Зарядка",
+    "activeList": "⚡ Идет зарядка",
+    "lowBalance": "Низкий баланс! Пополните для продолжения зарядки",
+    "topUpButton": "Пополнить баланс",
+    "recentOps": "Последние операции",
+    "emptyHistory": "История операций пуста"
+  },
+  "route": {
+    "title": "Маршрут",
+    "distance": "Расстояние",
+    "time": "Время",
+    "min": "мин",
+    "km": "км"
+  },
+  "station": {
+    "status": "Статус",
+    "power": "Мощность",
+    "connector": "Коннектор",
+    "price": "Цена",
+    "perMin": "сом/мин",
+    "time": "Время",
+    "cost": "Стоимость",
+    "station": "Станция"
+  },
+  "connectors": {
+    "title": "Коннекторы",
+    "onlyCompatible": "(показаны только совместимые)",
+    "showAll": "Показать все коннекторы",
+    "incompatibleTitle": "⚠️ Несовместимо с вашим автомобилем",
+    "incompatibleDesc": "Ваш {brand} {model} использует разъём {connector}, но эта станция имеет только: {stationConnectors}",
+    "changeVehicle": "Сменить активный автомобиль →",
+    "select": "Выберите коннектор",
+    "busy": "(занят)",
+    "powerLabel": "Мощность:",
+    "priceLabel": "Цена:"
+  },
+  "buttons": {
+    "route": "Маршрут",
+    "building": "Построение...",
+    "charge": "Зарядка",
+    "selectConnector": "Выберите коннектор",
+    "unavailable": "Недоступно",
+    "finish": "Завершить",
+    "book": "Забронировать",
+    "testDrive": "Начать тест-драйв",
+    "realNavigation": "Реальная навигация",
+    "clear": "Очистить"
+  },
+  "filter": {
+    "title": "Фильтры",
+    "connectorType": "Тип разъема:",
+    "power": "Мощность",
+    "min": "Минимум",
+    "max": "Максимум",
+    "apply": "Применить",
+    "reset": "Сбросить"
+  },
+  "booking": {
+    "title": "Бронирование",
+    "connectorLabel": "Коннектор:",
+    "onlyCompatible": "(показаны только совместимые)",
+    "selectConnector": "Выберите коннектор",
+    "powerLabel": "Мощность:",
+    "priceLabel": "Цена:",
+    "dateLabel": "Дата:",
+    "selectDate": "Выберите дату",
+    "timeLabel": "Время:",
+    "selectTime": "Выберите время",
+    "durationLabel": "Длительность:",
+    "depositInfo": "Депозит 100 сом (возвращается при отмене за 1 час)",
+    "confirmButton": "Подтвердить бронирование",
+    "processing": "Бронирование...",
+    "days": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+    "success": {
+      "title": "Бронирование подтверждено!",
+      "closeButton": "Закрыть"
+    },
+    "cancelButton": "Отмена",
+    "cancelConfirm": "Отменить бронирование?",
+    "depositReturn": "Депозит 100 сом будет возвращен на ваш баланс.",
+    "depositNote": "Депозит будет возвращен"
+  },
+  "topUp": {
+    "title": "Пополнить счет",
+    "currentBalance": "Текущий баланс:",
+    "refillRequired": "Требуется пополнение",
+    "fillTitle": "Пополнить счет",
+    "minAmountNote": "Минимальная сумма пополнения — {amount} сом",
+    "customLabel": "Или введите сумму:",
+    "placeholder": "Введите сумму",
+    "processing": "Обработка платежа...",
+    "button": "Пополнить",
+    "minAmount": "Минимальная сумма: 10 сом",
+    "maxAmount": "Максимальная сумма: 10,000 сом",
+    "confirmTitle": "Пополнить баланс на",
+    "newBalance": "Новый баланс"
+  },
+  "status": {
+    "available": "Доступна",
+    "busy": "Занята",
+    "maintenance": "На обслуживании"
+  },
+  "units": {
+    "kw": "кВт",
+    "kwh": "кВт⋅ч",
+    "som": "сом",
+    "somPerMin": "сом/мин",
+    "min": "мин",
+    "hour": "ч",
+    "km": "км",
+    "kmh": "км/ч"
+  },
+  "alerts": {
+    "nearbyFound": "Найдено {count} активных станций рядом с вами!\nБлижайшая: {name} ({distance} км)",
+    "noNearby": "Рядом с вами нет активных станций в радиусе 10 км",
+    "locationError": "Не удалось определить ваше местоположение. Проверьте разрешения браузера.",
+    "geoNotSupported": "Геолокация не поддерживается вашим браузером",
+    "routeError": "Не удалось построить маршрут. Попробуйте еще раз.",
+    "gpsError": "Ошибка получения GPS координат. Проверьте разрешения.",
+    "selectConnector": "Выберите коннектор для зарядки",
+    "connectorUnavailable": "Выбранный коннектор недоступен для зарядки",
+    "insufficientFunds": "Недостаточно средств на балансе для оплаты зарядки!",
+    "chargingComplete": "Зарядка завершена!\n\nВремя: {duration} мин\nСписано: {cost} сом\nБаланс: {balance} сом",
+    "topUpSuccess": "Баланс успешно пополнен на {amount} сом!\nНовый баланс: {balance} сом",
+    "topUpError": "Ошибка при пополнении баланса. Попробуйте еще раз.",
+    "invalidAmount": "Введите корректную сумму для пополнения",
+    "selectDateTime": "Пожалуйста, выберите дату и время",
+    "selectConnectorBooking": "Пожалуйста, выберите коннектор",
+    "insufficientDeposit": "Недостаточно средств для депозита (100 сом)",
+    "bookingError": "Ошибка при создании бронирования. Попробуйте еще раз.",
+    "bookingCancelled": "Бронирование отменено. Депозит возвращен на ваш баланс.",
+    "arrivedAtStation": "Вы прибыли к станции!\n\nРасстояние: {distance} км\nВремя в пути: {duration} мин\nСредняя скорость: {speed} км/ч",
+    "tripComplete": "Поездка завершена!\n\nРасстояние: {distance} км\nЗапланированное время: {estimated} мин\nФактическое время: {actual} мин\n{comparison}",
+    "fasterBy": "на {diff} мин быстрее",
+    "slowerBy": "на {diff} мин дольше"
+  }
+}

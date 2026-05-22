@@ -1,0 +1,59 @@
+{
+  "title": "Баланс",
+  "loading": "Жүктөлүүдө...",
+  "currency": "сом",
+  "balanceCard": {
+    "logoText": "ChargeFlow",
+    "currencyLabel": "сом"
+  },
+  "quickActions": {
+    "title": "Тез аракеттер",
+    "addCard": {
+      "title": "Карта кошуу",
+      "subtitle": "Автоматтык толуктоо үчүн"
+    },
+    "history": {
+      "title": "Операциялар тарыхы",
+      "subtitle": "Бардык транзакциялар"
+    }
+  },
+  "transactions": {
+    "title": "Акыркы операциялар",
+    "empty": {
+      "message": "Транзакциялар тарыхы бош",
+      "hint": "Балансты толуктаңыз же кубаттоо жасаңыз"
+    }
+  },
+  "topUp": {
+    "title": "Эсепти толуктоо",
+    "customAmountPlaceholder": "Суммасын киргизиңиз",
+    "currency": "KGZ",
+    "minAmountNote": "Минималдуу толуктоо суммасы - 100 KGZ",
+    "topUpButton": "Толуктоо",
+    "minAmountAlert": "Минималдуу толуктоо суммасы - 100 сом",
+    "topUpAlert": "{amount} сомго толуктоо"
+  },
+  "receipt": {
+    "systemName": "Кубаттоо станциялары системасы",
+    "operationNumber": "Операция номери:",
+    "operationType": "Операция түрү:",
+    "status": "Абалы:",
+    "statusSuccess": "Ийгиликтүү",
+    "statusProcessing": "Иштетилүүдө",
+    "amountLabel": "Сумма:",
+    "footerThanks": "ChargeFlow колдонгонуңуз үчүн рахмат!",
+    "footerEmail": "support@chargeflow.kg",
+    "footerConfirmation": "Бул чек операцияны тастыктоо болуп саналат",
+    "downloadButton": "Чекти жүктөп алуу (PNG)",
+    "closeButton": "Жабуу"
+  },
+  "topUpButton": "Балансты толуктоо",
+  "transactionTypes": {
+    "topup": "Балансты толуктоо",
+    "charge": "{station} станциясында кубаттоо",
+    "chargeUnknown": "Станцияда кубаттоо",
+    "deposit": "Брондоо боюнча депозит",
+    "refund": "Каражатты кайтаруу",
+    "default": "Операция"
+  }
+}

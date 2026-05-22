@@ -1,0 +1,66 @@
+{
+  "title": "История",
+  "loading": "Загрузка...",
+  "tabs": {
+    "bookings": "Бронирования",
+    "sessions": "Зарядки"
+  },
+  "bookings": {
+    "activeSectionTitle": "Активные бронирования",
+    "historySectionTitle": "История бронирований",
+    "details": {
+      "dateLabel": "Дата",
+      "timeLabel": "Время",
+      "connectorLabel": "Коннектор",
+      "powerLabel": "Мощность",
+      "depositLabel": "Депозит:",
+      "depositReturned": "(возвращен)",
+      "depositHeld": "(заблокирован)"
+    },
+    "actions": {
+      "goToStation": "Перейти к станции",
+      "cancelButton": "Отменить",
+      "cancelWarning": "Отмена возможна не позднее чем за 30 минут до начала"
+    },
+    "status": {
+      "active": "Активно",
+      "completed": "Завершено",
+      "cancelled": "Отменено",
+      "expired": "Истекло"
+    },
+    "empty": {
+      "title": "Нет бронирований",
+      "description": "У вас пока нет активных или завершенных бронирований",
+      "findStationButton": "Найти станцию"
+    }
+  },
+  "sessions": {
+    "historySectionTitle": "История зарядок",
+    "details": {
+      "dateLabel": "Дата",
+      "timeLabel": "Время",
+      "energyLabel": "Энергия",
+      "powerLabel": "Мощность",
+      "connectorLabel": "Коннектор",
+      "costLabel": "Стоимость"
+    },
+    "sessionPrefix": "Сессия:",
+    "status": {
+      "completed": "Завершено",
+      "active": "Активно",
+      "cancelled": "Отменено"
+    },
+    "empty": {
+      "title": "Нет зарядок",
+      "description": "У вас пока нет истории зарядок",
+      "findStationButton": "Начать зарядку"
+    }
+  },
+  "cancelModal": {
+    "title": "Отменить бронирование",
+    "depositInfo": "Депозит {amount} сом будет возвращен на ваш баланс",
+    "backButton": "Назад",
+    "cancelButton": "Отменить бронь",
+    "cancelling": "Отмена..."
+  }
+}

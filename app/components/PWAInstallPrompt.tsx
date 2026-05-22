@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { X, Download } from 'lucide-react';
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from '@/app/i18n';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -11,6 +17,12 @@ interface BeforeInstallPromptEvent extends Event {
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [t, setT] = useState<any>(null);
+
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    getTranslations(savedLocale || defaultLocale, 'common').then(setT);
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -62,7 +74,7 @@ export default function PWAInstallPrompt() {
       <button
         onClick={handleDismiss}
         className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-        aria-label="Закрыть"
+        aria-label={t?.close ?? 'Закрыть'}
       >
         <X className="w-5 h-5" />
       </button>
@@ -74,10 +86,10 @@ export default function PWAInstallPrompt() {
 
         <div className="flex-1">
           <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-            Установить ChargeFlow
+            {t?.pwa?.installTitle ?? 'Установить ChargeFlow'}
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-            Установите приложение для быстрого доступа и работы офлайн
+            {t?.pwa?.installDescriptionShort ?? 'Установите приложение для быстрого доступа и работы офлайн'}
           </p>
 
           <div className="flex gap-2">
@@ -85,13 +97,13 @@ export default function PWAInstallPrompt() {
               onClick={handleInstall}
               className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
-              Установить
+              {t?.pwa?.installButton ?? 'Установить'}
             </button>
             <button
               onClick={handleDismiss}
               className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
             >
-              Позже
+              {t?.pwa?.laterButton ?? 'Позже'}
             </button>
           </div>
         </div>

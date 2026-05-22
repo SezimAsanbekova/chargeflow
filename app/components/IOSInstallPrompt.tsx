@@ -2,9 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { X, Share, Plus, Home } from 'lucide-react';
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from '@/app/i18n';
 
 export default function IOSInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
+  const [t, setT] = useState<any>(null);
+
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    getTranslations(savedLocale || defaultLocale, 'common').then(setT);
+  }, []);
 
   useEffect(() => {
     // Проверяем, что это iOS и приложение не установлено
@@ -35,7 +47,7 @@ export default function IOSInstallPrompt() {
         <button
           onClick={handleDismiss}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          aria-label="Закрыть"
+          aria-label={t?.close ?? 'Закрыть'}
         >
           <X className="w-6 h-6" />
         </button>
@@ -45,10 +57,10 @@ export default function IOSInstallPrompt() {
             <Home className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Установить ChargeFlow
+            {t?.pwa?.installTitle ?? 'Установить ChargeFlow'}
           </h2>
           <p className="text-gray-600 dark:text-gray-300">
-            Добавьте приложение на главный экран для быстрого доступа
+            {t?.pwa?.installDescription ?? 'Добавьте приложение на главный экран для быстрого доступа'}
           </p>
         </div>
 
@@ -59,11 +71,11 @@ export default function IOSInstallPrompt() {
             </div>
             <div className="flex-1">
               <p className="text-gray-900 dark:text-white font-medium mb-1">
-                Нажмите кнопку "Поделиться"
+                {t?.pwa?.step1Title ?? 'Нажмите кнопку "Поделиться"'}
               </p>
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                 <Share className="w-5 h-5" />
-                <span className="text-sm">В нижней части экрана</span>
+                <span className="text-sm">{t?.pwa?.step1Hint ?? 'В нижней части экрана'}</span>
               </div>
             </div>
           </div>
@@ -74,11 +86,11 @@ export default function IOSInstallPrompt() {
             </div>
             <div className="flex-1">
               <p className="text-gray-900 dark:text-white font-medium mb-1">
-                Выберите "На экран «Домой»"
+                {t?.pwa?.step2Title ?? 'Выберите "На экран «Домой»"'}
               </p>
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                 <Plus className="w-5 h-5" />
-                <span className="text-sm">Прокрутите вниз в меню</span>
+                <span className="text-sm">{t?.pwa?.step2Hint ?? 'Прокрутите вниз в меню'}</span>
               </div>
             </div>
           </div>
@@ -89,10 +101,10 @@ export default function IOSInstallPrompt() {
             </div>
             <div className="flex-1">
               <p className="text-gray-900 dark:text-white font-medium mb-1">
-                Нажмите "Добавить"
+                {t?.pwa?.step3Title ?? 'Нажмите "Добавить"'}
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Готово! Приложение появится на главном экране
+                {t?.pwa?.step3Hint ?? 'Готово! Приложение появится на главном экране'}
               </p>
             </div>
           </div>
@@ -102,7 +114,7 @@ export default function IOSInstallPrompt() {
           onClick={handleDismiss}
           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-lg font-medium transition-colors"
         >
-          Понятно
+          {t?.pwa?.gotItButton ?? 'Понятно'}
         </button>
       </div>
     </div>

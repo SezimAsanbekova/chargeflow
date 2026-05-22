@@ -1,10 +1,28 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Bell, Lightbulb, Construction } from 'lucide-react';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { ArrowLeft, Bell, Lightbulb, Construction } from "lucide-react";
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from "@/app/i18n";
 
 export default function NotificationsPage() {
+  const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [t, setT] = useState<any>(null);
+
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    getTranslations(locale, "profile").then(setT);
+  }, [locale]);
+
   const [notifications, setNotifications] = useState({
     charging: true,
     booking: true,
@@ -13,7 +31,7 @@ export default function NotificationsPage() {
   });
 
   const handleToggle = (key: keyof typeof notifications) => {
-    setNotifications(prev => ({
+    setNotifications((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));
@@ -30,7 +48,9 @@ export default function NotificationsPage() {
           >
             <ArrowLeft size={20} />
           </Link>
-          <h1 className="text-2xl font-bold">Уведомления</h1>
+          <h1 className="text-2xl font-bold">
+            {t?.notifications?.title ?? "Уведомления"}
+          </h1>
         </div>
 
         {/* Notification Settings */}
@@ -42,19 +62,24 @@ export default function NotificationsPage() {
                   <Bell className="text-emerald-400" size={24} />
                 </div>
                 <div>
-                  <p className="text-white font-medium">Зарядка</p>
-                  <p className="text-gray-400 text-sm">Статус зарядной сессии</p>
+                  <p className="text-white font-medium">
+                    {t?.notifications?.charging?.title ?? "Зарядка"}
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    {t?.notifications?.charging?.subtitle ??
+                      "Статус зарядной сессии"}
+                  </p>
                 </div>
               </div>
               <button
-                onClick={() => handleToggle('charging')}
+                onClick={() => handleToggle("charging")}
                 className={`relative w-14 h-8 rounded-full transition ${
-                  notifications.charging ? 'bg-emerald-500' : 'bg-gray-600'
+                  notifications.charging ? "bg-emerald-500" : "bg-gray-600"
                 }`}
               >
                 <div
                   className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                    notifications.charging ? 'translate-x-7' : 'translate-x-1'
+                    notifications.charging ? "translate-x-7" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -68,19 +93,24 @@ export default function NotificationsPage() {
                   <Bell className="text-emerald-400" size={24} />
                 </div>
                 <div>
-                  <p className="text-white font-medium">Бронирования</p>
-                  <p className="text-gray-400 text-sm">Напоминания о бронировании</p>
+                  <p className="text-white font-medium">
+                    {t?.notifications?.booking?.title ?? "Бронирования"}
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    {t?.notifications?.booking?.subtitle ??
+                      "Напоминания о бронировании"}
+                  </p>
                 </div>
               </div>
               <button
-                onClick={() => handleToggle('booking')}
+                onClick={() => handleToggle("booking")}
                 className={`relative w-14 h-8 rounded-full transition ${
-                  notifications.booking ? 'bg-emerald-500' : 'bg-gray-600'
+                  notifications.booking ? "bg-emerald-500" : "bg-gray-600"
                 }`}
               >
                 <div
                   className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                    notifications.booking ? 'translate-x-7' : 'translate-x-1'
+                    notifications.booking ? "translate-x-7" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -94,19 +124,24 @@ export default function NotificationsPage() {
                   <Bell className="text-emerald-400" size={24} />
                 </div>
                 <div>
-                  <p className="text-white font-medium">Платежи</p>
-                  <p className="text-gray-400 text-sm">Информация о платежах</p>
+                  <p className="text-white font-medium">
+                    {t?.notifications?.payment?.title ?? "Платежи"}
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    {t?.notifications?.payment?.subtitle ??
+                      "Информация о платежах"}
+                  </p>
                 </div>
               </div>
               <button
-                onClick={() => handleToggle('payment')}
+                onClick={() => handleToggle("payment")}
                 className={`relative w-14 h-8 rounded-full transition ${
-                  notifications.payment ? 'bg-emerald-500' : 'bg-gray-600'
+                  notifications.payment ? "bg-emerald-500" : "bg-gray-600"
                 }`}
               >
                 <div
                   className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                    notifications.payment ? 'translate-x-7' : 'translate-x-1'
+                    notifications.payment ? "translate-x-7" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -120,19 +155,24 @@ export default function NotificationsPage() {
                   <Bell className="text-emerald-400" size={24} />
                 </div>
                 <div>
-                  <p className="text-white font-medium">Акции и новости</p>
-                  <p className="text-gray-400 text-sm">Специальные предложения</p>
+                  <p className="text-white font-medium">
+                    {t?.notifications?.marketing?.title ?? "Акции и новости"}
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    {t?.notifications?.marketing?.subtitle ??
+                      "Специальные предложения"}
+                  </p>
                 </div>
               </div>
               <button
-                onClick={() => handleToggle('marketing')}
+                onClick={() => handleToggle("marketing")}
                 className={`relative w-14 h-8 rounded-full transition ${
-                  notifications.marketing ? 'bg-emerald-500' : 'bg-gray-600'
+                  notifications.marketing ? "bg-emerald-500" : "bg-gray-600"
                 }`}
               >
                 <div
                   className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                    notifications.marketing ? 'translate-x-7' : 'translate-x-1'
+                    notifications.marketing ? "translate-x-7" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -143,9 +183,13 @@ export default function NotificationsPage() {
         {/* Info */}
         <div className="mt-6 bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <Lightbulb size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
+            <Lightbulb
+              size={20}
+              className="text-amber-400 flex-shrink-0 mt-0.5"
+            />
             <p className="text-gray-400 text-sm">
-              Уведомления помогут вам не пропустить важные события и своевременно получать информацию о зарядке вашего автомобиля.
+              {t?.notifications?.infoText ??
+                "Уведомления помогут вам не пропустить важные события и своевременно получать информацию о зарядке вашего автомобиля."}
             </p>
           </div>
         </div>
@@ -153,9 +197,13 @@ export default function NotificationsPage() {
         {/* Coming Soon */}
         <div className="mt-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
           <div className="flex items-start gap-3 justify-center">
-            <Construction size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            <Construction
+              size={20}
+              className="text-amber-500 flex-shrink-0 mt-0.5"
+            />
             <p className="text-gray-400 text-sm">
-              Настройки сохраняются локально. Синхронизация с сервером будет добавлена позже.
+              {t?.notifications?.comingSoon ??
+                "Настройки сохраняются локально. Синхронизация с сервером будет добавлена позже."}
             </p>
           </div>
         </div>

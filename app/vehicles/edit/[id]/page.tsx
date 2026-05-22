@@ -1,16 +1,32 @@
-'use client';
+"use client";
 
-import { useSession } from 'next-auth/react';
-import { useRouter, useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Car, ChevronLeft, Save, Zap, Battery, Calendar, Plug, Check, X } from 'lucide-react';
+import { useSession } from "next-auth/react";
+import { useRouter, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  Car,
+  ChevronLeft,
+  Save,
+  Zap,
+  Battery,
+  Calendar,
+  Plug,
+  Check,
+  X,
+} from "lucide-react";
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from "@/app/i18n";
 
 const CONNECTOR_TYPES = [
-  { value: 'CCS2', label: 'CCS2 (Combined Charging System)' },
-  { value: 'CHAdeMO', label: 'CHAdeMO' },
-  { value: 'Type2', label: 'Type 2 (Mennekes)' },
-  { value: 'GB_T', label: 'GB/T (Китайский стандарт)' },
+  { value: "CCS2", label: "CCS2 (Combined Charging System)" },
+  { value: "CHAdeMO", label: "CHAdeMO" },
+  { value: "Type2", label: "Type 2 (Mennekes)" },
+  { value: "GB_T", label: "GB/T (Китайский стандарт)" },
 ];
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -30,23 +46,38 @@ export default function EditVehiclePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [toast, setToast] = useState<Toast>({ show: false, message: '', details: '' });
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState<Toast>({
+    show: false,
+    message: "",
+    details: "",
+  });
   const [initialIsActive, setInitialIsActive] = useState(false);
+  const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [t, setT] = useState<any>(null);
+
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    getTranslations(locale, "vehicles").then(setT);
+  }, [locale]);
 
   const [formData, setFormData] = useState({
-    brand: '',
-    model: '',
+    brand: "",
+    model: "",
     year: CURRENT_YEAR.toString(),
-    connectorType: 'CCS2',
-    maxPowerKw: '',
-    batteryCapacityKwh: '',
+    connectorType: "CCS2",
+    maxPowerKw: "",
+    batteryCapacityKwh: "",
     isActive: false,
   });
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
     }
   }, [status, router]);
 
@@ -73,11 +104,11 @@ export default function EditVehiclePage() {
           isActive: vehicle.isActive,
         });
       } else {
-        setError('Автомобиль не найден');
+        setError("Автомобиль не найден");
       }
     } catch (error) {
-      console.error('Error fetching vehicle:', error);
-      setError('Ошибка загрузки автомобиля');
+      console.error("Error fetching vehicle:", error);
+      setError("Ошибка загрузки автомобиля");
     } finally {
       setLoading(false);
     }
@@ -85,53 +116,61 @@ export default function EditVehiclePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setSaving(true);
 
     try {
       // Валидация
-      if (!formData.brand || !formData.model || !formData.maxPowerKw || !formData.batteryCapacityKwh) {
-        throw new Error('Заполните все обязательные поля');
+      if (
+        !formData.brand ||
+        !formData.model ||
+        !formData.maxPowerKw ||
+        !formData.batteryCapacityKwh
+      ) {
+        throw new Error("Заполните все обязательные поля");
       }
 
       if (parseFloat(formData.maxPowerKw) <= 0) {
-        throw new Error('Максимальная мощность должна быть больше 0');
+        throw new Error("Максимальная мощность должна быть больше 0");
       }
 
       if (parseFloat(formData.batteryCapacityKwh) <= 0) {
-        throw new Error('Ёмкость батареи должна быть больше 0');
+        throw new Error("Ёмкость батареи должна быть больше 0");
       }
 
       const wasActive = formData.isActive;
 
       const response = await fetch(`/api/vehicles/${vehicleId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Ошибка обновления автомобиля');
+        throw new Error(data.error || "Ошибка обновления автомобиля");
       }
 
       // Если автомобиль стал активным, показываем уведомление
       if (formData.isActive && !initialIsActive) {
-        const connectorLabel = CONNECTOR_TYPES.find(t => t.value === formData.connectorType)?.label.split(' ')[0] || formData.connectorType;
+        const connectorLabel =
+          CONNECTOR_TYPES.find(
+            (t) => t.value === formData.connectorType,
+          )?.label.split(" ")[0] || formData.connectorType;
         setToast({
           show: true,
-          message: '✅ Активный автомобиль обновлён',
+          message: "✅ Активный автомобиль обновлён",
           details: `Теперь при бронировании будет выбран ${connectorLabel} с мощностью ${formData.maxPowerKw} кВт`,
         });
 
         // Переходим к списку через 2 секунды
         setTimeout(() => {
-          router.push('/vehicles');
+          router.push("/vehicles");
         }, 2000);
       } else {
         // Успешно обновлено - переходим к списку сразу
-        router.push('/vehicles');
+        router.push("/vehicles");
       }
     } catch (err: any) {
       setError(err.message);
@@ -140,10 +179,10 @@ export default function EditVehiclePage() {
     }
   };
 
-  if (status === 'loading' || loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
-        <div className="text-white text-xl">Загрузка...</div>
+        <div className="text-white text-xl">{t?.loading ?? "Загрузка..."}</div>
       </div>
     );
   }
@@ -164,8 +203,12 @@ export default function EditVehiclePage() {
             <ChevronLeft size={20} />
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Редактировать автомобиль</h1>
-            <p className="text-gray-400 text-sm mt-1">Обновите информацию о вашем электромобиле</p>
+            <h1 className="text-3xl font-bold">
+              {t?.edit?.title ?? "Редактировать автомобиль"}
+            </h1>
+            <p className="text-gray-400 text-sm mt-1">
+              {t?.edit?.subtitle ?? "Обновите информацию о вашем электромобиле"}
+            </p>
           </div>
         </div>
 
@@ -182,18 +225,24 @@ export default function EditVehiclePage() {
           <div className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-6">
             <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Car className="text-emerald-400" size={20} />
-              Основная информация
+              {t?.add?.basicInfo?.sectionTitle ?? "Основная информация"}
             </h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-gray-300 mb-2 text-sm">
-                  Марка <span className="text-red-400">*</span>
+                  {t?.add?.basicInfo?.brandLabel ?? "Марка"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.brand}
-                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  placeholder="Tesla, Nissan, BYD..."
+                  onChange={(e) =>
+                    setFormData({ ...formData, brand: e.target.value })
+                  }
+                  placeholder={
+                    t?.add?.basicInfo?.brandPlaceholder ??
+                    "Tesla, Nissan, BYD..."
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
                   required
                 />
@@ -201,13 +250,19 @@ export default function EditVehiclePage() {
 
               <div>
                 <label className="block text-gray-300 mb-2 text-sm">
-                  Модель <span className="text-red-400">*</span>
+                  {t?.add?.basicInfo?.modelLabel ?? "Модель"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  placeholder="Model 3, Leaf, Han..."
+                  onChange={(e) =>
+                    setFormData({ ...formData, model: e.target.value })
+                  }
+                  placeholder={
+                    t?.add?.basicInfo?.modelPlaceholder ??
+                    "Model 3, Leaf, Han..."
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
                   required
                 />
@@ -216,11 +271,14 @@ export default function EditVehiclePage() {
               <div>
                 <label className="block text-gray-300 mb-2 text-sm flex items-center gap-2">
                   <Calendar size={16} />
-                  Год выпуска <span className="text-red-400">*</span>
+                  {t?.add?.basicInfo?.yearLabel ?? "Год выпуска"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <select
                   value={formData.year}
-                  onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, year: e.target.value })
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none"
                   required
                 >
@@ -238,17 +296,21 @@ export default function EditVehiclePage() {
           <div className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-6">
             <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Zap className="text-emerald-400" size={20} />
-              Характеристики зарядки
+              {t?.add?.chargingSpecs?.sectionTitle ?? "Характеристики зарядки"}
             </h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-gray-300 mb-2 text-sm flex items-center gap-2">
                   <Plug size={16} />
-                  Тип коннектора <span className="text-red-400">*</span>
+                  {t?.add?.chargingSpecs?.connectorLabel ??
+                    "Тип коннектора"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <select
                   value={formData.connectorType}
-                  onChange={(e) => setFormData({ ...formData, connectorType: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, connectorType: e.target.value })
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none"
                   required
                 >
@@ -263,15 +325,22 @@ export default function EditVehiclePage() {
               <div>
                 <label className="block text-gray-300 mb-2 text-sm flex items-center gap-2">
                   <Zap size={16} />
-                  Максимальная мощность зарядки (кВт) <span className="text-red-400">*</span>
+                  {t?.add?.chargingSpecs?.maxPowerLabel ??
+                    "Макс. мощность (кВт)"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="number"
                   step="0.1"
                   min="0"
                   value={formData.maxPowerKw}
-                  onChange={(e) => setFormData({ ...formData, maxPowerKw: e.target.value })}
-                  placeholder="50, 150, 250..."
+                  onChange={(e) =>
+                    setFormData({ ...formData, maxPowerKw: e.target.value })
+                  }
+                  placeholder={
+                    t?.add?.chargingSpecs?.maxPowerPlaceholder ??
+                    "50, 150, 250..."
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
                   required
                 />
@@ -280,15 +349,25 @@ export default function EditVehiclePage() {
               <div>
                 <label className="block text-gray-300 mb-2 text-sm flex items-center gap-2">
                   <Battery size={16} />
-                  Ёмкость батареи (кВт·ч) <span className="text-red-400">*</span>
+                  {t?.add?.chargingSpecs?.batteryLabel ??
+                    "Ёмкость батареи (кВт·ч)"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="number"
                   step="0.1"
                   min="0"
                   value={formData.batteryCapacityKwh}
-                  onChange={(e) => setFormData({ ...formData, batteryCapacityKwh: e.target.value })}
-                  placeholder="60, 75, 100..."
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      batteryCapacityKwh: e.target.value,
+                    })
+                  }
+                  placeholder={
+                    t?.add?.chargingSpecs?.batteryPlaceholder ??
+                    "60, 75, 100..."
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
                   required
                 />
@@ -303,21 +382,36 @@ export default function EditVehiclePage() {
                 <input
                   type="checkbox"
                   checked={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, isActive: e.target.checked })
+                  }
                   className="sr-only peer"
                 />
                 <div className="w-5 h-5 border-2 border-emerald-900/50 rounded bg-[#0a1f1a] peer-checked:bg-emerald-600 peer-checked:border-emerald-600 transition-all duration-200 flex items-center justify-center group-hover:border-emerald-500">
                   {formData.isActive && (
-                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    <svg
+                      className="w-3.5 h-3.5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                      />
                     </svg>
                   )}
                 </div>
               </div>
               <div>
-                <div className="text-white font-medium mb-1">Активный автомобиль</div>
+                <div className="text-white font-medium mb-1">
+                  {t?.add?.activeVehicle?.title ?? "Активный автомобиль"}
+                </div>
                 <div className="text-gray-400 text-sm">
-                  Активный автомобиль используется для подбора подходящих зарядных станций (опционально)
+                  {t?.add?.activeVehicle?.subtitle ??
+                    "Активный автомобиль используется для подбора подходящих зарядных станций (опционально)"}
                 </div>
               </div>
             </label>
@@ -329,7 +423,7 @@ export default function EditVehiclePage() {
               href="/vehicles"
               className="flex-1 bg-[#0f2d26] hover:bg-[#0f2d26]/80 border border-emerald-900/30 text-gray-300 py-4 rounded-full font-medium transition text-center"
             >
-              Отмена
+              {t?.edit?.cancelButton ?? "Отмена"}
             </Link>
             <button
               type="submit"
@@ -337,11 +431,11 @@ export default function EditVehiclePage() {
               className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-4 rounded-full font-medium transition flex items-center justify-center gap-2"
             >
               {saving ? (
-                'Сохранение...'
+                (t?.edit?.saving ?? "Сохранение...")
               ) : (
                 <>
                   <Save size={20} />
-                  Сохранить изменения
+                  {t?.edit?.saveButton ?? "Сохранить изменения"}
                 </>
               )}
             </button>
@@ -359,11 +453,15 @@ export default function EditVehiclePage() {
                   <Check className="text-emerald-400" size={24} />
                 </div>
                 <div>
-                  <h4 className="text-white font-bold text-lg">{toast.message}</h4>
+                  <h4 className="text-white font-bold text-lg">
+                    {toast.message}
+                  </h4>
                 </div>
               </div>
               <button
-                onClick={() => setToast({ show: false, message: '', details: '' })}
+                onClick={() =>
+                  setToast({ show: false, message: "", details: "" })
+                }
                 className="text-gray-400 hover:text-white transition"
               >
                 <X size={20} />

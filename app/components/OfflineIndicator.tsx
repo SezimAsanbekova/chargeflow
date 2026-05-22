@@ -2,10 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { WifiOff, Wifi } from 'lucide-react';
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from '@/app/i18n';
 
 export default function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(true);
   const [showNotification, setShowNotification] = useState(false);
+  const [t, setT] = useState<any>(null);
+
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    getTranslations(savedLocale || defaultLocale, 'common').then(setT);
+  }, []);
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -43,12 +55,12 @@ export default function OfflineIndicator() {
       {isOnline ? (
         <>
           <Wifi className="w-5 h-5" />
-          <span className="font-medium">Соединение восстановлено</span>
+          <span className="font-medium">{t?.offline?.connectionRestored ?? 'Соединение восстановлено'}</span>
         </>
       ) : (
         <>
           <WifiOff className="w-5 h-5" />
-          <span className="font-medium">Нет подключения к интернету</span>
+          <span className="font-medium">{t?.offline?.noConnection ?? 'Нет подключения к интернету'}</span>
         </>
       )}
     </div>

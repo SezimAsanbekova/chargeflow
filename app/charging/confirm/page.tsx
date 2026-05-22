@@ -1,10 +1,25 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, MapPin, Plug, Zap, DollarSign, Wallet, AlertTriangle, CheckCircle } from 'lucide-react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  MapPin,
+  Plug,
+  Zap,
+  DollarSign,
+  Wallet,
+  AlertTriangle,
+  CheckCircle,
+} from "lucide-react";
+import Link from "next/link";
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from "@/app/i18n";
 
 interface Station {
   id: string;
@@ -25,25 +40,36 @@ export default function ConfirmChargingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [station, setStation] = useState<Station | null>(null);
   const [connector, setConnector] = useState<Connector | null>(null);
   const [userBalance, setUserBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [t, setT] = useState<any>(null);
 
-  const stationId = searchParams.get('stationId');
-  const connectorId = searchParams.get('connectorId');
+  const stationId = searchParams.get("stationId");
+  const connectorId = searchParams.get("connectorId");
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    getTranslations(locale, "charging").then(setT);
+  }, [locale]);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
     }
   }, [status, router]);
 
   useEffect(() => {
-    if (status === 'authenticated' && stationId && connectorId) {
+    if (status === "authenticated" && stationId && connectorId) {
       loadData();
     }
   }, [status, stationId, connectorId]);
@@ -55,23 +81,25 @@ export default function ConfirmChargingPage() {
       if (stationResponse.ok) {
         const stationData = await stationResponse.json();
         setStation(stationData);
-        
+
         // Находим выбранный коннектор
-        const selectedConnector = stationData.connectors?.find((c: Connector) => c.id === connectorId);
+        const selectedConnector = stationData.connectors?.find(
+          (c: Connector) => c.id === connectorId,
+        );
         if (selectedConnector) {
           setConnector(selectedConnector);
         }
       }
 
       // Загружаем баланс пользователя
-      const balanceResponse = await fetch('/api/user/balance');
+      const balanceResponse = await fetch("/api/user/balance");
       if (balanceResponse.ok) {
         const balanceData = await balanceResponse.json();
         setUserBalance(balanceData.balance || 0);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
-      setError('Ошибка загрузки данных');
+      console.error("Error loading data:", error);
+      setError(t?.confirm?.errors?.loadError ?? "Ошибка загрузки данных");
     } finally {
       setLoading(false);
     }
@@ -82,21 +110,26 @@ export default function ConfirmChargingPage() {
 
     // Проверяем минимальный баланс
     if (userBalance < 50) {
-      setError('Недостаточно средств. Минимум для начала зарядки: 50 сом');
+      setError(
+        t?.confirm?.errors?.insufficientFunds ??
+          "Недостаточно средств. Минимум для начала зарядки: 50 сом",
+      );
       return;
     }
 
     setStarting(true);
-    setError('');
+    setError("");
 
     try {
       // Пытаемся получить активный автомобиль (необязательно)
-      const vehiclesResponse = await fetch('/api/vehicles');
+      const vehiclesResponse = await fetch("/api/vehicles");
       let vehicleId = null;
-      
+
       if (vehiclesResponse.ok) {
         const vehiclesData = await vehiclesResponse.json();
-        const activeVehicle = vehiclesData.vehicles?.find((v: any) => v.isActive);
+        const activeVehicle = vehiclesData.vehicles?.find(
+          (v: any) => v.isActive,
+        );
         if (activeVehicle) {
           vehicleId = activeVehicle.id;
         } else if (vehiclesData.vehicles?.length > 0) {
@@ -105,9 +138,9 @@ export default function ConfirmChargingPage() {
         }
       }
 
-      const response = await fetch('/api/charging/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/charging/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           connectorId: connector.id,
           vehicleId: vehicleId, // Может быть null
@@ -118,42 +151,45 @@ export default function ConfirmChargingPage() {
 
       if (response.ok) {
         // Успешно начали зарядку - переходим на экран активной зарядки
-        router.push('/charging');
+        router.push("/charging");
       } else {
-        setError(data.error || 'Ошибка при начале зарядки');
+        setError(
+          data.error ||
+            (t?.confirm?.errors?.startError ?? "Ошибка при начале зарядки"),
+        );
       }
     } catch (error) {
-      console.error('Error starting charging:', error);
-      setError('Ошибка при начале зарядки');
+      console.error("Error starting charging:", error);
+      setError(t?.confirm?.errors?.startError ?? "Ошибка при начале зарядки");
     } finally {
       setStarting(false);
     }
   };
 
   const formatConnectorType = (type: string): string => {
-    if (type === 'GB_T') return 'GB/T';
+    if (type === "GB_T") return "GB/T";
     return type;
   };
 
   // Безопасное вычисление примерного времени
   const estimatedMinutes = useMemo(() => {
     if (!connector) return 0;
-    
+
     const price = Number(connector.pricePerMinute);
     const balance = Number(userBalance);
-    
+
     // Проверяем, что оба значения валидны
     if (isNaN(price) || isNaN(balance) || price <= 0) {
       return 0;
     }
-    
+
     return Math.floor(balance / price);
   }, [connector, userBalance]);
 
-  if (status === 'loading' || loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
-        <div className="text-white text-xl">Загрузка...</div>
+        <div className="text-white text-xl">{t?.loading ?? "Загрузка..."}</div>
       </div>
     );
   }
@@ -162,12 +198,14 @@ export default function ConfirmChargingPage() {
     return (
       <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="text-white text-xl mb-4">Данные не найдены</div>
+          <div className="text-white text-xl mb-4">
+            {t?.confirm?.notFound ?? "Данные не найдены"}
+          </div>
           <Link
             href="/map"
             className="text-emerald-400 hover:text-emerald-300 underline"
           >
-            Вернуться на карту
+            {t?.confirm?.backToMap ?? "Вернуться на карту"}
           </Link>
         </div>
       </div>
@@ -187,7 +225,9 @@ export default function ConfirmChargingPage() {
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-2xl font-bold">Начать зарядку</h1>
+          <h1 className="text-2xl font-bold">
+            {t?.confirm?.title ?? "Начать зарядку"}
+          </h1>
         </div>
       </div>
 
@@ -195,7 +235,10 @@ export default function ConfirmChargingPage() {
         {/* Error Message */}
         {error && (
           <div className="bg-red-500/10 border-2 border-red-500/30 rounded-xl p-4 flex items-start gap-3">
-            <AlertTriangle className="text-red-400 flex-shrink-0 mt-0.5" size={20} />
+            <AlertTriangle
+              className="text-red-400 flex-shrink-0 mt-0.5"
+              size={20}
+            />
             <div className="text-red-400 text-sm">{error}</div>
           </div>
         )}
@@ -207,7 +250,9 @@ export default function ConfirmChargingPage() {
               <MapPin className="text-emerald-400" size={24} />
             </div>
             <div className="flex-1">
-              <h2 className="text-white font-bold text-lg mb-1">{station.name}</h2>
+              <h2 className="text-white font-bold text-lg mb-1">
+                {station.name}
+              </h2>
               <p className="text-gray-400 text-sm">{station.address}</p>
             </div>
           </div>
@@ -217,51 +262,73 @@ export default function ConfirmChargingPage() {
         <div className="bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4">
           <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
             <Plug className="text-emerald-400" size={18} />
-            Выбранный коннектор
+            {t?.confirm?.connectorSection ?? "Выбранный коннектор"}
           </h3>
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-gray-400 text-sm">Тип разъёма</span>
-              <span className="text-white font-semibold">{formatConnectorType(connector.type)}</span>
+              <span className="text-gray-400 text-sm">
+                {t?.confirm?.connectorType ?? "Тип разъёма"}
+              </span>
+              <span className="text-white font-semibold">
+                {formatConnectorType(connector.type)}
+              </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-400 text-sm">Мощность</span>
+              <span className="text-gray-400 text-sm">
+                {t?.confirm?.power ?? "Мощность"}
+              </span>
               <span className="text-white font-semibold flex items-center gap-1">
                 <Zap className="text-emerald-400" size={16} />
                 {connector.powerKw} кВт
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-400 text-sm">Цена за минуту</span>
+              <span className="text-gray-400 text-sm">
+                {t?.confirm?.pricePerMin ?? "Цена за минуту"}
+              </span>
               <span className="text-emerald-400 font-bold text-lg">
-                {connector.pricePerMinute ? Number(connector.pricePerMinute).toFixed(2) : '0.00'} сом/мин
+                {connector.pricePerMinute
+                  ? Number(connector.pricePerMinute).toFixed(2)
+                  : "0.00"}{" "}
+                сом/мин
               </span>
             </div>
           </div>
         </div>
 
         {/* Balance Info */}
-        <div className={`border-2 rounded-xl p-4 ${
-          hasEnoughBalance 
-            ? 'bg-emerald-500/10 border-emerald-500/30' 
-            : 'bg-red-500/10 border-red-500/30'
-        }`}>
+        <div
+          className={`border-2 rounded-xl p-4 ${
+            hasEnoughBalance
+              ? "bg-emerald-500/10 border-emerald-500/30"
+              : "bg-red-500/10 border-red-500/30"
+          }`}
+        >
           <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-            <Wallet className={hasEnoughBalance ? 'text-emerald-400' : 'text-red-400'} size={18} />
-            Ваш баланс
+            <Wallet
+              className={hasEnoughBalance ? "text-emerald-400" : "text-red-400"}
+              size={18}
+            />
+            {t?.confirm?.balanceSection ?? "Ваш баланс"}
           </h3>
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-gray-400 text-sm">Текущий баланс</span>
-              <span className={`font-bold text-xl ${hasEnoughBalance ? 'text-white' : 'text-red-400'}`}>
+              <span className="text-gray-400 text-sm">
+                {t?.confirm?.currentBalance ?? "Текущий баланс"}
+              </span>
+              <span
+                className={`font-bold text-xl ${hasEnoughBalance ? "text-white" : "text-red-400"}`}
+              >
                 {Math.round(userBalance)} сом
               </span>
             </div>
             {hasEnoughBalance && estimatedMinutes > 0 && (
               <div className="flex justify-between items-center">
-                <span className="text-gray-400 text-sm">Хватит примерно на</span>
+                <span className="text-gray-400 text-sm">
+                  {t?.confirm?.estimatedTime ?? "Хватит примерно на"}
+                </span>
                 <span className="text-emerald-400 font-semibold">
-                  ~{estimatedMinutes} мин
+                  ~{estimatedMinutes} {t?.confirm?.minutes ?? "мин"}
                 </span>
               </div>
             )}
@@ -271,17 +338,29 @@ export default function ConfirmChargingPage() {
         {/* Warning */}
         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="text-yellow-400 flex-shrink-0 mt-0.5" size={20} />
+            <AlertTriangle
+              className="text-yellow-400 flex-shrink-0 mt-0.5"
+              size={20}
+            />
             <div>
               <h4 className="text-yellow-400 font-semibold text-sm mb-1">
-                Важно знать
+                {t?.confirm?.warningTitle ?? "Важно знать"}
               </h4>
               <p className="text-gray-300 text-sm">
-                С вашего баланса будет списываться <span className="font-semibold text-yellow-400">{connector.pricePerMinute ? Number(connector.pricePerMinute).toFixed(2) : '0.00'} сом каждую минуту</span> во время зарядки.
+                {(
+                  t?.confirm?.warningText ??
+                  "С вашего баланса будет списываться {price} сом каждую минуту во время зарядки."
+                ).replace(
+                  "{price}",
+                  connector.pricePerMinute
+                    ? Number(connector.pricePerMinute).toFixed(2)
+                    : "0.00",
+                )}
               </p>
               {!hasEnoughBalance && (
                 <p className="text-red-400 text-sm mt-2 font-semibold">
-                  Минимальный баланс для начала зарядки: 50 сом
+                  {t?.confirm?.minBalanceWarning ??
+                    "Минимальный баланс для начала зарядки: 50 сом"}
                 </p>
               )}
             </div>
@@ -296,10 +375,10 @@ export default function ConfirmChargingPage() {
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2"
             >
               <Wallet size={20} />
-              Пополнить баланс
+              {t?.confirm?.topUpButton ?? "Пополнить баланс"}
             </Link>
           )}
-          
+
           <button
             onClick={handleStartCharging}
             disabled={!hasEnoughBalance || starting}
@@ -308,12 +387,12 @@ export default function ConfirmChargingPage() {
             {starting ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Запуск...</span>
+                <span>{t?.confirm?.starting ?? "Запуск..."}</span>
               </>
             ) : (
               <>
                 <CheckCircle size={20} />
-                <span>Начать зарядку</span>
+                <span>{t?.confirm?.startButton ?? "Начать зарядку"}</span>
               </>
             )}
           </button>
@@ -322,7 +401,7 @@ export default function ConfirmChargingPage() {
             onClick={() => router.back()}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-xl font-semibold transition"
           >
-            Назад
+            {t?.confirm?.backButton ?? "Назад"}
           </button>
         </div>
       </div>

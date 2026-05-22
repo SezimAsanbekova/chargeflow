@@ -127,7 +127,7 @@ export async function POST(request: Request) {
         endTime: result.session.endTime!.toISOString(),
         durationMinutes,
         energyKwh: Number(result.session.energyKwh),
-        depositAmount: depositPayment ? Number(depositPayment.amount) : 100,
+        depositAmount: depositPayment ? Number(depositPayment.amount) : 0,
         chargeAmount: totalChargeAmount,
         totalCost: Number(result.session.costTotal),
         balance: result.balance,

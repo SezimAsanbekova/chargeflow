@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./components/Providers";
+import { cookies } from "next/headers";
+import { defaultLocale, type Locale } from "@/app/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,7 +17,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ChargeFlow - Зарядные станции для электромобилей",
-  description: "Найдите и забронируйте зарядные станции для вашего электромобиля",
+  description:
+    "Найдите и забронируйте зарядные станции для вашего электромобиля",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -29,12 +32,14 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "ChargeFlow",
     title: "ChargeFlow - Зарядные станции для электромобилей",
-    description: "Найдите и забронируйте зарядные станции для вашего электромобиля",
+    description:
+      "Найдите и забронируйте зарядные станции для вашего электромобиля",
   },
   twitter: {
     card: "summary",
     title: "ChargeFlow - Зарядные станции для электромобилей",
-    description: "Найдите и забронируйте зарядные станции для вашего электромобиля",
+    description:
+      "Найдите и забронируйте зарядные станции для вашего электромобиля",
   },
   icons: {
     icon: [
@@ -54,15 +59,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Читаем язык из cookie на сервере — чтобы lang совпадал между SSR и клиентом
+  const cookieStore = await cookies();
+  const localeCookie = cookieStore.get("locale");
+  const locale: Locale = (localeCookie?.value as Locale) ?? defaultLocale;
+
   return (
     <html
-      lang="ru"
+      lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // suppressHydrationWarning нужен, потому что браузерные расширения
+      // (Chrome, mobile browsers) могут добавлять свои атрибуты к <html>,
+      // что вызывает hydration mismatch — это нормально и безопасно игнорировать
+      suppressHydrationWarning
     >
       <head>
         <meta name="application-name" content="ChargeFlow" />
@@ -75,7 +89,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

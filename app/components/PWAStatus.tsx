@@ -3,11 +3,23 @@
 import { useEffect, useState } from 'react';
 import { Smartphone, Download, CheckCircle, Wifi, WifiOff } from 'lucide-react';
 import { usePWA, useOnlineStatus } from '../hooks/usePWA';
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from '@/app/i18n';
 
 export default function PWAStatus() {
   const { isInstalled, isStandalone, isIOS, isAndroid } = usePWA();
   const isOnline = useOnlineStatus();
   const [cacheSize, setCacheSize] = useState<string>('');
+  const [t, setT] = useState<any>(null);
+
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    getTranslations(savedLocale || defaultLocale, 'common').then(setT);
+  }, []);
 
   useEffect(() => {
     // Получаем размер кэша (если доступно)
@@ -26,7 +38,7 @@ export default function PWAStatus() {
       <div className="flex items-center gap-3 mb-4">
         <Smartphone className="w-6 h-6 text-emerald-500" />
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-          Статус приложения
+          {t?.pwa?.statusTitle ?? 'Статус приложения'}
         </h2>
       </div>
 
@@ -40,28 +52,28 @@ export default function PWAStatus() {
               <Download className="w-5 h-5 text-gray-400" />
             )}
             <span className="text-gray-700 dark:text-gray-300">
-              Установлено
+              {t?.pwa?.installed ?? 'Установлено'}
             </span>
           </div>
           <span className={`font-medium ${isInstalled ? 'text-emerald-500' : 'text-gray-400'}`}>
-            {isInstalled ? 'Да' : 'Нет'}
+            {isInstalled ? (t?.yes ?? 'Да') : (t?.no ?? 'Нет')}
           </span>
         </div>
 
         {/* Режим отображения */}
         <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <span className="text-gray-700 dark:text-gray-300">
-            Режим
+            {t?.pwa?.mode ?? 'Режим'}
           </span>
           <span className="font-medium text-gray-900 dark:text-white">
-            {isStandalone ? 'Приложение' : 'Браузер'}
+            {isStandalone ? (t?.pwa?.modeApp ?? 'Приложение') : (t?.pwa?.modeBrowser ?? 'Браузер')}
           </span>
         </div>
 
         {/* Платформа */}
         <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <span className="text-gray-700 dark:text-gray-300">
-            Платформа
+            {t?.pwa?.platform ?? 'Платформа'}
           </span>
           <span className="font-medium text-gray-900 dark:text-white">
             {isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop'}
@@ -77,11 +89,11 @@ export default function PWAStatus() {
               <WifiOff className="w-5 h-5 text-red-500" />
             )}
             <span className="text-gray-700 dark:text-gray-300">
-              Подключение
+              {t?.pwa?.connection ?? 'Подключение'}
             </span>
           </div>
           <span className={`font-medium ${isOnline ? 'text-emerald-500' : 'text-red-500'}`}>
-            {isOnline ? 'Онлайн' : 'Офлайн'}
+            {isOnline ? (t?.pwa?.online ?? 'Онлайн') : (t?.pwa?.offline ?? 'Офлайн')}
           </span>
         </div>
 
@@ -89,7 +101,7 @@ export default function PWAStatus() {
         {cacheSize && (
           <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
             <span className="text-gray-700 dark:text-gray-300">
-              Кэш
+              {t?.pwa?.cache ?? 'Кэш'}
             </span>
             <span className="font-medium text-gray-900 dark:text-white">
               {cacheSize}
@@ -105,9 +117,9 @@ export default function PWAStatus() {
             💡 Установите приложение для быстрого доступа и работы офлайн
           </p>
           <p className="text-xs text-emerald-600 dark:text-emerald-300">
-            {isIOS && 'Safari → Поделиться → На экран «Домой»'}
-            {isAndroid && 'Меню браузера → Установить приложение'}
-            {!isIOS && !isAndroid && 'Иконка установки в адресной строке'}
+            {isIOS && (t?.pwa?.iosInstallHint ?? 'Safari → Поделиться → На экран «Домой»')}
+            {isAndroid && (t?.pwa?.androidInstallHint ?? 'Меню браузера → Установить приложение')}
+            {!isIOS && !isAndroid && (t?.pwa?.desktopInstallHint ?? 'Иконка установки в адресной строке')}
           </p>
         </div>
       )}

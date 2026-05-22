@@ -187,4 +187,14 @@ export interface LandingTranslations {
   };
 }
 
-export type TranslationPage = 'landing';
+export type TranslationPage =
+  | "landing"
+  | "profile"
+  | "auth"
+  | "vehicles"
+  | "balance"
+  | "bookings"
+  | "charging"
+  | "common"
+  | "map"
+  | "admin";

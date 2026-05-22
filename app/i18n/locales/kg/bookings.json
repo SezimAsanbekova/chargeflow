@@ -1,0 +1,66 @@
+{
+  "title": "Тарых",
+  "loading": "Жүктөлүүдө...",
+  "tabs": {
+    "bookings": "Брондоолор",
+    "sessions": "Кубаттоолор"
+  },
+  "bookings": {
+    "activeSectionTitle": "Активдүү брондоолор",
+    "historySectionTitle": "Брондоолор тарыхы",
+    "details": {
+      "dateLabel": "Күнү",
+      "timeLabel": "Убактысы",
+      "connectorLabel": "Коннектор",
+      "powerLabel": "Кубаттуулук",
+      "depositLabel": "Депозит:",
+      "depositReturned": "(кайтарылды)",
+      "depositHeld": "(бекитилди)"
+    },
+    "actions": {
+      "goToStation": "Станцияга өтүү",
+      "cancelButton": "Жокко чыгаруу",
+      "cancelWarning": "Жокко чыгаруу башталышына 30 мүнөттөн кечиктирбестен мүмкүн"
+    },
+    "status": {
+      "active": "Активдүү",
+      "completed": "Аяктады",
+      "cancelled": "Жокко чыгарылды",
+      "expired": "Мөөнөтү өттү"
+    },
+    "empty": {
+      "title": "Брондоо жок",
+      "description": "Сизде азырынча активдүү же аяктаган брондоолор жок",
+      "findStationButton": "Станцияны табуу"
+    }
+  },
+  "sessions": {
+    "historySectionTitle": "Кубаттоолор тарыхы",
+    "details": {
+      "dateLabel": "Күнү",
+      "timeLabel": "Убактысы",
+      "energyLabel": "Энергия",
+      "powerLabel": "Кубаттуулук",
+      "connectorLabel": "Коннектор",
+      "costLabel": "Наркы"
+    },
+    "sessionPrefix": "Сессия:",
+    "status": {
+      "completed": "Аяктады",
+      "active": "Активдүү",
+      "cancelled": "Жокко чыгарылды"
+    },
+    "empty": {
+      "title": "Кубаттоо жок",
+      "description": "Сизде азырынча кубаттоо тарыхы жок",
+      "findStationButton": "Кубаттоону баштоо"
+    }
+  },
+  "cancelModal": {
+    "title": "Брондоону жокко чыгаруу",
+    "depositInfo": "{amount} сом депозит балансыңызга кайтарылат",
+    "backButton": "Артка",
+    "cancelButton": "Брондоону жокко чыгаруу",
+    "cancelling": "Жокко чыгарылууда..."
+  }
+}

@@ -1,41 +1,58 @@
-'use client';
+"use client";
 
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { ArrowLeft, User, Mail, Phone, Check } from 'lucide-react';
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ArrowLeft, User, Mail, Phone, Check } from "lucide-react";
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from "@/app/i18n";
 
 export default function EditProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editPhone, setEditPhone] = useState('');
+
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const [saveError, setSaveError] = useState("");
+  const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [t, setT] = useState<any>(null);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
     }
   }, [status, router]);
 
   useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    getTranslations(locale, "profile").then(setT);
+  }, [locale]);
+
+  useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await fetch('/api/user/profile');
+        const response = await fetch("/api/user/profile");
         if (response.ok) {
           const data = await response.json();
           setUserData(data);
-          setEditName(data.name || '');
-          setEditEmail(data.email || session?.user?.email || '');
-          setEditPhone(data.phone || '');
+          setEditName(data.name || "");
+          setEditEmail(data.email || session?.user?.email || "");
+          setEditPhone(data.phone || "");
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        console.error("Error fetching user data:", error);
       } finally {
         setLoading(false);
       }
@@ -46,10 +63,12 @@ export default function EditProfilePage() {
     }
   }, [session]);
 
-  if (status === 'loading' || loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
-        <div className="text-white text-xl">Загрузка...</div>
+        <div className="text-white text-xl">
+          {t?.edit?.loading ?? t?.loading ?? "Загрузка..."}
+        </div>
       </div>
     );
   }
@@ -59,13 +78,13 @@ export default function EditProfilePage() {
   }
 
   const handleSaveProfile = async () => {
-    setSaveError('');
+    setSaveError("");
     setSaveLoading(true);
 
     try {
-      const response = await fetch('/api/user/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: editName,
           phone: editPhone,
@@ -76,11 +95,15 @@ export default function EditProfilePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Ошибка сохранения данных');
+        throw new Error(
+          data.error ||
+            t?.edit?.errors?.saveFailed ||
+            "Ошибка сохранения данных",
+        );
       }
 
       // Успешно сохранено - возвращаемся назад
-      router.push('/profile');
+      router.push("/profile");
     } catch (err: any) {
       setSaveError(err.message);
     } finally {
@@ -99,7 +122,9 @@ export default function EditProfilePage() {
           >
             <ArrowLeft className="text-white" size={20} />
           </button>
-          <h1 className="text-2xl font-bold">Личные данные</h1>
+          <h1 className="text-2xl font-bold">
+            {t?.edit?.title ?? "Личные данные"}
+          </h1>
         </div>
 
         {/* Error Message */}
@@ -113,7 +138,9 @@ export default function EditProfilePage() {
         <div className="space-y-6">
           {/* Name */}
           <div>
-            <label className="block text-white font-medium mb-3">Имя</label>
+            <label className="block text-white font-medium mb-3">
+              {t?.edit?.nameLabel ?? "Имя"}
+            </label>
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2">
                 <User className="text-emerald-400" size={20} />
@@ -122,7 +149,7 @@ export default function EditProfilePage() {
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                placeholder="Введите ваше имя"
+                placeholder={t?.edit?.namePlaceholder ?? "Введите ваше имя"}
                 className="w-full bg-[#0f2d26] border-2 border-emerald-900/30 rounded-xl pl-12 pr-4 py-4 text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none transition"
               />
             </div>
@@ -131,8 +158,10 @@ export default function EditProfilePage() {
           {/* Email */}
           <div>
             <label className="block text-white font-medium mb-3">
-              Email
-              <span className="ml-2 text-xs text-gray-400">(нельзя изменить)</span>
+              {t?.edit?.emailLabel ?? "Email"}
+              <span className="ml-2 text-xs text-gray-400">
+                {t?.edit?.emailNote ?? "(нельзя изменить)"}
+              </span>
             </label>
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2">
@@ -150,7 +179,9 @@ export default function EditProfilePage() {
 
           {/* Phone */}
           <div>
-            <label className="block text-white font-medium mb-3">Телефон</label>
+            <label className="block text-white font-medium mb-3">
+              {t?.edit?.phoneLabel ?? "Телефон"}
+            </label>
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2">
                 <Phone className="text-emerald-400" size={20} />
@@ -159,7 +190,7 @@ export default function EditProfilePage() {
                 type="tel"
                 value={editPhone}
                 onChange={(e) => setEditPhone(e.target.value)}
-                placeholder="+996 ___ ___ ___"
+                placeholder={t?.edit?.phonePlaceholder ?? "+996 ___ ___ ___"}
                 className="w-full bg-[#0f2d26] border-2 border-emerald-900/30 rounded-xl pl-12 pr-4 py-4 text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none transition"
               />
             </div>
@@ -176,12 +207,12 @@ export default function EditProfilePage() {
             {saveLoading ? (
               <>
                 <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                <span>Сохранение...</span>
+                <span>{t?.edit?.saving ?? "Сохранение..."}</span>
               </>
             ) : (
               <>
                 <Check size={20} />
-                <span>Сохранить изменения</span>
+                <span>{t?.edit?.saveButton ?? "Сохранить изменения"}</span>
               </>
             )}
           </button>

@@ -1,0 +1,93 @@
+{
+  "title": "Менин автомобилдерим",
+  "loading": "Жүктөлүүдө...",
+  "noVehicles": "Сизде азырынча автомобиль жок",
+  "vehicleCountOne": "{{count}} автомобиль",
+  "vehicleCountFew": "{{count}} автомобиль",
+  "addButton": "Кошуу",
+  "emptyState": {
+    "title": "Биринчи автомобилиңизди кошуңуз",
+    "description": "Электромобилиңиз жөнүндө маалымат кошуңуз, биз ылайыктуу кубаттоо станцияларын тандайбыз",
+    "addButton": "Автомобиль кошуу"
+  },
+  "card": {
+    "year": "жыл",
+    "activeBadge": "Активдүү",
+    "connector": "Коннектор",
+    "power": "Кубаттуулук",
+    "battery": "Батарея",
+    "charge": "Заряд",
+    "setActiveButton": "Активдүү кылуу",
+    "deactivateButton": "Активдүүлүктү алып салуу"
+  },
+  "activeInfo": {
+    "title": "Активдүү автомобиль жөнүндө",
+    "points": [
+      "Активдүү автомобиль ылайыктуу кубаттоо станцияларын тандоо үчүн колдонулат",
+      "Автомобилдер арасында каалаган убакта которула аласыз",
+      "Активдүү автомобиль милдеттүү эмес — керек болбосо тандабасаңыз болот"
+    ]
+  },
+  "deleteModal": {
+    "title": "Автомобилди жок кылуу?",
+    "brandLabel": "Маркасы:",
+    "modelLabel": "Моделы:",
+    "yearLabel": "Жылы:",
+    "confirmText": "Ишенесизби?",
+    "cancelButton": "Жок",
+    "deleteButton": "Ооба, жок кылуу",
+    "deleting": "Жок кылынууда..."
+  },
+  "toasts": {
+    "activatedTitle": "Автомобиль активдештирилди",
+    "activatedDetails": "Эми станцияларды тандоо үчүн колдонулат",
+    "deactivatedTitle": "Автомобиль активдүүлүктөн алынды",
+    "deletedTitle": "Автомобиль жок кылынды"
+  },
+  "add": {
+    "title": "Автомобиль кошуу",
+    "subtitle": "Электромобилиңиз жөнүндө маалыматты толтуруңуз",
+    "basicInfo": {
+      "sectionTitle": "Негизги маалымат",
+      "brandLabel": "Маркасы",
+      "brandRequired": "*",
+      "brandPlaceholder": "Tesla, Nissan, BYD...",
+      "modelLabel": "Моделы",
+      "modelRequired": "*",
+      "modelPlaceholder": "Model 3, Leaf, Han...",
+      "yearLabel": "Чыгарылган жылы",
+      "yearRequired": "*",
+      "yearPlaceholder": "2024"
+    },
+    "chargingSpecs": {
+      "sectionTitle": "Кубаттоо мүнөздөмөлөрү",
+      "connectorLabel": "Коннектор түрү",
+      "connectorRequired": "*",
+      "connectorPlaceholder": "Түрүн тандаңыз",
+      "maxPowerLabel": "Макс. кубаттуулук (кВт)",
+      "maxPowerRequired": "*",
+      "maxPowerPlaceholder": "50, 150, 250...",
+      "batteryLabel": "Батарея сыйымдуулугу (кВт·ч)",
+      "batteryRequired": "*",
+      "batteryPlaceholder": "60, 75, 100..."
+    },
+    "activeVehicle": {
+      "title": "Активдүү автомобиль",
+      "subtitle": "Станцияларды тандоо үчүн колдонулат"
+    },
+    "saveButton": "Сактоо",
+    "saving": "Сакталууда...",
+    "cancelButton": "Жокко чыгаруу",
+    "errors": {
+      "yearRange": "Жыл 1990-2026 аралыгында болушу керек",
+      "saveFailed": "Сактоодо ката"
+    }
+  },
+  "edit": {
+    "title": "Автомобилди өзгөртүү",
+    "subtitle": "Электромобилиңиз жөнүндө маалыматты өзгөртүңүз",
+    "saveButton": "Өзгөртүүлөрдү сактоо",
+    "saving": "Сакталууда...",
+    "cancelButton": "Жокко чыгаруу"
+  }
+}

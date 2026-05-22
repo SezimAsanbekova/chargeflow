@@ -76,7 +76,7 @@ export async function GET(
         endTime: endTime.toISOString(),
         durationMinutes,
         energyKwh: Number(invoice.session.energyKwh),
-        depositAmount: depositPayment ? Number(depositPayment.amount) : 100,
+        depositAmount: depositPayment ? Number(depositPayment.amount) : 0,
         chargeAmount: totalChargeAmount,
         totalCost: totalCost
       }

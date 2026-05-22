@@ -75,7 +75,7 @@ export async function GET() {
         energyKwh: Number(activeSession.energyKwh),
         currentPowerKw: Number(activeSession.connector.powerKw) * 0.85, // Симуляция текущей мощности
         batteryPercent: Math.min(95, 20 + Math.floor(durationMinutes * 0.5)), // Симуляция процента заряда
-        depositAmount: depositPayment ? Number(depositPayment.amount) : 100,
+        depositAmount: depositPayment ? Number(depositPayment.amount) : 0,
         chargeAmount: totalChargeAmount,
         totalCost: Number(activeSession.costTotal),
         balance,

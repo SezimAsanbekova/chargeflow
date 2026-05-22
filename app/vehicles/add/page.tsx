@@ -1,16 +1,30 @@
-'use client';
+"use client";
 
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Car, ChevronLeft, Save, Zap, Battery, Calendar, Plug } from 'lucide-react';
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from "@/app/i18n";
+import Link from "next/link";
+import {
+  Car,
+  ChevronLeft,
+  Save,
+  Zap,
+  Battery,
+  Calendar,
+  Plug,
+} from "lucide-react";
 
 const CONNECTOR_TYPES = [
-  { value: 'CCS2', label: 'CCS2 (Combined Charging System)' },
-  { value: 'CHAdeMO', label: 'CHAdeMO' },
-  { value: 'Type2', label: 'Type 2 (Mennekes)' },
-  { value: 'GB_T', label: 'GB/T (Китайский стандарт)' },
+  { value: "CCS2", label: "CCS2 (Combined Charging System)" },
+  { value: "CHAdeMO", label: "CHAdeMO" },
+  { value: "Type2", label: "Type 2 (Mennekes)" },
+  { value: "GB_T", label: "GB/T (Китайский стандарт)" },
 ];
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -20,59 +34,75 @@ export default function AddVehiclePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [t, setT] = useState<any>(null);
   const [showYearSelector, setShowYearSelector] = useState(false);
   const [showConnectorSelector, setShowConnectorSelector] = useState(false);
 
   const [formData, setFormData] = useState({
-    brand: '',
-    model: '',
+    brand: "",
+    model: "",
     year: CURRENT_YEAR.toString(),
-    connectorType: 'CCS2',
-    maxPowerKw: '',
-    batteryCapacityKwh: '',
+    connectorType: "CCS2",
+    maxPowerKw: "",
+    batteryCapacityKwh: "",
     isActive: false,
   });
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
     }
   }, [status, router]);
 
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    getTranslations(locale, "vehicles").then(setT);
+  }, [locale]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       // Валидация
-      if (!formData.brand || !formData.model || !formData.maxPowerKw || !formData.batteryCapacityKwh) {
-        throw new Error('Заполните все обязательные поля');
+      if (
+        !formData.brand ||
+        !formData.model ||
+        !formData.maxPowerKw ||
+        !formData.batteryCapacityKwh
+      ) {
+        throw new Error("Заполните все обязательные поля");
       }
 
       if (parseFloat(formData.maxPowerKw) <= 0) {
-        throw new Error('Максимальная мощность должна быть больше 0');
+        throw new Error("Максимальная мощность должна быть больше 0");
       }
 
       if (parseFloat(formData.batteryCapacityKwh) <= 0) {
-        throw new Error('Ёмкость батареи должна быть больше 0');
+        throw new Error("Ёмкость батареи должна быть больше 0");
       }
 
-      const response = await fetch('/api/vehicles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/vehicles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Ошибка добавления автомобиля');
+        throw new Error(data.error || "Ошибка добавления автомобиля");
       }
 
       // Успешно добавлено - переходим к списку
-      router.push('/vehicles');
+      router.push("/vehicles");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -80,10 +110,10 @@ export default function AddVehiclePage() {
     }
   };
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return (
       <div className="min-h-screen bg-[#0a1f1a] flex items-center justify-center">
-        <div className="text-white text-xl">Загрузка...</div>
+        <div className="text-white text-xl">{t?.loading ?? "Загрузка..."}</div>
       </div>
     );
   }
@@ -104,8 +134,12 @@ export default function AddVehiclePage() {
             <ChevronLeft size={20} />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">Добавить автомобиль</h1>
-            <p className="text-gray-400 text-xs mt-0.5">Заполните информацию о вашем электромобиле</p>
+            <h1 className="text-2xl font-bold">
+              {t?.add?.title ?? "Добавить автомобиль"}
+            </h1>
+            <p className="text-gray-400 text-xs mt-0.5">
+              {t?.add?.subtitle ?? "Заполните информацию о вашем электромобиле"}
+            </p>
           </div>
         </div>
 
@@ -122,18 +156,24 @@ export default function AddVehiclePage() {
           <div className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-4">
             <h2 className="text-base font-bold mb-3 flex items-center gap-2">
               <Car className="text-emerald-400" size={18} />
-              Основная информация
+              {t?.add?.basicInfo?.sectionTitle ?? "Основная информация"}
             </h2>
             <div className="space-y-3">
               <div>
                 <label className="block text-gray-300 mb-1.5 text-xs">
-                  Марка <span className="text-red-400">*</span>
+                  {t?.add?.basicInfo?.brandLabel ?? "Марка"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.brand}
-                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  placeholder="Tesla, Nissan, BYD..."
+                  onChange={(e) =>
+                    setFormData({ ...formData, brand: e.target.value })
+                  }
+                  placeholder={
+                    t?.add?.basicInfo?.brandPlaceholder ??
+                    "Tesla, Nissan, BYD..."
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
                   required
                 />
@@ -141,13 +181,19 @@ export default function AddVehiclePage() {
 
               <div>
                 <label className="block text-gray-300 mb-1.5 text-xs">
-                  Модель <span className="text-red-400">*</span>
+                  {t?.add?.basicInfo?.modelLabel ?? "Модель"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  placeholder="Model 3, Leaf, Han..."
+                  onChange={(e) =>
+                    setFormData({ ...formData, model: e.target.value })
+                  }
+                  placeholder={
+                    t?.add?.basicInfo?.modelPlaceholder ??
+                    "Model 3, Leaf, Han..."
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
                   required
                 />
@@ -156,7 +202,8 @@ export default function AddVehiclePage() {
               <div>
                 <label className="block text-gray-300 mb-1.5 text-xs flex items-center gap-1.5">
                   <Calendar size={14} />
-                  Год выпуска <span className="text-red-400">*</span>
+                  {t?.add?.basicInfo?.yearLabel ?? "Год выпуска"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -164,20 +211,26 @@ export default function AddVehiclePage() {
                     inputMode="numeric"
                     value={formData.year}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, ''); // Только цифры
+                      const value = e.target.value.replace(/\D/g, ""); // Только цифры
                       if (value.length <= 4) {
                         setFormData({ ...formData, year: value });
                       }
                     }}
                     onBlur={(e) => {
                       const year = parseInt(e.target.value);
-                      if (e.target.value.length === 4 && (year < 1990 || year > 2026)) {
-                        setError('Год должен быть от 1990 до 2026');
+                      if (
+                        e.target.value.length === 4 &&
+                        (year < 1990 || year > 2026)
+                      ) {
+                        setError(
+                          t?.add?.errors?.yearRange ??
+                            "Год должен быть от 1990 до 2026",
+                        );
                       } else {
-                        setError('');
+                        setError("");
                       }
                     }}
-                    placeholder="2024"
+                    placeholder={t?.add?.basicInfo?.yearPlaceholder ?? "2024"}
                     maxLength={4}
                     className="w-full bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-lg px-3 py-2.5 pr-10 text-white text-sm placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
                     required
@@ -190,28 +243,31 @@ export default function AddVehiclePage() {
                     <Calendar size={16} className="text-emerald-400" />
                   </button>
                 </div>
-                
+
                 {showYearSelector && (
                   <div className="mt-2 bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-lg p-3 max-h-64 overflow-y-auto">
                     <div className="grid grid-cols-4 gap-2">
                       {YEARS.map((year) => {
                         const isSelected = formData.year === year.toString();
                         const isCurrent = year === CURRENT_YEAR;
-                        
+
                         return (
                           <button
                             key={year}
                             type="button"
                             onClick={() => {
-                              setFormData({ ...formData, year: year.toString() });
+                              setFormData({
+                                ...formData,
+                                year: year.toString(),
+                              });
                               setShowYearSelector(false);
                             }}
                             className={`p-2 rounded-lg text-center text-sm font-medium transition ${
                               isSelected
-                                ? 'bg-emerald-600 text-white shadow-lg'
+                                ? "bg-emerald-600 text-white shadow-lg"
                                 : isCurrent
-                                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500'
-                                : 'bg-[#0f2d26] text-gray-300 hover:bg-emerald-600/20 border border-emerald-900/30'
+                                  ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500"
+                                  : "bg-[#0f2d26] text-gray-300 hover:bg-emerald-600/20 border border-emerald-900/30"
                             }`}
                           >
                             {year}
@@ -229,58 +285,85 @@ export default function AddVehiclePage() {
           <div className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl p-4">
             <h2 className="text-base font-bold mb-3 flex items-center gap-2">
               <Zap className="text-emerald-400" size={18} />
-              Характеристики зарядки
+              {t?.add?.chargingSpecs?.sectionTitle ?? "Характеристики зарядки"}
             </h2>
             <div className="space-y-3">
               <div>
                 <label className="block text-gray-300 mb-1.5 text-xs flex items-center gap-1.5">
                   <Plug size={14} />
-                  Тип коннектора <span className="text-red-400">*</span>
+                  {t?.add?.chargingSpecs?.connectorLabel ??
+                    "Тип коннектора"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <button
                   type="button"
-                  onClick={() => setShowConnectorSelector(!showConnectorSelector)}
+                  onClick={() =>
+                    setShowConnectorSelector(!showConnectorSelector)
+                  }
                   className="w-full px-3 py-2.5 bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-lg text-left text-white text-sm hover:border-emerald-500 focus:border-emerald-500 focus:outline-none transition flex items-center justify-between"
                 >
                   <span>
-                    {CONNECTOR_TYPES.find(t => t.value === formData.connectorType)?.label || 'Выберите тип'}
+                    {CONNECTOR_TYPES.find(
+                      (ct) => ct.value === formData.connectorType,
+                    )?.label ||
+                      (t?.add?.chargingSpecs?.connectorPlaceholder ??
+                        "Выберите тип")}
                   </span>
-                  <svg 
-                    className={`w-4 h-4 text-emerald-400 transition-transform flex-shrink-0 ${showConnectorSelector ? 'rotate-180' : ''}`}
-                    fill="none" 
-                    stroke="currentColor" 
+                  <svg
+                    className={`w-4 h-4 text-emerald-400 transition-transform flex-shrink-0 ${showConnectorSelector ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
-                
+
                 {showConnectorSelector && (
                   <div className="mt-2 bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-lg p-2">
                     <div className="space-y-1">
                       {CONNECTOR_TYPES.map((type) => {
-                        const isSelected = formData.connectorType === type.value;
-                        
+                        const isSelected =
+                          formData.connectorType === type.value;
+
                         return (
                           <button
                             key={type.value}
                             type="button"
                             onClick={() => {
-                              setFormData({ ...formData, connectorType: type.value });
+                              setFormData({
+                                ...formData,
+                                connectorType: type.value,
+                              });
                               setShowConnectorSelector(false);
                             }}
                             className={`w-full p-3 rounded-lg text-left text-sm font-medium transition flex items-center gap-2 ${
                               isSelected
-                                ? 'bg-emerald-600 text-white shadow-lg'
-                                : 'bg-[#0f2d26] text-gray-300 hover:bg-emerald-600/20 border border-emerald-900/30'
+                                ? "bg-emerald-600 text-white shadow-lg"
+                                : "bg-[#0f2d26] text-gray-300 hover:bg-emerald-600/20 border border-emerald-900/30"
                             }`}
                           >
                             {isSelected && (
-                              <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              <svg
+                                className="w-5 h-5 flex-shrink-0"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
                               </svg>
                             )}
-                            <span className={isSelected ? '' : 'ml-7'}>{type.label}</span>
+                            <span className={isSelected ? "" : "ml-7"}>
+                              {type.label}
+                            </span>
                           </button>
                         );
                       })}
@@ -292,15 +375,22 @@ export default function AddVehiclePage() {
               <div>
                 <label className="block text-gray-300 mb-1.5 text-xs flex items-center gap-1.5">
                   <Zap size={14} />
-                  Макс. мощность (кВт) <span className="text-red-400">*</span>
+                  {t?.add?.chargingSpecs?.maxPowerLabel ??
+                    "Макс. мощность (кВт)"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="number"
                   step="0.1"
                   min="0"
                   value={formData.maxPowerKw}
-                  onChange={(e) => setFormData({ ...formData, maxPowerKw: e.target.value })}
-                  placeholder="50, 150, 250..."
+                  onChange={(e) =>
+                    setFormData({ ...formData, maxPowerKw: e.target.value })
+                  }
+                  placeholder={
+                    t?.add?.chargingSpecs?.maxPowerPlaceholder ??
+                    "50, 150, 250..."
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
                   required
                 />
@@ -309,15 +399,25 @@ export default function AddVehiclePage() {
               <div>
                 <label className="block text-gray-300 mb-1.5 text-xs flex items-center gap-1.5">
                   <Battery size={14} />
-                  Ёмкость батареи (кВт·ч) <span className="text-red-400">*</span>
+                  {t?.add?.chargingSpecs?.batteryLabel ??
+                    "Ёмкость батареи (кВт·ч)"}{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="number"
                   step="0.1"
                   min="0"
                   value={formData.batteryCapacityKwh}
-                  onChange={(e) => setFormData({ ...formData, batteryCapacityKwh: e.target.value })}
-                  placeholder="60, 75, 100..."
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      batteryCapacityKwh: e.target.value,
+                    })
+                  }
+                  placeholder={
+                    t?.add?.chargingSpecs?.batteryPlaceholder ??
+                    "60, 75, 100..."
+                  }
                   className="w-full bg-[#0a1f1a] border border-emerald-900/30 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
                   required
                 />
@@ -332,21 +432,36 @@ export default function AddVehiclePage() {
                 <input
                   type="checkbox"
                   checked={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, isActive: e.target.checked })
+                  }
                   className="sr-only peer"
                 />
                 <div className="w-5 h-5 border-2 border-emerald-900/50 rounded bg-[#0a1f1a] peer-checked:bg-emerald-600 peer-checked:border-emerald-600 transition-all duration-200 flex items-center justify-center group-hover:border-emerald-500">
                   {formData.isActive && (
-                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    <svg
+                      className="w-3.5 h-3.5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                      />
                     </svg>
                   )}
                 </div>
               </div>
               <div>
-                <div className="text-white font-medium text-sm mb-0.5">Активный автомобиль</div>
+                <div className="text-white font-medium text-sm mb-0.5">
+                  {t?.add?.activeVehicle?.title ?? "Активный автомобиль"}
+                </div>
                 <div className="text-gray-400 text-xs">
-                  Используется для подбора станций
+                  {t?.add?.activeVehicle?.subtitle ??
+                    "Используется для подбора станций"}
                 </div>
               </div>
             </label>
@@ -358,7 +473,7 @@ export default function AddVehiclePage() {
               href="/vehicles"
               className="flex-1 bg-[#0f2d26] hover:bg-[#0f2d26]/80 border border-emerald-900/30 text-gray-300 py-3 rounded-full font-medium transition text-center text-sm"
             >
-              Отмена
+              {t?.add?.cancelButton ?? "Отмена"}
             </Link>
             <button
               type="submit"
@@ -366,11 +481,11 @@ export default function AddVehiclePage() {
               className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 rounded-full font-medium transition flex items-center justify-center gap-2 text-sm"
             >
               {loading ? (
-                'Сохранение...'
+                (t?.add?.saving ?? "Сохранение...")
               ) : (
                 <>
                   <Save size={18} />
-                  Сохранить
+                  {t?.add?.saveButton ?? "Сохранить"}
                 </>
               )}
             </button>

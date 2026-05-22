@@ -1,33 +1,50 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
-import { Mail, ArrowLeft } from 'lucide-react';
+import { useState, useEffect } from "react";
+import {
+  getTranslations,
+  getLocaleCookie,
+  defaultLocale,
+  type Locale,
+} from "@/app/i18n";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { Mail, ArrowLeft } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [locale, setLocale] = useState<Locale>(defaultLocale);
+  const [t, setT] = useState<any>(null);
+
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    getTranslations(locale, "auth").then(setT);
+  }, [locale]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Ошибка отправки кода');
+        throw new Error(data.error || "Ошибка отправки кода");
       }
 
       // Переходим на страницу ввода кода
@@ -44,12 +61,15 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-white text-2xl font-bold">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-white text-2xl font-bold"
+          >
             <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-emerald-900/30 border border-emerald-500/30">
-              <Image 
-                src="/logo12.png" 
-                alt="ChargeFlow" 
-                width={40} 
+              <Image
+                src="/logo12.png"
+                alt="ChargeFlow"
+                width={40}
                 height={40}
                 className="object-contain"
               />
@@ -66,10 +86,11 @@ export default function ForgotPasswordPage() {
               <Mail className="w-8 h-8 text-emerald-400" />
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">
-              Забыли пароль?
+              {t?.forgotPassword?.title ?? "Забыли пароль?"}
             </h1>
             <p className="text-gray-400">
-              Введите ваш email и мы отправим код для сброса пароля
+              {t?.forgotPassword?.description ??
+                "Введите ваш email и мы отправим код для сброса пароля"}
             </p>
           </div>
 
@@ -83,9 +104,14 @@ export default function ForgotPasswordPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-gray-300 mb-2 text-sm">Email</label>
+              <label className="block text-gray-300 mb-2 text-sm">
+                {t?.forgotPassword?.emailLabel ?? "Email"}
+              </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <Mail
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={20}
+                />
                 <input
                   type="email"
                   value={email}
@@ -102,19 +128,21 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition"
             >
-              {loading ? 'Отправка...' : 'Отправить код'}
+              {loading
+                ? (t?.forgotPassword?.sending ?? "Отправка...")
+                : (t?.forgotPassword?.sendCode ?? "Отправить код")}
             </button>
           </form>
         </div>
 
         {/* Back to Login */}
         <div className="mt-6 text-center">
-          <Link 
-            href="/auth/signin" 
+          <Link
+            href="/auth/signin"
             className="inline-flex items-center gap-2 text-gray-400 hover:text-emerald-400 text-sm transition"
           >
             <ArrowLeft size={16} />
-            Вернуться к входу
+            {t?.forgotPassword?.backToLogin ?? "Вернуться к входу"}
           </Link>
         </div>
       </div>

@@ -1,0 +1,93 @@
+{
+  "title": "Мои автомобили",
+  "loading": "Загрузка...",
+  "noVehicles": "У вас пока нет автомобилей",
+  "vehicleCountOne": "{{count}} автомобиль",
+  "vehicleCountFew": "{{count}} автомобилей",
+  "addButton": "Добавить",
+  "emptyState": {
+    "title": "Добавьте свой первый автомобиль",
+    "description": "Добавьте информацию о вашем электромобиле, чтобы мы могли подобрать подходящие зарядные станции",
+    "addButton": "Добавить автомобиль"
+  },
+  "card": {
+    "year": "год",
+    "activeBadge": "Активный",
+    "connector": "Коннектор",
+    "power": "Мощность",
+    "battery": "Батарея",
+    "charge": "Заряд",
+    "setActiveButton": "Сделать активным",
+    "deactivateButton": "Снять активность"
+  },
+  "activeInfo": {
+    "title": "Об активном автомобиле",
+    "points": [
+      "Активный автомобиль используется для подбора подходящих зарядных станций",
+      "Вы можете переключаться между автомобилями в любое время",
+      "Активный автомобиль опционален — можете не выбирать, если не нужно"
+    ]
+  },
+  "deleteModal": {
+    "title": "Удалить автомобиль?",
+    "brandLabel": "Марка:",
+    "modelLabel": "Модель:",
+    "yearLabel": "Год:",
+    "confirmText": "Вы уверены?",
+    "cancelButton": "Нет",
+    "deleteButton": "Да, удалить",
+    "deleting": "Удаление..."
+  },
+  "toasts": {
+    "activatedTitle": "Автомобиль активирован",
+    "activatedDetails": "Теперь используется для подбора станций",
+    "deactivatedTitle": "Автомобиль деактивирован",
+    "deletedTitle": "Автомобиль удалён"
+  },
+  "add": {
+    "title": "Добавить автомобиль",
+    "subtitle": "Заполните информацию о вашем электромобиле",
+    "basicInfo": {
+      "sectionTitle": "Основная информация",
+      "brandLabel": "Марка",
+      "brandRequired": "*",
+      "brandPlaceholder": "Tesla, Nissan, BYD...",
+      "modelLabel": "Модель",
+      "modelRequired": "*",
+      "modelPlaceholder": "Model 3, Leaf, Han...",
+      "yearLabel": "Год выпуска",
+      "yearRequired": "*",
+      "yearPlaceholder": "2024"
+    },
+    "chargingSpecs": {
+      "sectionTitle": "Характеристики зарядки",
+      "connectorLabel": "Тип коннектора",
+      "connectorRequired": "*",
+      "connectorPlaceholder": "Выберите тип",
+      "maxPowerLabel": "Макс. мощность (кВт)",
+      "maxPowerRequired": "*",
+      "maxPowerPlaceholder": "50, 150, 250...",
+      "batteryLabel": "Ёмкость батареи (кВт·ч)",
+      "batteryRequired": "*",
+      "batteryPlaceholder": "60, 75, 100..."
+    },
+    "activeVehicle": {
+      "title": "Активный автомобиль",
+      "subtitle": "Используется для подбора станций"
+    },
+    "saveButton": "Сохранить",
+    "saving": "Сохранение...",
+    "cancelButton": "Отмена",
+    "errors": {
+      "yearRange": "Год должен быть от 1990 до 2026",
+      "saveFailed": "Ошибка сохранения"
+    }
+  },
+  "edit": {
+    "title": "Редактировать автомобиль",
+    "subtitle": "Измените информацию о вашем электромобиле",
+    "saveButton": "Сохранить изменения",
+    "saving": "Сохранение...",
+    "cancelButton": "Отмена"
+  }
+}
