@@ -30,14 +30,37 @@ export async function POST(request: Request) {
       where: {
         userId,
         status: 'active'
+      },
+      include: {
+        connector: true
       }
     });
 
     if (activeSession) {
-      return NextResponse.json(
-        { error: 'У вас уже есть активная сессия зарядки' },
-        { status: 400 }
-      );
+      // Если коннектор уже свободен или сессия висит > 12 часов — это зависшая сессия, закрываем её
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+      const isStale =
+        activeSession.connector.status === 'available' ||
+        activeSession.startTime < twelveHoursAgo;
+
+      if (isStale) {
+        await prisma.$transaction(async (tx) => {
+          await tx.chargingSession.update({
+            where: { id: activeSession.id },
+            data: { status: 'completed', endTime: new Date() }
+          });
+          // Убеждаемся, что коннектор свободен
+          await tx.connector.update({
+            where: { id: activeSession.connectorId },
+            data: { status: 'available' }
+          });
+        });
+      } else {
+        return NextResponse.json(
+          { error: 'У вас уже есть активная сессия зарядки' },
+          { status: 400 }
+        );
+      }
     }
 
     // Проверяем существование коннектора
@@ -70,13 +93,26 @@ export async function POST(request: Request) {
 
     const pricePerMinute = Number(connector.pricePerKwh);
 
-    // Депозит списывается только если есть бронирование
-    const depositAmount = bookingId ? 100 : 0;
+    // Если есть бронирование — депозит уже был списан при бронировании, не списываем повторно
+    // Получаем depositAmount из бронирования
+    let depositAmount = 0;
+    let existingBooking = null;
+    if (bookingId) {
+      existingBooking = await prisma.booking.findUnique({
+        where: { id: bookingId, userId, status: 'active' }
+      });
+      if (!existingBooking) {
+        return NextResponse.json(
+          { error: 'Бронирование не найдено или недействительно' },
+          { status: 400 }
+        );
+      }
+      depositAmount = Number(existingBooking.depositAmount);
+    }
 
-    // Проверяем баланс
-    // Если есть бронирование: нужен депозит + минимум 1 минута
-    // Если нет бронирования: нужен только минимум для зарядки (50 сом)
-    const minimumBalance = bookingId ? (depositAmount + pricePerMinute) : 50;
+    // Минимальный баланс: для зарядки с бронированием — 50 сом (депозит уже уплачен)
+    // Для зарядки без бронирования — 50 сом
+    const minimumBalance = 50;
     
     if (!userBalance || Number(userBalance.balance) < minimumBalance) {
       return NextResponse.json(
@@ -134,18 +170,9 @@ export async function POST(request: Request) {
         }
       });
 
-      // Списываем депозит с баланса ТОЛЬКО если есть бронирование
+      // Если есть бронирование — создаём запись о депозите для чека
+      // НЕ снимаем баланс повторно: депозит уже был снят при создании бронирования
       if (bookingId && depositAmount > 0) {
-        await tx.userBalance.update({
-          where: { userId },
-          data: {
-            balance: {
-              decrement: depositAmount
-            }
-          }
-        });
-
-        // Создаем запись о депозите
         await tx.payment.create({
           data: {
             userId,

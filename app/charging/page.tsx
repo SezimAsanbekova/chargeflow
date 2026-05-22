@@ -167,6 +167,7 @@ export default function ChargingPage() {
       if (response.ok) {
         const data = await response.json();
         clearIntervals();
+        router.refresh();
         router.push(`/charging/completed?sessionId=${data.session.id}`);
       } else {
         const error = await response.json();

@@ -41,6 +41,48 @@ export async function POST(request: Request) {
 
     const pricePerMinute = Number(activeSession.connector.pricePerKwh);
 
+    // Проверяем: если у сессии есть бронирование, депозит покрывает первые N минут
+    if (activeSession.bookingId) {
+      const depositPayment = await prisma.payment.findFirst({
+        where: { sessionId: activeSession.id, type: 'deposit' }
+      });
+
+      if (depositPayment) {
+        const depositAmount = Number(depositPayment.amount);
+        const depositMinutes = Math.floor(depositAmount / pricePerMinute);
+
+        // Считаем сколько минут уже оплачено с баланса
+        const chargePaymentsCount = await prisma.payment.count({
+          where: { sessionId: activeSession.id, type: 'charge' }
+        });
+
+        if (chargePaymentsCount < depositMinutes) {
+          // Эта минута покрыта депозитом — обновляем только энергию
+          const energyIncrement = Number(activeSession.connector.powerKw) * 0.85 / 60;
+          await prisma.chargingSession.update({
+            where: { id: activeSession.id },
+            data: { energyKwh: { increment: energyIncrement } }
+          });
+
+          const userBalance = await prisma.userBalance.findUnique({ where: { userId } });
+          const currentBalance = userBalance ? Number(userBalance.balance) : 0;
+          const minutesRemaining = Math.floor(currentBalance / pricePerMinute);
+          const depositMinutesLeft = depositMinutes - chargePaymentsCount - 1;
+
+          return NextResponse.json({
+            success: true,
+            charged: 0,
+            balance: currentBalance,
+            totalCost: Number(activeSession.costTotal),
+            energyKwh: Number(activeSession.energyKwh) + energyIncrement,
+            minutesRemaining: minutesRemaining + depositMinutesLeft,
+            depositCoveredMinute: true,
+            depositMinutesLeft,
+          });
+        }
+      }
+    }
+
     // Проверяем дедлайн бронирования (5 минут до следующего бронирования)
     const nowForDeadline = new Date();
     const nextBooking = await prisma.booking.findFirst({

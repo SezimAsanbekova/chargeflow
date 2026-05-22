@@ -53,6 +53,7 @@ export default function ConfirmChargingPage() {
 
   const stationId = searchParams.get("stationId");
   const connectorId = searchParams.get("connectorId");
+  const bookingId = searchParams.get("bookingId");
 
   useEffect(() => {
     const savedLocale = getLocaleCookie();
@@ -145,6 +146,7 @@ export default function ConfirmChargingPage() {
         body: JSON.stringify({
           connectorId: connector.id,
           vehicleId: vehicleId, // Может быть null
+          bookingId: bookingId || null,
         }),
       });
 

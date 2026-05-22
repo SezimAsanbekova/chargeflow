@@ -17,7 +17,7 @@ export async function GET() {
     const payments = await prisma.payment.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      take: 50, // Ограничиваем последними 50 транзакциями
+      take: 200,
       include: {
         session: {
           include: {
@@ -31,20 +31,68 @@ export async function GET() {
       },
     });
 
-    // Форматируем данные для фронтенда
-    const transactions = payments.map((payment) => {
-      let description = "";
+    // Группируем charge-платежи по sessionId — одна строка = одна сессия
+    const chargeBySession = new Map<string, {
+      totalAmount: number;
+      date: string;
+      stationName: string | null;
+      sessionId: string;
+    }>();
 
+    const nonChargePayments: typeof payments = [];
+
+    for (const payment of payments) {
+      if (payment.type === "charge" && payment.sessionId) {
+        const existing = chargeBySession.get(payment.sessionId);
+        if (existing) {
+          existing.totalAmount += Number(payment.amount);
+        } else {
+          chargeBySession.set(payment.sessionId, {
+            totalAmount: Number(payment.amount),
+            date: payment.createdAt.toISOString(),
+            stationName: payment.session?.connector?.station?.name ?? null,
+            sessionId: payment.sessionId,
+          });
+        }
+      } else {
+        nonChargePayments.push(payment);
+      }
+    }
+
+    // Формируем итоговый список транзакций
+    const transactions: Array<{
+      id: string;
+      type: string;
+      amount: number;
+      date: string;
+      description: string;
+      stationName?: string | null;
+      status: string;
+    }> = [];
+
+    // Добавляем сгруппированные зарядки
+    for (const [sessionId, data] of chargeBySession.entries()) {
+      const stationName = data.stationName;
+      const description = stationName
+        ? `Зарядка на станции ${stationName}`
+        : "Зарядка на станции";
+      transactions.push({
+        id: `charge-${sessionId}`,
+        type: "charge",
+        amount: -data.totalAmount,
+        date: data.date,
+        description,
+        stationName,
+        status: "success",
+      });
+    }
+
+    // Добавляем остальные платежи
+    for (const payment of nonChargePayments) {
+      let description = "";
       switch (payment.type) {
         case "topup":
           description = "Пополнение баланса";
-          break;
-        case "charge":
-          if (payment.session?.connector?.station) {
-            description = `Зарядка на станции ${payment.session.connector.station.name}`;
-          } else {
-            description = "Зарядка на станции";
-          }
           break;
         case "deposit":
           description = "Депозит за бронирование";
@@ -56,24 +104,28 @@ export async function GET() {
           description = "Операция";
       }
 
-      // stationName нужен для перевода описания на фронте
       const stationName = payment.session?.connector?.station?.name ?? null;
 
-      return {
+      transactions.push({
         id: payment.id,
         type: payment.type,
         amount:
-          payment.type === "charge" || payment.type === "deposit"
+          payment.type === "deposit"
             ? -Number(payment.amount)
             : Number(payment.amount),
         date: payment.createdAt.toISOString(),
-        description, // fallback для обратной совместимости
-        stationName, // для перевода на фронте
+        description,
+        stationName,
         status: payment.status,
-      };
-    });
+      });
+    }
 
-    return NextResponse.json({ transactions });
+    // Сортируем по дате (новые первыми)
+    transactions.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+
+    return NextResponse.json({ transactions: transactions.slice(0, 50) });
   } catch (error) {
     console.error("Get transactions error:", error);
     return NextResponse.json(

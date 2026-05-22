@@ -41,8 +41,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Проверяем статус коннектора
-    if (connector.status !== 'available') {
+    // Проверяем статус коннектора: нельзя бронировать только сломанный
+    // Занятый (busy) коннектор можно бронировать на будущее время
+    if (connector.status === 'maintenance') {
       return NextResponse.json(
         { error: 'Коннектор недоступен для бронирования' },
         { status: 400 }
@@ -232,19 +233,41 @@ export async function GET() {
     // Получаем текущее время
     const now = new Date();
 
-    // Автоматически обновляем статусы просроченных бронирований
+    // Автоматически обновляем статусы просроченных бронирований (время окончания прошло)
     await prisma.booking.updateMany({
       where: {
         userId,
         status: 'active',
-        endTime: {
-          lt: now // Время окончания уже прошло
-        }
+        endTime: { lt: now }
       },
-      data: {
-        status: 'expired'
+      data: { status: 'expired' }
+    });
+
+    // Авто-отмена бронирований при опоздании > 15 минут: депозит не возвращается
+    const noShowCutoff = new Date(now.getTime() - 15 * 60 * 1000);
+    const noShowCandidates = await prisma.booking.findMany({
+      where: {
+        userId,
+        status: 'active',
+        startTime: { lt: noShowCutoff }
+      },
+      include: {
+        chargingSessions: {
+          where: { status: { in: ['active', 'completed'] } }
+        }
       }
     });
+
+    const noShowIds = noShowCandidates
+      .filter(b => b.chargingSessions.length === 0)
+      .map(b => b.id);
+
+    if (noShowIds.length > 0) {
+      await prisma.booking.updateMany({
+        where: { id: { in: noShowIds } },
+        data: { status: 'expired', depositStatus: 'lost' }
+      });
+    }
 
     // Получаем все бронирования пользователя с информацией о станции и коннекторе
     const bookings = await prisma.booking.findMany({

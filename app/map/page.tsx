@@ -79,16 +79,37 @@ export default function MapPage() {
     status: string;
   } | null>(null);
   const [showStationSheet, setShowStationSheet] = useState(false);
+  const [activeSessionInfo, setActiveSessionInfo] = useState<{
+    driverName: string | null;
+    estimatedEndTime: string | null;
+    startTime: string | null;
+  } | null>(null);
 
   // Функция для открытия станции в bottom sheet
   const openStationSheet = (station: Station) => {
     setSelectedStation(station);
+    setActiveSessionInfo(null);
     // Автоматически выбираем первый доступный коннектор
     const availableConnector = station.connectors?.find(
       (c) => c.status === "available",
     );
     setSelectedConnector(availableConnector || station.connectors?.[0] || null);
     setShowStationSheet(true);
+    // Если станция занята — загружаем данные активной сессии
+    if (station.status === "busy") {
+      fetch(`/api/stations/${station.id}/active-session`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.active) {
+            setActiveSessionInfo({
+              driverName: data.driverName,
+              estimatedEndTime: data.estimatedEndTime,
+              startTime: data.startTime,
+            });
+          }
+        })
+        .catch(() => {});
+    }
   };
 
   // Функция для закрытия станции
@@ -360,10 +381,10 @@ export default function MapPage() {
 
   // Загружаем станции из API
   useEffect(() => {
-    const fetchStations = async () => {
+    const fetchStations = async (showLoader = false) => {
       try {
-        setIsLoadingStations(true);
-        const response = await fetch("/api/stations");
+        if (showLoader) setIsLoadingStations(true);
+        const response = await fetch("/api/stations", { cache: "no-store" });
         if (response.ok) {
           const data = await response.json();
           setStations(data);
@@ -373,12 +394,28 @@ export default function MapPage() {
       } catch (error) {
         console.error("Error fetching stations:", error);
       } finally {
-        setIsLoadingStations(false);
+        if (showLoader) setIsLoadingStations(false);
       }
     };
 
     if (session) {
-      fetchStations();
+      fetchStations(true); // первая загрузка — показываем loader
+
+      // Polling каждые 30 сек — статусы станций актуальны для всех водителей (без мигания)
+      const pollingInterval = setInterval(() => fetchStations(false), 30_000);
+
+      // Перезагружаем станции когда пользователь возвращается на страницу
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
+          fetchStations();
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      return () => {
+        clearInterval(pollingInterval);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
     }
   }, [session]);
 
@@ -698,14 +735,44 @@ export default function MapPage() {
       el.style.border = "3px solid white";
       el.style.boxShadow = "0 2px 8px rgba(0,0,0,0.3)";
 
-      // Цвет в зависимости от статуса
-      if (station.status === "available") {
-        el.style.backgroundColor = "#065f46"; // тёмно-зелёный для доступных
-      } else if (station.status === "busy") {
-        el.style.backgroundColor = "#dc2626"; // красный для занятых
-        el.style.border = "3px solid #fca5a5";
+      // Делим круг на секторы по статусам коннекторов
+      const connectors = station.connectors ?? [];
+      const total = connectors.length;
+
+      if (total > 0) {
+        const availableCount = connectors.filter((c) => c.status === "available").length;
+        const busyCount = connectors.filter((c) => c.status === "busy").length;
+        const maintenanceCount = total - availableCount - busyCount;
+
+        const parts: string[] = [];
+        let pos = 0;
+
+        if (availableCount > 0) {
+          const end = pos + (availableCount / total) * 100;
+          parts.push(`#065f46 ${pos}% ${end}%`);
+          pos = end;
+        }
+        if (busyCount > 0) {
+          const end = pos + (busyCount / total) * 100;
+          parts.push(`#dc2626 ${pos}% ${end}%`);
+          pos = end;
+        }
+        if (maintenanceCount > 0) {
+          parts.push(`#4b5563 ${pos}% 100%`);
+        }
+
+        el.style.background = `conic-gradient(${parts.join(", ")})`;
+        el.style.border = busyCount > 0 ? "3px solid #fca5a5" : "3px solid white";
       } else {
-        el.style.backgroundColor = "#4b5563"; // серый для обслуживания
+        // Fallback на статус станции
+        if (station.status === "available") {
+          el.style.backgroundColor = "#065f46";
+        } else if (station.status === "busy") {
+          el.style.backgroundColor = "#dc2626";
+          el.style.border = "3px solid #fca5a5";
+        } else {
+          el.style.backgroundColor = "#4b5563";
+        }
       }
 
       // Создаем SVG иконку молнии
@@ -2026,6 +2093,38 @@ export default function MapPage() {
                       </p>
                     </div>
 
+                    {/* Active Session Info — занято */}
+                    {selectedStation.status === "busy" && (
+                      <div className="mb-3 bg-red-900/30 border border-red-500/40 rounded-xl p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                          <span className="text-red-400 font-semibold text-sm">
+                            {t?.status?.busy ?? "Занято"}
+                          </span>
+                        </div>
+                        {activeSessionInfo ? (
+                          <div className="space-y-1">
+                            {activeSessionInfo.driverName && (
+                              <div className="text-gray-300 text-xs flex items-center gap-1">
+                                <span className="text-gray-500">Водитель:</span>
+                                <span className="font-medium">{activeSessionInfo.driverName}</span>
+                              </div>
+                            )}
+                            {activeSessionInfo.estimatedEndTime && (
+                              <div className="text-gray-300 text-xs flex items-center gap-1">
+                                <span className="text-gray-500">Освободится в:</span>
+                                <span className="font-medium text-amber-400">
+                                  {new Date(activeSessionInfo.estimatedEndTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-gray-500 text-xs">{t?.station?.loadingSession ?? "Загрузка..."}</div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Route Info */}
                     {routeInfo && (
                       <div className="mb-3 bg-emerald-900/30 border border-emerald-500/30 rounded-xl p-3">
@@ -2147,6 +2246,8 @@ export default function MapPage() {
                                     selectedConnector?.id === connector.id;
                                   const isAvailable =
                                     connector.status === "available";
+                                  const isBusy = connector.status === "busy";
+                                  const isMaintenance = connector.status === "maintenance";
 
                                   return (
                                     <button
@@ -2154,13 +2255,17 @@ export default function MapPage() {
                                       onClick={() =>
                                         setSelectedConnector(connector)
                                       }
-                                      disabled={!isAvailable}
+                                      disabled={isMaintenance}
                                       className={`w-full text-left p-3 rounded-xl border-2 transition ${
-                                        isSelected
+                                        isSelected && isAvailable
                                           ? "bg-emerald-500/20 border-emerald-500"
-                                          : isAvailable
-                                            ? "bg-[#0a1f1a] border-emerald-900/30 hover:border-emerald-500/50"
-                                            : "bg-[#0a1f1a] border-gray-700 opacity-50 cursor-not-allowed"
+                                          : isSelected && isBusy
+                                            ? "bg-red-900/20 border-red-500"
+                                            : isBusy
+                                              ? "bg-[#0a1f1a] border-red-900/40 hover:border-red-500/50"
+                                              : isMaintenance
+                                                ? "bg-[#0a1f1a] border-gray-700 opacity-40 cursor-not-allowed"
+                                                : "bg-[#0a1f1a] border-emerald-900/30 hover:border-emerald-500/50"
                                       }`}
                                     >
                                       <div className="flex items-center justify-between mb-2">
@@ -2170,10 +2275,20 @@ export default function MapPage() {
                                               connector.type,
                                             )}
                                           </span>
+                                          {isBusy && (
+                                            <span className="text-xs bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">
+                                              {t?.status?.busy ?? "Занято"}
+                                            </span>
+                                          )}
+                                          {isMaintenance && (
+                                            <span className="text-xs bg-gray-500/20 text-gray-400 px-1.5 py-0.5 rounded-full">
+                                              {t?.status?.maintenance ?? "Обслуживание"}
+                                            </span>
+                                          )}
                                         </div>
                                         {isSelected && (
                                           <CheckCircle
-                                            className="text-emerald-400"
+                                            className={isBusy ? "text-red-400" : "text-emerald-400"}
                                             size={18}
                                           />
                                         )}
@@ -2324,16 +2439,16 @@ export default function MapPage() {
                             }}
                             disabled={
                               !selectedConnector ||
-                              selectedConnector.status !== "available" ||
+                              selectedConnector.status === "maintenance" ||
                               isCharging
                             }
                             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition text-xs"
                           >
                             {!selectedConnector
                               ? (t?.buttons?.selectConnector ?? "Выберите коннектор")
-                              : selectedConnector.status === "available"
-                                ? (t?.buttons?.book ?? "Забронировать")
-                                : (t?.buttons?.unavailable ?? "Недоступно")}
+                              : selectedConnector.status === "maintenance"
+                                ? (t?.buttons?.unavailable ?? "Недоступно")
+                                : (t?.buttons?.book ?? "Забронировать")}
                           </button>
                         </>
                       ) : (

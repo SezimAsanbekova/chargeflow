@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Zap,
   Battery,
+  Play,
 } from "lucide-react";
 import BottomNavigation from "@/app/components/BottomNavigation";
 
@@ -171,6 +172,15 @@ export default function BookingsPage() {
     const now = new Date();
 
     return now < cancelDeadline;
+  };
+
+  // Водитель может начать зарядку: бронирование активно и время наступило (до +15 мин)
+  const canStartCharging = (booking: Booking) => {
+    if (booking.status !== "active") return false;
+    const now = new Date();
+    const start = new Date(booking.startTime);
+    const deadline = new Date(start.getTime() + 15 * 60 * 1000);
+    return now >= start && now < deadline;
   };
 
   const handleCancelBooking = async () => {
@@ -420,13 +430,23 @@ export default function BookingsPage() {
 
                       {/* Actions */}
                       <div className="flex gap-3">
-                        <Link
-                          href="/map"
-                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-lg font-medium transition text-center"
-                        >
-                          {t?.bookings?.actions?.goToStation ??
-                            "Перейти к станции"}
-                        </Link>
+                        {canStartCharging(booking) ? (
+                          <Link
+                            href={`/charging/confirm?stationId=${booking.station.id}&connectorId=${booking.connector.id}&bookingId=${booking.id}`}
+                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-lg font-medium transition text-center flex items-center justify-center gap-2"
+                          >
+                            <Play size={16} />
+                            {t?.bookings?.actions?.startCharging ?? "Начать зарядку"}
+                          </Link>
+                        ) : (
+                          <Link
+                            href="/map"
+                            className="flex-1 bg-emerald-500/60 text-white py-3 rounded-lg font-medium transition text-center"
+                          >
+                            {t?.bookings?.actions?.goToStation ??
+                              "Перейти к станции"}
+                          </Link>
+                        )}
                         {canCancelBooking(booking) && (
                           <button
                             onClick={() => {
