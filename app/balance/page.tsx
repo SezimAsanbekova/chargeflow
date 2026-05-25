@@ -36,8 +36,10 @@ export default function BalancePage() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [printerReady, setPrinterReady] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
-  const [selectedAmount, setSelectedAmount] = useState(100);
-  const [customAmount, setCustomAmount] = useState("");
+  const [selectedAmount, setSelectedAmount] = useState(5);
+  const [customAmount, setCustomAmount] = useState("5");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
   const [locale, setLocale] = useState<Locale>(defaultLocale);
   const [t, setT] = useState<any>(null);
 
@@ -58,6 +60,40 @@ export default function BalancePage() {
       router.push("/auth/signin");
     }
   }, [status, router]);
+
+  // Обработка возврата после оплаты Finik
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('payment') === 'success') {
+        const paymentId = sessionStorage.getItem('finik_payment_id');
+        sessionStorage.removeItem('finik_payment_id');
+        window.history.replaceState({}, '', '/balance');
+
+        if (paymentId) {
+          fetch('/api/finik/complete-redirect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paymentId }),
+          })
+            .then(r => r.json())
+            .then(data => {
+              if (data.success) {
+                setBalance(data.balance);
+              } else {
+                // Fallback — просто перезагружаем баланс
+                fetch('/api/user/balance').then(r => r.json()).then(d => setBalance(d.balance || 0));
+              }
+            })
+            .catch(() => {
+              fetch('/api/user/balance').then(r => r.json()).then(d => setBalance(d.balance || 0));
+            });
+        } else {
+          fetch('/api/user/balance').then(r => r.json()).then(d => setBalance(d.balance || 0));
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const savedLocale = getLocaleCookie();
@@ -373,7 +409,7 @@ export default function BalancePage() {
 
               {/* Amount Selection */}
               <div className="grid grid-cols-3 gap-3 mb-6">
-                {[100, 200, 300, 500, 1000, 2000].map((amount) => (
+                {[5, 100, 200, 300, 500, 1000].map((amount) => (
                   <button
                     key={amount}
                     onClick={() => {
@@ -422,30 +458,51 @@ export default function BalancePage() {
                 </p>
               </div>
 
+              {/* Payment Error */}
+              {paymentError && (
+                <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-red-400 text-sm">
+                  {paymentError}
+                </div>
+              )}
+
               {/* Top Up Button */}
               <button
-                onClick={() => {
-                  const amount = customAmount
-                    ? parseInt(customAmount)
-                    : selectedAmount;
-                  if (amount >= 100) {
-                    // Здесь будет логика пополнения
-                    alert(
-                      (
-                        t?.topUp?.topUpAlert ?? "Пополнение на {amount} сом"
-                      ).replace("{amount}", amount),
-                    );
-                    setShowTopUpModal(false);
-                  } else {
-                    alert(
-                      t?.topUp?.minAmountAlert ??
-                        "Минимальная сумма пополнения - 100 сом",
-                    );
+                onClick={async () => {
+                  const amount = customAmount ? parseInt(customAmount) : selectedAmount;
+                  if (!amount || amount < 1) {
+                    setPaymentError("Укажите сумму пополнения");
+                    return;
+                  }
+                  setIsProcessingPayment(true);
+                  setPaymentError("");
+                  try {
+                    const res = await fetch('/api/finik/create-payment', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ amount }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.details || data.error || 'Ошибка');
+                    if (data.paymentUrl) {
+                      sessionStorage.setItem('finik_payment_id', data.paymentId);
+                      window.location.href = data.paymentUrl;
+                    }
+                  } catch (err) {
+                    setPaymentError(err instanceof Error ? err.message : 'Ошибка создания платежа');
+                    setIsProcessingPayment(false);
                   }
                 }}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-bold text-xl transition-all shadow-lg hover:shadow-xl"
+                disabled={isProcessingPayment}
+                className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white py-5 rounded-2xl font-bold text-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
               >
-                {t?.topUp?.topUpButton ?? "Пополнить"}
+                {isProcessingPayment ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Перенаправление...
+                  </>
+                ) : (
+                  t?.topUp?.topUpButton ?? "Пополнить"
+                )}
               </button>
             </div>
           </div>

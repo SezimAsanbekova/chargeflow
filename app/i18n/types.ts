@@ -197,4 +197,5 @@ export type TranslationPage =
   | "charging"
   | "common"
   | "map"
-  | "admin";
+  | "admin"
+  | "ai-chat";

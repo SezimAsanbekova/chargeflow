@@ -1,0 +1,96 @@
+{
+  "header": {
+    "title": "ChargeFlow AI",
+    "status": "Онлайн",
+    "stop": "Стоп"
+  },
+  "messages": {
+    "welcome": "Привет! Я ИИ-ассистент ChargeFlow ⚡ Помогу найти зарядную станцию, разобраться с бронированием или ответить на любые вопросы об электрозарядке.",
+    "loading": "Думаю...",
+    "error": "Ошибка",
+    "errorConnection": "Ошибка соединения. Проверьте интернет и попробуйте снова.",
+    "errorApi": "Ошибка API",
+    "errorTranscription": "Ошибка распознавания аудио",
+    "errorAudio": "Ошибка обработки аудио"
+  },
+  "input": {
+    "placeholder": "Сообщение...",
+    "recording": "Запись...",
+    "recordingStop": "Стоп"
+  },
+  "buttons": {
+    "send": "Отправить",
+    "listen": "Прослушать",
+    "listening": "Воспроизведение...",
+    "stop": "Стоп",
+    "delete": "Удалить",
+    "cancel": "Отмена"
+  },
+  "audio": {
+    "duration": "Аудио",
+    "preview": "Предпросмотр"
+  },
+  "quickQuestions": {
+    "title": "Быстрые вопросы",
+    "findStation": "Как найти ближайшую станцию?",
+    "booking": "Как забронировать зарядку?",
+    "chargingTypes": "Какие типы зарядки есть?"
+  },
+  "settings": {
+    "title": "Настройки голоса",
+    "subtitle": "Выберите голос AI",
+    "quality": "Качество",
+    "speed": "Скорость речи",
+    "voice": "Голос",
+    "save": "Сохранить настройки",
+    "test": "Тест",
+    "models": {
+      "standard": {
+        "name": "Стандарт",
+        "description": "Быстрый, хорошее качество"
+      },
+      "hd": {
+        "name": "HD",
+        "description": "Медленнее, но более естественный"
+      }
+    },
+    "speeds": {
+      "slow": "Медленно",
+      "normal": "Нормально",
+      "fast": "Быстро",
+      "veryFast": "Очень быстро"
+    },
+    "voices": {
+      "alloy": {
+        "name": "Alloy",
+        "description": "Нейтральный, сбалансированный",
+        "gender": "Нейтральный"
+      },
+      "echo": {
+        "name": "Echo",
+        "description": "Мужской, чёткий",
+        "gender": "Мужской"
+      },
+      "fable": {
+        "name": "Fable",
+        "description": "Британский акцент, выразительный",
+        "gender": "Мужской"
+      },
+      "onyx": {
+        "name": "Onyx",
+        "description": "Глубокий мужской, авторитетный",
+        "gender": "Мужской"
+      },
+      "nova": {
+        "name": "Nova",
+        "description": "Женский, энергичный",
+        "gender": "Женский"
+      },
+      "shimmer": {
+        "name": "Shimmer",
+        "description": "Мягкий женский, естественный",
+        "gender": "Женский"
+      }
+    }
+  }
+}

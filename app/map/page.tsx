@@ -387,10 +387,15 @@ export default function MapPage() {
 
   // Загружаем станции из API
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchStations = async (showLoader = false) => {
       try {
         if (showLoader) setIsLoadingStations(true);
-        const response = await fetch("/api/stations", { cache: "no-store" });
+        const response = await fetch("/api/stations", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
         if (response.ok) {
           const data = await response.json();
           setStations(data);
@@ -406,8 +411,10 @@ export default function MapPage() {
         } else {
           console.error("Failed to fetch stations");
         }
-      } catch (error) {
-        console.error("Error fetching stations:", error);
+      } catch (error: any) {
+        if (error?.name !== "AbortError") {
+          console.error("Error fetching stations:", error);
+        }
       } finally {
         if (showLoader) setIsLoadingStations(false);
       }
@@ -428,6 +435,7 @@ export default function MapPage() {
 
       document.addEventListener("visibilitychange", handleVisibilityChange);
       return () => {
+        controller.abort();
         clearInterval(pollingInterval);
         document.removeEventListener("visibilitychange", handleVisibilityChange);
       };

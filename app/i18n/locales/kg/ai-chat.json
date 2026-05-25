@@ -1,0 +1,96 @@
+{
+  "header": {
+    "title": "ChargeFlow AI",
+    "status": "Онлайн",
+    "stop": "Токто"
+  },
+  "messages": {
+    "welcome": "Салам! Мен ChargeFlow ИИ-ассистентимин ⚡ Зарядка станциясын табууга, бронь кылууга же электр зарядка жөнүндө суроолоруңузга жооп берүүгө жардам берем.",
+    "loading": "Ойлонуп жатам...",
+    "error": "Ката",
+    "errorConnection": "Байланыш катасы. Интернетти текшерип, кайра аракет кылыңыз.",
+    "errorApi": "API катасы",
+    "errorTranscription": "Үн таануу катасы",
+    "errorAudio": "Аудио иштетүү катасы"
+  },
+  "input": {
+    "placeholder": "Билдирүү...",
+    "recording": "Жазуу...",
+    "recordingStop": "Токто"
+  },
+  "buttons": {
+    "send": "Жөнөтүү",
+    "listen": "Угуу",
+    "listening": "Ойнотуу...",
+    "stop": "Токто",
+    "delete": "Өчүрүү",
+    "cancel": "Жокко чыгаруу"
+  },
+  "audio": {
+    "duration": "Аудио",
+    "preview": "Алдын ала көрүү"
+  },
+  "quickQuestions": {
+    "title": "Тез суроолор",
+    "findStation": "Эң жакын станцияны кантип табам?",
+    "booking": "Зарядканы кантип брондойм?",
+    "chargingTypes": "Кандай зарядка түрлөрү бар?"
+  },
+  "settings": {
+    "title": "Үн жөндөөлөрү",
+    "subtitle": "AI үнүн тандаңыз",
+    "quality": "Сапаты",
+    "speed": "Сүйлөө ылдамдыгы",
+    "voice": "Үн",
+    "save": "Жөндөөлөрдү сактоо",
+    "test": "Тест",
+    "models": {
+      "standard": {
+        "name": "Стандарт",
+        "description": "Тез, жакшы сапат"
+      },
+      "hd": {
+        "name": "HD",
+        "description": "Жайыраак, бирок табигыйраак"
+      }
+    },
+    "speeds": {
+      "slow": "Жай",
+      "normal": "Кадимки",
+      "fast": "Тез",
+      "veryFast": "Өтө тез"
+    },
+    "voices": {
+      "alloy": {
+        "name": "Alloy",
+        "description": "Нейтралдуу, тең салмактуу",
+        "gender": "Нейтралдуу"
+      },
+      "echo": {
+        "name": "Echo",
+        "description": "Эркек, так",
+        "gender": "Эркек"
+      },
+      "fable": {
+        "name": "Fable",
+        "description": "Британ акценти, сүйлөгүч",
+        "gender": "Эркек"
+      },
+      "onyx": {
+        "name": "Onyx",
+        "description": "Терең эркек, бийликтүү",
+        "gender": "Эркек"
+      },
+      "nova": {
+        "name": "Nova",
+        "description": "Аялзаты, энергиялуу",
+        "gender": "Аялзаты"
+      },
+      "shimmer": {
+        "name": "Shimmer",
+        "description": "Жумшак аялзаты, табигый",
+        "gender": "Аялзаты"
+      }
+    }
+  }
+}
