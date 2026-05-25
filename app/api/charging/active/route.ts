@@ -28,7 +28,11 @@ export async function GET() {
             station: true
           }
         },
-        payments: true
+        payments: true,
+        chargingEvents: {
+          where: { eventType: 'start' },
+          take: 1,
+        }
       }
     });
 
@@ -54,7 +58,7 @@ export async function GET() {
       where: { userId }
     });
 
-    const pricePerMinute = Number(activeSession.connector.pricePerKwh);
+    const pricePerMinute = Number(activeSession.connector.pricePerMinute);
     const balance = userBalance ? Number(userBalance.balance) : 0;
 
     // Проверяем, достаточно ли средств
@@ -74,7 +78,7 @@ export async function GET() {
         durationMinutes,
         energyKwh: Number(activeSession.energyKwh),
         currentPowerKw: Number(activeSession.connector.powerKw) * 0.85, // Симуляция текущей мощности
-        batteryPercent: Math.min(95, 20 + Math.floor(durationMinutes * 0.5)), // Симуляция процента заряда
+        batteryPercent: Math.min(99, (((activeSession.chargingEvents[0]?.data as any)?.batteryStartPercent) ?? 50) + Math.floor(durationMinutes * 0.5)),
         depositAmount: depositPayment ? Number(depositPayment.amount) : 0,
         chargeAmount: totalChargeAmount,
         totalCost: Number(activeSession.costTotal),

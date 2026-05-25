@@ -44,13 +44,15 @@ export async function GET() {
           longitude: Number(station.longitude),
           status,
           maxPowerKw: maxPowerConnector ? Number(maxPowerConnector.powerKw) : 50,
-          pricePerMinute: maxPowerConnector ? Number(maxPowerConnector.pricePerKwh) : 0,
+          pricePerMinute: maxPowerConnector ? Number(maxPowerConnector.pricePerMinute) : 0,
           connectorType: maxPowerConnector?.type || 'CCS2',
+          workingHours: station.workingHours,
           connectors: station.connectors.map(c => ({
             id: c.id,
             type: c.type,
             powerKw: Number(c.powerKw),
             pricePerKwh: Number(c.pricePerKwh),
+            pricePerMinute: Number(c.pricePerMinute),
             status: c.status,
           })),
         };

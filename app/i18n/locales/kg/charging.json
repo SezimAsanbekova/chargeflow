@@ -12,6 +12,8 @@
     },
     "balance": "Баланс",
     "balanceDuration": "~{minutes} мүнөткө жетет",
+    "depositTitle": "Депозит колдонулууда",
+    "depositInfo": "Силдин {amount} сом депозитиңиз ~{minutes} мүн кубаттоону камтыйт",
     "startTime": "Башталган убакты",
     "stopButton": "Кубаттоону токтотуу",
     "stopModal": {

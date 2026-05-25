@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const userId = (session.user as any).id;
-    const { connectorId, vehicleId, bookingId } = await request.json();
+    const { connectorId, vehicleId, bookingId, batteryStartPercent } = await request.json();
 
     // Валидация входных данных
     if (!connectorId) {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       where: { userId }
     });
 
-    const pricePerMinute = Number(connector.pricePerKwh);
+    const pricePerMinute = Number(connector.pricePerMinute);
 
     // Если есть бронирование — депозит уже был списан при бронировании, не списываем повторно
     // Получаем depositAmount из бронирования
@@ -202,6 +202,15 @@ export async function POST(request: Request) {
         });
       }
 
+      // Сохраняем начальный заряд батареи в ChargingEvent
+      await tx.chargingEvent.create({
+        data: {
+          sessionId: newSession.id,
+          eventType: 'start',
+          data: { batteryStartPercent: batteryStartPercent ?? 50 },
+        }
+      });
+
       return newSession;
     });
 
@@ -211,7 +220,7 @@ export async function POST(request: Request) {
         id: chargingSession.id,
         stationName: chargingSession.connector.station.name,
         stationAddress: chargingSession.connector.station.address,
-        pricePerMinute: Number(connector.pricePerKwh),
+        pricePerMinute: Number(connector.pricePerMinute),
         maxPowerKw: Number(connector.powerKw),
         startTime: chargingSession.startTime.toISOString(),
         depositAmount,

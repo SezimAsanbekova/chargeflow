@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const pricePerMinute = Number(activeSession.connector.pricePerKwh);
+    const pricePerMinute = Number(activeSession.connector.pricePerMinute);
 
     // Проверяем: если у сессии есть бронирование, депозит покрывает первые N минут
     if (activeSession.bookingId) {

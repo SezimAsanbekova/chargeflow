@@ -216,6 +216,30 @@ export default function ChargingPage() {
         </p>
       </div>
 
+      {/* Deposit Info Banner */}
+      {activeSession.depositAmount > 0 && (
+        <div className="mx-6 mb-2 bg-emerald-900/30 border border-emerald-500/30 rounded-xl p-4 flex items-start gap-3">
+          <div className="flex-shrink-0 w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center mt-0.5">
+            <DollarSign className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-emerald-400 font-semibold text-sm">
+              {t?.active?.depositTitle ?? "Депозит используется"}
+            </p>
+            <p className="text-gray-300 text-sm mt-0.5">
+              {(t?.active?.depositInfo ?? "Ваш депозит {amount} сом покрывает ~{minutes} мин зарядки")
+                .replace("{amount}", Math.round(activeSession.depositAmount))
+                .replace(
+                  "{minutes}",
+                  activeSession.pricePerMinute > 0
+                    ? Math.floor(activeSession.depositAmount / activeSession.pricePerMinute)
+                    : 0,
+                )}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Charging Animation */}
       <div className="bg-[#0a1f1a] p-8 flex flex-col items-center">
         {/* Charging Station Icon */}

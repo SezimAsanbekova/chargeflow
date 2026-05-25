@@ -69,7 +69,7 @@ export async function GET(
         id: chargingSession.id,
         stationName: chargingSession.connector.station.name,
         stationAddress: chargingSession.connector.station.address,
-        pricePerMinute: Number(chargingSession.connector.pricePerKwh),
+        pricePerMinute: Number(chargingSession.connector.pricePerMinute),
         startTime: chargingSession.startTime.toISOString(),
         endTime: endTime.toISOString(),
         durationMinutes,

@@ -440,7 +440,7 @@ export default function BookingsPage() {
                           </Link>
                         ) : (
                           <Link
-                            href="/map"
+                            href={`/map?stationId=${booking.station.id}`}
                             className="flex-1 bg-emerald-500/60 text-white py-3 rounded-lg font-medium transition text-center"
                           >
                             {t?.bookings?.actions?.goToStation ??

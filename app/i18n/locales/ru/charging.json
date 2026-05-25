@@ -12,6 +12,8 @@
     },
     "balance": "Баланс",
     "balanceDuration": "Хватит на ~{minutes} мин",
+    "depositTitle": "Депозит используется",
+    "depositInfo": "Ваш депозит {amount} сом покрывает ~{minutes} мин зарядки",
     "startTime": "Время начала",
     "stopButton": "Остановить зарядку",
     "stopModal": {

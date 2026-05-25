@@ -12,6 +12,7 @@ import {
   Wallet,
   AlertTriangle,
   CheckCircle,
+  Battery,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -47,6 +48,8 @@ export default function ConfirmChargingPage() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const [showBatteryModal, setShowBatteryModal] = useState(false);
+  const [batteryLevel, setBatteryLevel] = useState(50);
   const [chargingDeadline, setChargingDeadline] = useState<string | null>(null);
   const [locale, setLocale] = useState<Locale>(defaultLocale);
   const [t, setT] = useState<any>(null);
@@ -107,8 +110,14 @@ export default function ConfirmChargingPage() {
     }
   };
 
+  const openBatteryModal = () => {
+    if (userBalance < 50 || starting || connector?.status !== "available") return;
+    setShowBatteryModal(true);
+  };
+
   const handleStartCharging = async () => {
     if (!station || !connector) return;
+    setShowBatteryModal(false);
 
     // Проверяем минимальный баланс
     if (userBalance < 50) {
@@ -145,8 +154,9 @@ export default function ConfirmChargingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           connectorId: connector.id,
-          vehicleId: vehicleId, // Может быть null
+          vehicleId: vehicleId,
           bookingId: bookingId || null,
+          batteryStartPercent: batteryLevel,
         }),
       });
 
@@ -229,11 +239,11 @@ export default function ConfirmChargingPage() {
   return (
     <div className="min-h-screen bg-[#0a1f1a] pb-6">
       {/* Header */}
-      <div className="bg-gradient-to-b from-emerald-600 to-emerald-500 text-white p-6">
+      <div className="bg-[#0a1f1a] text-white p-6">
         <div className="flex items-center gap-4 mb-4">
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition"
+            className="w-10 h-10 bg-emerald-900/40 border border-emerald-700/30 rounded-full flex items-center justify-center hover:bg-emerald-800/40 transition"
           >
             <ArrowLeft size={20} />
           </button>
@@ -404,7 +414,7 @@ export default function ConfirmChargingPage() {
           )}
 
           <button
-            onClick={handleStartCharging}
+            onClick={openBatteryModal}
             disabled={!hasEnoughBalance || starting || connector.status !== "available"}
             className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2"
           >
@@ -429,6 +439,92 @@ export default function ConfirmChargingPage() {
           </button>
         </div>
       </div>
+
+      {/* Battery Level Modal */}
+      {showBatteryModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4">
+          <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-2xl p-6 w-full max-w-sm">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                <Battery className="text-emerald-400" size={20} />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">
+                  {t?.confirm?.batteryTitle ?? "Уровень заряда"}
+                </h3>
+                <p className="text-gray-400 text-xs">
+                  {t?.confirm?.batterySubtitle ?? "Укажите текущий заряд батареи"}
+                </p>
+              </div>
+            </div>
+
+            {/* Battery visual */}
+            <div className="flex items-center justify-center mb-5">
+              <div className="relative w-32 h-16">
+                {/* Battery body */}
+                <div className="absolute inset-0 rounded-lg border-2 border-emerald-500/60 overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500/70 transition-all duration-200"
+                    style={{ width: `${batteryLevel}%` }}
+                  />
+                </div>
+                {/* Battery tip */}
+                <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-2 h-5 bg-emerald-500/60 rounded-r-sm" />
+                {/* Percent label */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-white font-bold text-xl">{batteryLevel}%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Slider */}
+            <div className="relative mb-6 mt-2 px-1">
+              {/* Track */}
+              <div className="relative h-3 rounded-full bg-[#0a1f1a] border border-emerald-900/40 overflow-hidden">
+                {/* Fill */}
+                <div
+                  className="absolute left-0 top-0 h-full bg-emerald-500 rounded-full transition-all duration-100"
+                  style={{ width: `${batteryLevel}%` }}
+                />
+              </div>
+
+              {/* Native input (invisible, on top for interaction) */}
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={batteryLevel}
+                onChange={(e) => setBatteryLevel(Number(e.target.value))}
+                className="absolute inset-0 w-full opacity-0 cursor-pointer h-3 top-0"
+                style={{ margin: 0 }}
+              />
+
+              {/* Min / Max labels */}
+              <div className="flex justify-between text-gray-500 text-xs mt-2">
+                <span>0%</span>
+                <span>50%</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBatteryModal(false)}
+                className="flex-1 bg-[#0a1f1a] border border-emerald-900/30 text-gray-300 py-3 rounded-xl font-medium transition hover:border-emerald-500/50"
+              >
+                {t?.confirm?.backButton ?? "Назад"}
+              </button>
+              <button
+                onClick={handleStartCharging}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold transition text-center"
+              >
+                {t?.confirm?.startButton ?? "Начать зарядку"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -59,7 +59,7 @@ export async function GET(
       address: station.address,
       latitude: Number(station.latitude),
       longitude: Number(station.longitude),
-      pricePerMinute: Number(maxPowerConnector.pricePerKwh),
+      pricePerMinute: Number(maxPowerConnector.pricePerMinute),
       maxPowerKw: Number(maxPowerConnector.powerKw),
       status: station.status,
       connectors: station.connectors.map(c => ({

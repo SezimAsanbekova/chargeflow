@@ -113,51 +113,47 @@ function CompletedContent() {
   return (
     <div className="min-h-screen bg-[#0a1f1a] pb-20">
       {/* Success Header */}
-      <div className="bg-gradient-to-b from-emerald-600 to-emerald-500 text-white p-8 text-center">
-        <CheckCircle className="w-20 h-20 mx-auto mb-4" />
-        <h1 className="text-2xl font-bold mb-2">
+      <div className="bg-[#0a1f1a] text-white pt-10 pb-6 px-6 text-center border-b border-emerald-900/40">
+        <div className="w-14 h-14 bg-emerald-500/20 border-2 border-emerald-500/50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="w-7 h-7 text-emerald-400" />
+        </div>
+        <h1 className="text-2xl font-bold mb-1">
           {t?.completed?.title ?? "Зарядка завершена!"}
         </h1>
-        <p className="text-emerald-100 text-sm">{sessionData.stationName}</p>
+        <p className="text-gray-400 text-sm">{sessionData.stationName}</p>
       </div>
 
       {/* Session Summary */}
-      <div className="p-6 space-y-4">
+      <div className="px-6">
         {/* Duration */}
-        <div className="bg-[#0f2820] rounded-lg p-4">
+        <div className="py-4 border-b border-emerald-900/40">
           <div className="flex items-center gap-2 text-emerald-400 mb-2">
-            <Clock className="w-5 h-5" />
-            <span className="text-sm">
+            <Clock className="w-4 h-4" />
+            <span className="text-xs uppercase tracking-wide">
               {t?.completed?.duration ?? "Время зарядки"}
             </span>
           </div>
           <div className="text-white text-2xl font-bold">
             {formatTime(sessionData.durationMinutes)}
           </div>
-          <div className="text-gray-400 text-sm mt-1">
+          <div className="text-gray-500 text-sm mt-0.5">
             {new Date(sessionData.startTime).toLocaleTimeString(
               getIntlLocale(locale),
-              {
-                hour: "2-digit",
-                minute: "2-digit",
-              },
+              { hour: "2-digit", minute: "2-digit" },
             )}
-            {" - "}
+            {" — "}
             {new Date(sessionData.endTime).toLocaleTimeString(
               getIntlLocale(locale),
-              {
-                hour: "2-digit",
-                minute: "2-digit",
-              },
+              { hour: "2-digit", minute: "2-digit" },
             )}
           </div>
         </div>
 
         {/* Energy */}
-        <div className="bg-[#0f2820] rounded-lg p-4">
+        <div className="py-4 border-b border-emerald-900/40">
           <div className="flex items-center gap-2 text-emerald-400 mb-2">
-            <Battery className="w-5 h-5" />
-            <span className="text-sm">
+            <Battery className="w-4 h-4" />
+            <span className="text-xs uppercase tracking-wide">
               {t?.completed?.energy ?? "Переданная энергия"}
             </span>
           </div>
@@ -167,14 +163,13 @@ function CompletedContent() {
         </div>
 
         {/* Cost Breakdown */}
-        <div className="bg-[#0f2820] rounded-lg p-4">
+        <div className="py-4 border-b border-emerald-900/40">
           <div className="flex items-center gap-2 text-emerald-400 mb-3">
-            <DollarSign className="w-5 h-5" />
-            <span className="text-sm">
+            <DollarSign className="w-4 h-4" />
+            <span className="text-xs uppercase tracking-wide">
               {t?.completed?.costBreakdown ?? "Списанная сумма"}
             </span>
           </div>
-
           <div className="space-y-2 text-white">
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">
@@ -184,42 +179,34 @@ function CompletedContent() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">
-                {t?.completed?.chargingLabel ?? "Зарядка"} (
-                {sessionData.durationMinutes} мин × {sessionData.pricePerMinute}{" "}
-                сом)
+                {t?.completed?.chargingLabel ?? "Зарядка"} ({sessionData.durationMinutes} мин × {sessionData.pricePerMinute} сом)
               </span>
               <span>{Math.round(sessionData.chargeAmount)} сом</span>
             </div>
-            <div className="border-t border-gray-700 pt-2 mt-2">
-              <div className="flex justify-between font-bold text-lg">
-                <span>{t?.completed?.totalLabel ?? "Итого"}</span>
-                <span>{Math.round(sessionData.totalCost)} сом</span>
-              </div>
+            <div className="border-t border-emerald-900/40 pt-2 mt-2 flex justify-between font-bold text-lg">
+              <span>{t?.completed?.totalLabel ?? "Итого"}</span>
+              <span>{Math.round(sessionData.totalCost)} сом</span>
             </div>
           </div>
         </div>
 
         {/* Balance */}
-        <div className="bg-[#0f2820] rounded-lg p-4">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-400">
-              {t?.completed?.balanceAfter ?? "Баланс после списания"}
-            </span>
-            <span className="text-white text-xl font-bold">
-              {Math.round(sessionData.balance)} сом
-            </span>
-          </div>
+        <div className="py-4 border-b border-emerald-900/40 flex justify-between items-center">
+          <span className="text-gray-400 text-sm">
+            {t?.completed?.balanceAfter ?? "Баланс после списания"}
+          </span>
+          <span className="text-white text-xl font-bold">
+            {Math.round(sessionData.balance)} сом
+          </span>
         </div>
 
         {/* Action Buttons */}
-        <div className="space-y-3 pt-4">
+        <div className="space-y-3 pt-6">
           <button
             onClick={() =>
-              router.push(
-                `/charging/receipt?invoiceId=${sessionData.invoiceId}`,
-              )
+              router.push(`/charging/receipt?invoiceId=${sessionData.invoiceId}`)
             }
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
           >
             <FileText className="w-5 h-5" />
             {t?.completed?.receiptButton ?? "Чек"}
@@ -227,7 +214,7 @@ function CompletedContent() {
 
           <button
             onClick={() => router.push("/map")}
-            className="w-full bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-[#0f2820] hover:bg-emerald-900/40 border border-emerald-900/40 text-white py-4 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
           >
             <Home className="w-5 h-5" />
             {t?.completed?.homeButton ?? "На главную"}

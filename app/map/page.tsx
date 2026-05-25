@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   getTranslations,
   getLocaleCookie,
@@ -41,6 +42,7 @@ import { NavigationPanel } from "./components/NavigationPanel";
 import { NavigationSimulator } from "./components/NavigationSimulator";
 import { SimulationControls } from "./components/SimulationControls";
 import { getVoiceNavigator } from "./utils/voiceNavigator";
+import { TimeWheelPicker } from "./components/TimeWheelPicker";
 
 interface Station {
   id: string;
@@ -52,6 +54,7 @@ interface Station {
   maxPowerKw: number;
   pricePerMinute: number;
   connectorType: string;
+  workingHours?: Record<string, { open: string; close: string }>;
   connectors?: Array<{
     id: string;
     type: string;
@@ -65,6 +68,9 @@ interface Station {
 export default function MapPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [fromBookingStation, setFromBookingStation] = useState<string | null>(null);
+  const autoOpenedRef = useRef(false);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -388,6 +394,15 @@ export default function MapPage() {
         if (response.ok) {
           const data = await response.json();
           setStations(data);
+          const paramId = searchParams.get("stationId");
+          if (paramId && !autoOpenedRef.current) {
+            const target = data.find((s: Station) => s.id === paramId);
+            if (target) {
+              autoOpenedRef.current = true;
+              setFromBookingStation(paramId);
+              openStationSheet(target);
+            }
+          }
         } else {
           console.error("Failed to fetch stations");
         }
@@ -701,7 +716,7 @@ export default function MapPage() {
     return () => {
       // Не удаляем карту при размонтировании, только при смене местоположения
     };
-  }, [isClient, activeTab, viewMode, userLocation]);
+  }, [isClient, activeTab, viewMode, userLocation, status]);
 
   // Очистка карты при размонтировании компонента
   useEffect(() => {
@@ -1595,14 +1610,40 @@ export default function MapPage() {
 
   // Получить доступные временные слоты
   const getAvailableTimeSlots = () => {
-    const slots = [];
+    const slots: string[] = [];
 
-    // Генерируем слоты с 8:00 до 22:00 с интервалом 30 минут
-    for (let hour = 8; hour < 22; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-        slots.push(timeString);
+    // Определяем часы работы из формата { schedule: '24/7' } или { schedule: '9:00-22:00' }
+    let openTotal = 8 * 60;  // fallback 08:00
+    let closeTotal = 22 * 60; // fallback 22:00
+
+    if (bookingStation?.workingHours) {
+      const wh = bookingStation.workingHours as any;
+      const schedule: string = wh?.schedule ?? "";
+      if (schedule.trim().toLowerCase() === "24/7") {
+        openTotal = 0;
+        closeTotal = 24 * 60;
+      } else if (schedule.includes("-") || schedule.includes("–")) {
+        const parts = schedule.split(/[-–]/).map((s: string) => s.trim());
+        if (parts.length === 2) {
+          const parseTime = (s: string) => { const [h, m] = s.split(":").map(Number); return h * 60 + (m || 0); };
+          openTotal = parseTime(parts[0]);
+          closeTotal = parseTime(parts[1]);
+        }
       }
+    }
+
+    // Фильтруем прошедшие слоты для сегодняшней даты
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const isToday = selectedDate === todayStr;
+    const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
+
+    // Генерируем слоты: каждые 5 мин от open до close (slot < close)
+    for (let minutes = openTotal; minutes < closeTotal; minutes += 5) {
+      if (isToday && minutes < nowMinutes) continue;
+      const hour = Math.floor(minutes / 60);
+      const minute = minutes % 60;
+      slots.push(`${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`);
     }
 
     return slots;
@@ -1842,7 +1883,7 @@ export default function MapPage() {
                 {t?.viewMode?.map ?? "На карте"}
               </button>
               <button
-                onClick={() => setViewMode("list")}
+                onClick={() => { setViewMode("list"); closeStationSheet(); }}
                 className={`flex-1 py-3 px-8 rounded-full text-base font-medium transition ${
                   viewMode === "list"
                     ? "bg-emerald-800 text-white shadow-md"
@@ -2165,6 +2206,29 @@ export default function MapPage() {
                       </div>
                     )}
 
+                    {/* Working Hours */}
+                    {selectedStation.workingHours && (() => {
+                      const wh = selectedStation.workingHours as any;
+                      const schedule: string = wh?.schedule ?? "";
+                      if (!schedule) return null;
+                      const is247 = schedule.trim().toLowerCase() === "24/7";
+                      return (
+                        <div className="mb-3 bg-[#0a1f1a] border border-emerald-900/30 rounded-xl p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Clock className="text-emerald-400" size={15} />
+                            <span className="text-white font-medium text-sm">
+                              {t?.station?.workingHours ?? "Часы работы"}
+                            </span>
+                          </div>
+                          <span className="text-sm text-emerald-400 font-medium">
+                            {is247
+                              ? (t?.station?.aroundTheClock ?? "Круглосуточно")
+                              : schedule.replace(/-/g, " – ").replace(/\s–\s–\s/g, " – ")}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
                     {/* Connectors List */}
                     {selectedStation.connectors &&
                     selectedStation.connectors.length > 0 ? (
@@ -2440,7 +2504,8 @@ export default function MapPage() {
                             disabled={
                               !selectedConnector ||
                               selectedConnector.status === "maintenance" ||
-                              isCharging
+                              isCharging ||
+                              fromBookingStation === selectedStation.id
                             }
                             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2.5 rounded-xl font-semibold transition text-xs"
                           >
@@ -3525,159 +3590,43 @@ export default function MapPage() {
                       <label className="block text-white font-medium mb-2 text-center text-sm">
                         {t?.booking?.timeLabel ?? 'Время:'}
                       </label>
-                      <div className="space-y-3">
-                        <button
-                          onClick={() => setShowTimeSelector(!showTimeSelector)}
-                          className="w-full px-4 py-3 bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl text-left text-white hover:border-emerald-500 focus:border-emerald-500 focus:outline-none transition flex items-center justify-between"
-                        >
-                          <span>
-                            {selectedTime
-                              ? `${selectedTime} (${selectedDuration} ${t?.units?.min ?? 'мин'})`
-                              : (t?.booking?.selectTime ?? "Выберите время")}
-                          </span>
-                          <svg
-                            className={`w-5 h-5 text-emerald-400 transition-transform ${showTimeSelector ? "rotate-180" : ""}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                      {/* Duration Selection */}
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        {[15, 30, 60].map((duration) => (
+                          <button
+                            key={duration}
+                            onClick={() => setSelectedDuration(duration as 15 | 30 | 60)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                              selectedDuration === duration
+                                ? "bg-emerald-600 text-white shadow-lg"
+                                : "bg-[#0f2d26] text-gray-400 hover:text-white hover:bg-emerald-600/20 border border-emerald-900/30"
+                            }`}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </button>
-
-                        {showTimeSelector && (
-                          <div className="bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl p-4">
-                            {/* Duration Selection */}
-                            <div className="mb-4">
-                              <label className="block text-white text-sm font-medium mb-3 text-center">
-                                {t?.booking?.durationLabel ?? 'Продолжительность:'}
-                              </label>
-                              <div className="grid grid-cols-3 gap-2">
-                                {[15, 30, 60].map((duration) => (
-                                  <button
-                                    key={duration}
-                                    onClick={() =>
-                                      setSelectedDuration(
-                                        duration as 15 | 30 | 60,
-                                      )
-                                    }
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
-                                      selectedDuration === duration
-                                        ? "bg-emerald-600 text-white shadow-lg"
-                                        : "bg-[#0f2d26] text-gray-400 hover:text-white hover:bg-emerald-600/20 border border-emerald-900/30"
-                                    }`}
-                                  >
-                                    {duration} {t?.units?.min ?? 'мин'}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Time Slots */}
-                            <div className="mb-2">
-                              <div className="text-white text-sm font-medium mb-3 text-center">
-                                {isLoadingSlots ? (
-                                  <span className="text-gray-400">
-                                    {t?.booking?.loadingSlots ?? 'Загрузка доступных слотов...'}
-                                  </span>
-                                ) : (
-                                  <>
-                                    {t?.booking?.availableSlots ?? 'Доступные слоты:'}{" "}
-                                    {
-                                      getAvailableTimeSlots().filter((time) =>
-                                        isTimeSlotAvailable(
-                                          time,
-                                          selectedDuration,
-                                        ),
-                                      ).length
-                                    }
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            {isLoadingSlots ? (
-                              <div className="flex items-center justify-center py-8">
-                                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400"></div>
-                              </div>
-                            ) : (
-                              <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
-                                {getAvailableTimeSlots().map((time) => {
-                                  const isSelected = selectedTime === time;
-                                  const isAvailable = isTimeSlotAvailable(
-                                    time,
-                                    selectedDuration,
-                                  );
-
-                                  // Функция для получения локальной даты в формате YYYY-MM-DD
-                                  const getLocalDateString = (date: Date) => {
-                                    const year = date.getFullYear();
-                                    const month = String(
-                                      date.getMonth() + 1,
-                                    ).padStart(2, "0");
-                                    const day = String(date.getDate()).padStart(
-                                      2,
-                                      "0",
-                                    );
-                                    return `${year}-${month}-${day}`;
-                                  };
-
-                                  // Проверяем, если выбрана сегодняшняя дата
-                                  const today = new Date();
-                                  const todayDateString =
-                                    getLocalDateString(today);
-                                  const isToday =
-                                    selectedDate === todayDateString;
-                                  let isPastTime = false;
-
-                                  if (isToday) {
-                                    const now = new Date();
-                                    const currentHour = now.getHours();
-                                    const currentMinute = now.getMinutes();
-                                    const [slotHour, slotMinute] = time
-                                      .split(":")
-                                      .map(Number);
-
-                                    // Время прошло, если час меньше текущего, или час равен но минуты меньше/равны
-                                    isPastTime =
-                                      slotHour < currentHour ||
-                                      (slotHour === currentHour &&
-                                        slotMinute <= currentMinute);
-                                  }
-
-                                  const isDisabled = !isAvailable || isPastTime;
-
-                                  return (
-                                    <button
-                                      key={time}
-                                      onClick={() => {
-                                        if (!isDisabled) {
-                                          setSelectedTime(time);
-                                          setShowTimeSelector(false);
-                                        }
-                                      }}
-                                      disabled={isDisabled}
-                                      className={`px-2 py-2 rounded-lg text-sm font-medium transition ${
-                                        isSelected
-                                          ? "bg-emerald-600 text-white shadow-lg"
-                                          : isDisabled
-                                            ? "bg-gray-700 text-gray-500 cursor-not-allowed opacity-40"
-                                            : "bg-[#0f2d26] text-gray-300 hover:text-white hover:bg-emerald-600/20 border border-emerald-900/30"
-                                      }`}
-                                    >
-                                      {time}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
+                            {duration} {t?.units?.min ?? 'мин'}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Wheel Time Picker */}
+                      <div className="bg-[#0a1f1a] border-2 border-emerald-900/30 rounded-xl py-2">
+                        {isLoadingSlots ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" />
                           </div>
+                        ) : (
+                          <TimeWheelPicker
+                            slots={getAvailableTimeSlots().filter((time) =>
+                              isTimeSlotAvailable(time, selectedDuration)
+                            )}
+                            value={selectedTime}
+                            onChange={setSelectedTime}
+                          />
                         )}
                       </div>
+                      {selectedTime && (
+                        <p className="text-center text-emerald-400 text-sm mt-2">
+                          {selectedTime} · {selectedDuration} {t?.units?.min ?? 'мин'}
+                        </p>
+                      )}
                     </div>
 
                     {/* Deposit Info */}
@@ -3868,6 +3817,8 @@ export default function MapPage() {
                   onClick={() => {
                     setActiveTab("map");
                     setViewMode("map");
+                    closeStationSheet();
+                    setShowFilter(false);
                   }}
                   className="flex flex-col items-center gap-1 min-w-[60px]"
                 >
