@@ -3,8 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   allowedDevOrigins: ['stout-phoney-spearfish.ngrok-free.dev'],
-  // Добавляем пустой turbopack config для совместимости
-  turbopack: {},
 };
 
 // PWA конфигурация применяется только в production

@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       where: { userId }
     });
 
-    const pricePerMinute = Number(connector.pricePerMinute);
+    const pricePerKwh = Number(connector.pricePerKwh);
 
     // Если есть бронирование — депозит уже был списан при бронировании, не списываем повторно
     // Получаем depositAmount из бронирования
@@ -220,7 +220,7 @@ export async function POST(request: Request) {
         id: chargingSession.id,
         stationName: chargingSession.connector.station.name,
         stationAddress: chargingSession.connector.station.address,
-        pricePerMinute: Number(connector.pricePerMinute),
+        pricePerKwh: Number(connector.pricePerKwh),
         maxPowerKw: Number(connector.powerKw),
         startTime: chargingSession.startTime.toISOString(),
         depositAmount,

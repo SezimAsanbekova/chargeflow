@@ -20,9 +20,31 @@
 }
 
 body {
-  background: var(--background);
+  background-color: #0a1f1a;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes sparkle-fade {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0); opacity: 0; }
+}
+
+@keyframes chatbot-dot {
+  0%, 35%, 100% { transform: scale(1); }
+  15% { transform: scale(1.7); }
+}
+@keyframes chatbot-beam {
+  0%, 55%, 100% { width: 8px; height: 8px; top: -4px; left: -4px; opacity: 1; }
+  75% { width: 20px; height: 20px; top: -10px; left: -10px; opacity: 0; }
+}
+@keyframes chatbot-bob {
+  0%, 100% { transform: translateY(0px); }
+  50%  { transform: translateY(-2px); }
+}
+@keyframes ai-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* Bottom Sheet Animation */

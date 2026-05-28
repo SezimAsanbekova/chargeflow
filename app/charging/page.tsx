@@ -24,7 +24,7 @@ interface ActiveSession {
   id: string;
   stationName: string;
   stationAddress: string;
-  pricePerMinute: number;
+  pricePerKwh: number;
   maxPowerKw: number;
   startTime: string;
   durationMinutes: number;
@@ -35,6 +35,7 @@ interface ActiveSession {
   chargeAmount: number;
   totalCost: number;
   balance: number;
+  kwhRemaining: number;
   minutesRemaining: number;
   lowBalanceWarning: boolean;
   criticalBalanceWarning: boolean;
@@ -231,8 +232,8 @@ export default function ChargingPage() {
                 .replace("{amount}", Math.round(activeSession.depositAmount))
                 .replace(
                   "{minutes}",
-                  activeSession.pricePerMinute > 0
-                    ? Math.floor(activeSession.depositAmount / activeSession.pricePerMinute)
+                  activeSession.pricePerKwh > 0
+                    ? Math.round(activeSession.depositAmount / activeSession.pricePerKwh * 100) / 100
                     : 0,
                 )}
             </p>
@@ -529,11 +530,11 @@ export default function ChargingPage() {
             <div className="flex items-center gap-2 text-emerald-400 mb-2">
               <DollarSign className="w-5 h-5" />
               <span className="text-sm">
-                {t?.active?.stats?.pricePerMin ?? "Цена/мин"}
+                {t?.active?.stats?.pricePerKwh ?? "Цена/кВт·ч"}
               </span>
             </div>
             <div className="text-white text-2xl font-bold">
-              {activeSession.pricePerMinute}
+              {activeSession.pricePerKwh}
               <span className="text-sm ml-1">сом</span>
             </div>
           </div>
@@ -564,9 +565,9 @@ export default function ChargingPage() {
             </span>
           </div>
           <div className="mt-2 text-sm text-gray-400">
-            {(t?.active?.balanceDuration ?? "Хватит на ~{minutes} мин").replace(
-              "{minutes}",
-              activeSession.minutesRemaining,
+            {(t?.active?.balanceDuration ?? "Хватит на ~{kwh} кВт·ч").replace(
+              "{kwh}",
+              activeSession.kwhRemaining.toFixed(1),
             )}
           </div>
         </div>
@@ -663,8 +664,8 @@ export default function ChargingPage() {
                 ).replace("{balance}", Math.round(activeSession.balance))}
               </p>
               <p className="text-yellow-400 font-semibold">
-                Хватит еще на {activeSession.minutesRemaining}{" "}
-                {activeSession.minutesRemaining === 1 ? "минуту" : "минуты"}.
+                Хватит ещё на {activeSession.kwhRemaining.toFixed(1)} кВт·ч
+                (~{activeSession.minutesRemaining} мин).
               </p>
             </div>
             <div className="flex gap-3">

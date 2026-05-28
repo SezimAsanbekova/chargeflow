@@ -54,7 +54,7 @@ export default function AiChatPage() {
   });
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
 
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -63,28 +63,43 @@ export default function AiChatPage() {
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  const scrollToBottom = (smooth = true) => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" });
+    }, 50);
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollToBottom();
   }, [messages]);
 
-  // Отслеживаем открытие клавиатуры на iOS (visualViewport)
+  // Обновляем стиль контейнера напрямую через DOM — без re-render React
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
+    const el = containerRef.current;
+    if (!el) return;
 
-    const onResize = () => {
-      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      setKeyboardHeight(kb);
-      if (kb > 50) {
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    const update = () => {
+      if (vv) {
+        el.style.top = `${Math.round(vv.offsetTop)}px`;
+        el.style.height = `${Math.round(vv.height)}px`;
       }
+      scrollToBottom(false);
     };
 
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
+    update();
+
+    if (vv) {
+      vv.addEventListener("resize", update);
+      vv.addEventListener("scroll", update);
+    }
+    window.addEventListener("resize", update);
     return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
+      if (vv) {
+        vv.removeEventListener("resize", update);
+        vv.removeEventListener("scroll", update);
+      }
+      window.removeEventListener("resize", update);
     };
   }, []);
 
@@ -372,11 +387,18 @@ export default function AiChatPage() {
         }),
       });
 
-      const data = await res.json();
-      
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        const text = await res.text().catch(() => "");
+        console.error("API returned non-JSON:", text.slice(0, 200));
+        throw new Error("Нет связи с сервером. Попробуйте снова.");
+      }
+
       if (!res.ok) {
         console.error("API Error:", data);
-        throw new Error(data.error || data.details || "Ошибка API");
+        throw new Error(data.details || data.error || "Ошибка сервера");
       }
 
       const aiReply = data.reply ?? "Произошла ошибка. Попробуйте снова.";
@@ -391,8 +413,6 @@ export default function AiChatPage() {
         },
       ]);
 
-      // Автоматически озвучиваем ответ AI
-      await playAiVoice(aiReply);
     } catch (error: any) {
       console.error("Chat error:", error);
       const errorMsg = `Ошибка: ${error.message || "Проверьте интернет и попробуйте снова."}`;
@@ -425,217 +445,206 @@ export default function AiChatPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a1f1a] flex flex-col">
-      {/* Header */}
-      <div className="bg-[#0f2d26] border-b border-emerald-900/30 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+    <div
+      ref={containerRef}
+      className="fixed left-0 right-0 flex flex-col bg-[#0a1f1a] overflow-hidden"
+      style={{ top: 0, height: '100dvh' }}
+    >
+      {/* ── Header ── */}
+      <div
+        className="flex-shrink-0 bg-[#0f2d26] px-4 pb-3 flex items-center gap-3"
+        style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}
+      >
         <button
           onClick={() => router.back()}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition"
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 active:scale-95 transition"
         >
-          <ArrowLeft size={24} className="text-white" />
+          <ArrowLeft size={22} className="text-white" />
         </button>
-        <div className="flex items-center gap-3 flex-1">
-          <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center">
-            <Bot size={20} className="text-emerald-400" />
-          </div>
-          <div>
-            <p className="text-white font-semibold">{t?.header?.title ?? "ChargeFlow AI"}</p>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-emerald-400 text-xs">{t?.header?.status ?? "Онлайн"}</span>
-            </div>
+
+        <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 flex-shrink-0">
+          <Bot size={20} className="text-white" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-semibold text-base leading-tight truncate">
+            {t?.header?.title ?? "ChargeFlow AI"}
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+            <span className="text-emerald-400 text-xs">
+              {t?.header?.status ?? "Онлайн"}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-1">
           {isAiSpeaking && (
             <button
               onClick={stopAiVoice}
-              className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-full transition text-red-400 text-sm font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 rounded-full text-red-400 text-xs font-medium"
             >
-              <VolumeX size={16} />
-              <span>{t?.header?.stop ?? "Стоп"}</span>
+              <VolumeX size={14} />
+              {t?.header?.stop ?? "Стоп"}
             </button>
           )}
           <button
             onClick={() => router.push("/ai-chat/settings")}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition text-gray-400 hover:text-white"
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition text-gray-400"
           >
-            <Settings size={20} />
+            <Settings size={18} />
           </button>
         </div>
       </div>
 
-      {/* Messages */}
-      <div
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
-        style={{ paddingBottom: `${Math.max(96, keyboardHeight + 80)}px` }}
-      >
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            {msg.role === "assistant" && (
-              <div className="w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center mr-2 mt-1 flex-shrink-0">
-                <Bot size={16} className="text-emerald-400" />
-              </div>
-            )}
-            <div className="flex flex-col max-w-[75%]">
-              <div
-                className={`px-4 py-2.5 rounded-2xl ${
-                  msg.role === "user"
-                    ? "bg-emerald-500 text-white rounded-br-md"
-                    : "bg-[#0f2d26] text-gray-100 border border-emerald-900/30 rounded-bl-md"
-                }`}
-              >
-                {msg.type === "audio" && msg.audioUrl && (
-                  <audio
-                    controls
-                    src={msg.audioUrl}
-                    className="w-full mb-2"
-                    style={{
-                      height: "32px",
-                      filter: "invert(1) hue-rotate(180deg)",
-                    }}
-                  />
-                )}
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {msg.content}
-                </p>
-                
-                {/* Кнопка воспроизведения для AI сообщений */}
-                {msg.role === "assistant" && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      onClick={() => playAiVoice(msg.content, i)}
-                      disabled={playingMessageIndex === i}
-                      className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition disabled:opacity-50"
-                    >
-                      {playingMessageIndex === i ? (
-                        <>
-                          <Volume2 size={14} className="animate-pulse" />
-                          <span>{t?.buttons?.listening ?? "Воспроизведение..."}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Volume2 size={14} />
-                          <span>{t?.buttons?.listen ?? "Прослушать"}</span>
-                        </>
-                      )}
-                    </button>
-                    {playingMessageIndex === i && (
-                      <button
-                        onClick={stopAiVoice}
-                        className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition"
-                      >
-                        <VolumeX size={14} />
-                        <span>{t?.buttons?.stop ?? "Стоп"}</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-              <span
-                className={`text-xs text-gray-500 mt-1 ${
-                  msg.role === "user" ? "text-right" : "text-left"
-                }`}
-              >
-                {formatMessageTime(msg.timestamp)}
-              </span>
+      {/* ── Messages ── */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex flex-col justify-end min-h-full px-3 py-3 space-y-1">
+
+        {/* Пустое состояние */}
+        {messages.length === 0 && !loading && (
+          <div className="flex flex-col items-center justify-center h-full gap-4 pb-8">
+            <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
+              <Bot size={40} className="text-emerald-400" />
+            </div>
+            <div className="text-center px-6">
+              <p className="text-white font-semibold text-lg">ChargeFlow AI</p>
+              <p className="text-gray-400 text-sm mt-1">
+                {t?.header?.status ?? "Задайте любой вопрос о зарядке"}
+              </p>
             </div>
           </div>
-        ))}
+        )}
 
-        {/* Loading indicator */}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center mr-2 mt-1 flex-shrink-0">
-              <Bot size={16} className="text-emerald-400" />
+        {messages.map((msg, i) => {
+          const isUser = msg.role === "user";
+          return (
+            <div
+              key={i}
+              className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}
+            >
+              {/* AI avatar */}
+              {!isUser && (
+                <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 mb-1 shadow-sm">
+                  <Bot size={14} className="text-white" />
+                </div>
+              )}
+
+              <div className={`flex flex-col max-w-[78%] ${isUser ? "items-end" : "items-start"}`}>
+                <div
+                  className={`px-3.5 py-2.5 shadow-sm ${
+                    isUser
+                      ? "bg-emerald-600 text-white rounded-t-2xl rounded-bl-2xl rounded-br-md"
+                      : "bg-[#1a3a30] text-gray-100 rounded-t-2xl rounded-br-2xl rounded-bl-md border border-emerald-900/20"
+                  }`}
+                >
+                  {msg.type === "audio" && msg.audioUrl && (
+                    <audio
+                      controls
+                      src={msg.audioUrl}
+                      className="w-full mb-2"
+                      style={{ height: "32px", filter: "invert(1) hue-rotate(180deg)" }}
+                    />
+                  )}
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+
+                  {!isUser && (
+                    <div className="mt-1.5 flex items-center gap-2 border-t border-emerald-900/20 pt-1.5">
+                      <button
+                        onClick={() => playAiVoice(msg.content, i)}
+                        disabled={playingMessageIndex === i}
+                        className="flex items-center gap-1 text-xs text-emerald-400 disabled:opacity-50"
+                      >
+                        {playingMessageIndex === i ? (
+                          <>
+                            <Volume2 size={12} className="animate-pulse" />
+                            <span>{t?.buttons?.listening ?? "Играет..."}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 size={12} />
+                            <span>{t?.buttons?.listen ?? "Прослушать"}</span>
+                          </>
+                        )}
+                      </button>
+                      {playingMessageIndex === i && (
+                        <button onClick={stopAiVoice} className="flex items-center gap-1 text-xs text-red-400">
+                          <VolumeX size={12} />
+                          <span>{t?.buttons?.stop ?? "Стоп"}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs text-gray-600 mt-0.5 px-1">
+                  {formatMessageTime(msg.timestamp)}
+                </span>
+              </div>
             </div>
-            <div className="bg-[#0f2d26] border border-emerald-900/30 rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex gap-1.5 items-center">
-                <span
-                  className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "0ms" }}
-                />
-                <span
-                  className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "150ms" }}
-                />
-                <span
-                  className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "300ms" }}
-                />
+          );
+        })}
+
+        {/* Печатает... */}
+        {loading && (
+          <div className="flex items-end gap-2 justify-start">
+            <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 mb-1">
+              <Bot size={14} className="text-white" />
+            </div>
+            <div className="bg-[#1a3a30] border border-emerald-900/20 rounded-t-2xl rounded-br-2xl rounded-bl-md px-4 py-3">
+              <div className="flex gap-1 items-center">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "160ms" }} />
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "320ms" }} />
               </div>
             </div>
           </div>
         )}
 
         <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Input Area */}
-      <div
-        className="fixed left-0 right-0 bg-[#0f2d26] border-t border-emerald-900/30 px-4 py-3"
-        style={{ bottom: `${keyboardHeight}px`, transition: 'bottom 0.05s ease-out' }}
-      >
-        <div className="max-w-2xl mx-auto">
-          {/* Audio Preview */}
-          {audioBlob && !isRecording && (
-            <div className="mb-3 bg-[#0a1f1a] border border-emerald-500/30 rounded-2xl px-4 py-3 flex items-center gap-3">
-              <button
-                onClick={togglePreviewPlayback}
-                className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center hover:bg-emerald-500/30 transition"
-              >
-                {isPlayingPreview ? (
-                  <Pause size={18} className="text-emerald-400" />
-                ) : (
-                  <Play size={18} className="text-emerald-400 ml-0.5" />
-                )}
-              </button>
-              <div className="flex-1">
-                <div className="h-1 bg-emerald-900/30 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 w-0 animate-pulse" />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  {t?.audio?.duration ?? "Аудио"} {formatTime(recordingTime)}
-                </p>
+      {/* ── Input Area ── */}
+      <div className="flex-shrink-0 bg-[#0f2d26] px-3 py-2 border-t border-emerald-900/30">
+        {/* Audio Preview */}
+        {audioBlob && !isRecording && (
+          <div className="mb-2 bg-[#0a1f1a] border border-emerald-500/30 rounded-2xl px-4 py-3 flex items-center gap-3">
+            <button onClick={togglePreviewPlayback} className="w-9 h-9 bg-emerald-500/20 rounded-full flex items-center justify-center">
+              {isPlayingPreview ? <Pause size={16} className="text-emerald-400" /> : <Play size={16} className="text-emerald-400 ml-0.5" />}
+            </button>
+            <div className="flex-1">
+              <div className="h-1 bg-emerald-900/30 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 w-1/3 animate-pulse" />
               </div>
-              <button
-                onClick={cancelRecording}
-                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-red-500/20 transition"
-              >
-                <Trash2 size={18} className="text-red-400" />
-              </button>
-              <button
-                onClick={sendAudioMessage}
-                disabled={loading}
-                className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center hover:bg-emerald-400 transition disabled:opacity-50"
-              >
-                <Send size={18} className="text-white" />
-              </button>
+              <p className="text-xs text-gray-400 mt-1">{t?.audio?.duration ?? "Аудио"} {formatTime(recordingTime)}</p>
             </div>
-          )}
+            <button onClick={cancelRecording} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-500/20">
+              <Trash2 size={16} className="text-red-400" />
+            </button>
+            <button onClick={sendAudioMessage} disabled={loading} className="w-9 h-9 bg-emerald-500 rounded-full flex items-center justify-center disabled:opacity-50">
+              <Send size={16} className="text-white" />
+            </button>
+          </div>
+        )}
 
-          {/* Recording Indicator */}
-          {isRecording && (
-            <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-2xl px-4 py-3 flex items-center gap-3">
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-red-400 font-medium flex-1">
-                {t?.input?.recording ?? "Запись..."} {formatTime(recordingTime)}
-              </span>
-              <button
-                onClick={stopRecording}
-                className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-full text-white text-sm font-medium transition"
-              >
-                {t?.input?.recordingStop ?? "Стоп"}
-              </button>
-            </div>
-          )}
+        {/* Recording */}
+        {isRecording && (
+          <div className="mb-2 bg-red-500/10 border border-red-500/30 rounded-2xl px-4 py-3 flex items-center gap-3">
+            <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+            <span className="text-red-400 font-medium flex-1 text-sm">
+              {t?.input?.recording ?? "Запись..."} {formatTime(recordingTime)}
+            </span>
+            <button onClick={stopRecording} className="px-3 py-1.5 bg-red-500 rounded-full text-white text-xs font-medium">
+              {t?.input?.recordingStop ?? "Стоп"}
+            </button>
+          </div>
+        )}
 
-          {/* Input Bar */}
-          {!audioBlob && !isRecording && (
-            <div className="flex items-center gap-2 bg-[#0a1f1a] border border-emerald-900/40 rounded-full px-4 py-2">
+        {/* Text input row */}
+        {!audioBlob && !isRecording && (
+          <div className="flex items-center gap-2">
+            {/* Input pill */}
+            <div className="flex-1 flex items-center bg-[#162b24] border border-emerald-900/40 rounded-full px-4 py-2.5 min-h-[44px]">
               <input
                 ref={inputRef}
                 type="text"
@@ -643,34 +652,41 @@ export default function AiChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t?.input?.placeholder ?? "Сообщение..."}
-                className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
+                className="flex-1 bg-transparent text-white placeholder-gray-500 text-[16px] leading-normal outline-none"
                 disabled={loading}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="sentences"
+                spellCheck="false"
+                onFocus={() => scrollToBottom(false)}
+                inputMode="text"
+                enterKeyHint="send"
               />
-
-              {input.trim() ? (
-                <button
-                  onClick={sendTextMessage}
-                  disabled={loading}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-emerald-500 disabled:bg-emerald-500/30 disabled:cursor-not-allowed hover:bg-emerald-400 transition flex-shrink-0"
-                >
-                  {loading ? (
-                    <Loader2 size={18} className="text-white animate-spin" />
-                  ) : (
-                    <Send size={18} className="text-white" />
-                  )}
-                </button>
-              ) : (
-                <button
-                  onClick={startRecording}
-                  disabled={loading}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 transition flex-shrink-0"
-                >
-                  <Mic size={20} className="text-emerald-400" />
-                </button>
-              )}
             </div>
-          )}
-        </div>
+
+            {/* Send / Mic button — outside pill */}
+            {input.trim() ? (
+              <button
+                onClick={sendTextMessage}
+                disabled={loading}
+                className="w-11 h-11 flex items-center justify-center rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30 disabled:opacity-50 active:scale-95 transition flex-shrink-0"
+              >
+                {loading
+                  ? <Loader2 size={18} className="text-white animate-spin" />
+                  : <Send size={18} className="text-white" />
+                }
+              </button>
+            ) : (
+              <button
+                onClick={startRecording}
+                disabled={loading}
+                className="w-11 h-11 flex items-center justify-center rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30 disabled:opacity-50 active:scale-95 transition flex-shrink-0"
+              >
+                <Mic size={18} className="text-white" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -24,7 +24,7 @@ interface CompletedSession {
   id: string;
   stationName: string;
   stationAddress: string;
-  pricePerMinute: number;
+  pricePerKwh: number;
   startTime: string;
   endTime: string;
   durationMinutes: number;
@@ -179,7 +179,7 @@ function CompletedContent() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">
-                {t?.completed?.chargingLabel ?? "Зарядка"} ({sessionData.durationMinutes} мин × {sessionData.pricePerMinute} сом)
+                {t?.completed?.chargingLabel ?? "Зарядка"} ({sessionData.energyKwh?.toFixed(2) ?? "0.00"} кВт·ч × {sessionData.pricePerKwh} сом)
               </span>
               <span>{Math.round(sessionData.chargeAmount)} сом</span>
             </div>

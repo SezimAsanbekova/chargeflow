@@ -71,7 +71,7 @@ export async function GET(
         sessionId: invoice.sessionId,
         stationName: invoice.session.connector.station.name,
         stationAddress: invoice.session.connector.station.address,
-        pricePerMinute: Number(invoice.session.connector.pricePerMinute),
+        pricePerKwh: Number(invoice.session.connector.pricePerKwh),
         startTime: invoice.session.startTime.toISOString(),
         endTime: endTime.toISOString(),
         durationMinutes,

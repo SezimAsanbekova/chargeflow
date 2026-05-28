@@ -122,7 +122,7 @@ export async function POST(request: Request) {
         id: result.session.id,
         stationName: result.session.connector.station.name,
         stationAddress: result.session.connector.station.address,
-        pricePerMinute: Number(result.session.connector.pricePerMinute),
+        pricePerKwh: Number(result.session.connector.pricePerKwh),
         startTime: result.session.startTime.toISOString(),
         endTime: result.session.endTime!.toISOString(),
         durationMinutes,

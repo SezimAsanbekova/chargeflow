@@ -124,8 +124,11 @@ ${stationsContext}`,
     const reply = data.choices?.[0]?.message?.content ?? "Не удалось получить ответ.";
 
     return NextResponse.json({ reply });
-  } catch (error) {
-    console.error("AI chat error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error: any) {
+    console.error("AI chat error:", error?.message ?? error);
+    return NextResponse.json(
+      { error: "Internal server error", details: error?.message ?? String(error) },
+      { status: 500 }
+    );
   }
 }

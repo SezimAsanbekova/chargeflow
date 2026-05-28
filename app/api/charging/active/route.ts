@@ -58,11 +58,17 @@ export async function GET() {
       where: { userId }
     });
 
-    const pricePerMinute = Number(activeSession.connector.pricePerMinute);
+    const pricePerKwh = Number(activeSession.connector.pricePerKwh);
+    const powerKw = Number(activeSession.connector.powerKw);
     const balance = userBalance ? Number(userBalance.balance) : 0;
 
-    // Проверяем, достаточно ли средств
-    const minutesRemaining = Math.floor(balance / pricePerMinute);
+    // Стоимость одной минуты зарядки = цена/кВт·ч × энергия за минуту
+    const energyPerMinute = powerKw * 0.85 / 60;
+    const costPerMinute = pricePerKwh * energyPerMinute;
+
+    // Сколько кВт·ч можно ещё зарядить на остаток баланса
+    const kwhRemaining = pricePerKwh > 0 ? balance / pricePerKwh : 0;
+    const minutesRemaining = costPerMinute > 0 ? Math.floor(balance / costPerMinute) : 0;
     const lowBalanceWarning = minutesRemaining <= 2 && minutesRemaining > 0;
     const criticalBalanceWarning = minutesRemaining === 1;
 
@@ -72,17 +78,18 @@ export async function GET() {
         id: activeSession.id,
         stationName: activeSession.connector.station.name,
         stationAddress: activeSession.connector.station.address,
-        pricePerMinute,
-        maxPowerKw: Number(activeSession.connector.powerKw),
+        pricePerKwh,
+        maxPowerKw: powerKw,
         startTime: activeSession.startTime.toISOString(),
         durationMinutes,
         energyKwh: Number(activeSession.energyKwh),
-        currentPowerKw: Number(activeSession.connector.powerKw) * 0.85, // Симуляция текущей мощности
+        currentPowerKw: powerKw * 0.85,
         batteryPercent: Math.min(99, (((activeSession.chargingEvents[0]?.data as any)?.batteryStartPercent) ?? 50) + Math.floor(durationMinutes * 0.5)),
         depositAmount: depositPayment ? Number(depositPayment.amount) : 0,
         chargeAmount: totalChargeAmount,
         totalCost: Number(activeSession.costTotal),
         balance,
+        kwhRemaining: Math.round(kwhRemaining * 100) / 100,
         minutesRemaining,
         lowBalanceWarning,
         criticalBalanceWarning

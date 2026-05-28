@@ -39,9 +39,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const pricePerMinute = Number(activeSession.connector.pricePerMinute);
+    const pricePerKwh = Number(activeSession.connector.pricePerKwh);
+    const powerKw = Number(activeSession.connector.powerKw);
+    const energyIncrement = powerKw * 0.85 / 60; // кВт·ч за одну минуту
+    const costPerTick = pricePerKwh * energyIncrement; // стоимость одной минуты зарядки
 
-    // Проверяем: если у сессии есть бронирование, депозит покрывает первые N минут
+    // Проверяем: если у сессии есть бронирование, депозит покрывает первые N тиков
     if (activeSession.bookingId) {
       const depositPayment = await prisma.payment.findFirst({
         where: { sessionId: activeSession.id, type: 'deposit' }
@@ -49,16 +52,14 @@ export async function POST(request: Request) {
 
       if (depositPayment) {
         const depositAmount = Number(depositPayment.amount);
-        const depositMinutes = Math.floor(depositAmount / pricePerMinute);
+        const depositTicks = costPerTick > 0 ? Math.floor(depositAmount / costPerTick) : 0;
 
-        // Считаем сколько минут уже оплачено с баланса
         const chargePaymentsCount = await prisma.payment.count({
           where: { sessionId: activeSession.id, type: 'charge' }
         });
 
-        if (chargePaymentsCount < depositMinutes) {
+        if (chargePaymentsCount < depositTicks) {
           // Эта минута покрыта депозитом — обновляем только энергию
-          const energyIncrement = Number(activeSession.connector.powerKw) * 0.85 / 60;
           await prisma.chargingSession.update({
             where: { id: activeSession.id },
             data: { energyKwh: { increment: energyIncrement } }
@@ -66,8 +67,8 @@ export async function POST(request: Request) {
 
           const userBalance = await prisma.userBalance.findUnique({ where: { userId } });
           const currentBalance = userBalance ? Number(userBalance.balance) : 0;
-          const minutesRemaining = Math.floor(currentBalance / pricePerMinute);
-          const depositMinutesLeft = depositMinutes - chargePaymentsCount - 1;
+          const minutesRemaining = costPerTick > 0 ? Math.floor(currentBalance / costPerTick) : 0;
+          const depositTicksLeft = depositTicks - chargePaymentsCount - 1;
 
           return NextResponse.json({
             success: true,
@@ -75,9 +76,9 @@ export async function POST(request: Request) {
             balance: currentBalance,
             totalCost: Number(activeSession.costTotal),
             energyKwh: Number(activeSession.energyKwh) + energyIncrement,
-            minutesRemaining: minutesRemaining + depositMinutesLeft,
+            minutesRemaining: minutesRemaining + depositTicksLeft,
             depositCoveredMinute: true,
-            depositMinutesLeft,
+            depositMinutesLeft: depositTicksLeft,
           });
         }
       }
@@ -143,7 +144,7 @@ export async function POST(request: Request) {
     const currentBalance = userBalance ? Number(userBalance.balance) : 0;
 
     // Проверяем, достаточно ли средств для списания
-    if (currentBalance < pricePerMinute) {
+    if (currentBalance < costPerTick) {
       // Недостаточно средств - автоматически останавливаем зарядку
       const result = await prisma.$transaction(async (tx) => {
         const endTime = new Date();
@@ -194,49 +195,33 @@ export async function POST(request: Request) {
       });
     }
 
-    // Списываем средства за минуту
+    // Списываем средства за минуту (по кВт·ч)
     const result = await prisma.$transaction(async (tx) => {
-      // Списываем с баланса
       await tx.userBalance.update({
         where: { userId },
-        data: {
-          balance: {
-            decrement: pricePerMinute
-          }
-        }
+        data: { balance: { decrement: costPerTick } }
       });
 
-      // Создаем запись о платеже
       await tx.payment.create({
         data: {
           userId,
           sessionId: activeSession.id,
-          amount: pricePerMinute,
+          amount: costPerTick,
           type: 'charge',
           method: 'balance',
           status: 'success',
         }
       });
 
-      // Обновляем общую стоимость сессии и энергию
-      const energyIncrement = Number(activeSession.connector.powerKw) * 0.85 / 60; // кВт⋅ч за минуту
-      
       const updatedSession = await tx.chargingSession.update({
         where: { id: activeSession.id },
         data: {
-          costTotal: {
-            increment: pricePerMinute
-          },
-          energyKwh: {
-            increment: energyIncrement
-          }
+          costTotal: { increment: costPerTick },
+          energyKwh: { increment: energyIncrement }
         }
       });
 
-      // Получаем новый баланс
-      const newBalance = await tx.userBalance.findUnique({
-        where: { userId }
-      });
+      const newBalance = await tx.userBalance.findUnique({ where: { userId } });
 
       return {
         session: updatedSession,
@@ -245,11 +230,11 @@ export async function POST(request: Request) {
     });
 
     const newBalance = result.balance;
-    const minutesRemaining = Math.floor(newBalance / pricePerMinute);
+    const minutesRemaining = costPerTick > 0 ? Math.floor(newBalance / costPerTick) : 0;
 
     return NextResponse.json({
       success: true,
-      charged: pricePerMinute,
+      charged: costPerTick,
       balance: newBalance,
       totalCost: Number(result.session.costTotal),
       energyKwh: Number(result.session.energyKwh),

@@ -197,15 +197,17 @@ export default function ConfirmChargingPage() {
   const estimatedMinutes = useMemo(() => {
     if (!connector) return 0;
 
-    const price = Number(connector.pricePerMinute);
+    const pricePerKwh = Number(connector.pricePerKwh);
+    const powerKw = Number(connector.powerKw) || 50;
     const balance = Number(userBalance);
 
-    // Проверяем, что оба значения валидны
-    if (isNaN(price) || isNaN(balance) || price <= 0) {
+    if (isNaN(pricePerKwh) || isNaN(balance) || pricePerKwh <= 0) {
       return 0;
     }
 
-    return Math.floor(balance / price);
+    // Стоимость минуты = цена/кВт·ч × (мощность × КПД / 60)
+    const costPerMinute = pricePerKwh * (powerKw * 0.85 / 60);
+    return Math.floor(balance / costPerMinute);
   }, [connector, userBalance]);
 
   if (status === "loading" || loading) {
@@ -383,11 +385,11 @@ export default function ConfirmChargingPage() {
               <p className="text-gray-300 text-sm">
                 {(
                   t?.confirm?.warningText ??
-                  "С вашего баланса будет списываться {price} сом каждую минуту во время зарядки."
+                  "Тариф: {price} сом/кВт·ч. Списание идёт пропорционально потреблённой энергии."
                 ).replace(
                   "{price}",
-                  connector.pricePerMinute
-                    ? Number(connector.pricePerMinute).toFixed(2)
+                  connector.pricePerKwh
+                    ? Number(connector.pricePerKwh).toFixed(2)
                     : "0.00",
                 )}
               </p>
