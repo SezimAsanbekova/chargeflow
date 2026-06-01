@@ -11,7 +11,6 @@ interface Connector {
   type: string;
   powerKw: number;
   pricePerKwh: number;
-  pricePerMinute?: number;
   status: string;
 }
 
@@ -420,7 +419,7 @@ export default function AdminStationsPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-emerald-400">
-                              {Number(connector.pricePerMinute || connector.pricePerKwh || 0)} сом/мин
+                              {Number(connector.pricePerKwh || 0)} сом/кВт·ч
                             </span>
                           </div>
                         </div>

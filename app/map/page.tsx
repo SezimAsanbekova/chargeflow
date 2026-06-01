@@ -52,7 +52,7 @@ interface Station {
   longitude: number;
   status: "available" | "busy" | "maintenance";
   maxPowerKw: number;
-  pricePerMinute: number;
+  pricePerKwh: number;
   connectorType: string;
   workingHours?: Record<string, { open: string; close: string }>;
   connectors?: Array<{
@@ -60,7 +60,6 @@ interface Station {
     type: string;
     powerKw: number;
     pricePerKwh: number;
-    pricePerMinute?: number;
     status: string;
   }>;
 }
@@ -81,7 +80,6 @@ export default function MapPage() {
     type: string;
     powerKw: number;
     pricePerKwh: number;
-    pricePerMinute?: number;
     status: string;
   } | null>(null);
   const [showStationSheet, setShowStationSheet] = useState(false);
@@ -1449,15 +1447,11 @@ export default function MapPage() {
 
     if (station) {
       // Используем цену выбранного коннектора или fallback на цену станции
-      const pricePerMin = selectedConnector
-        ? Number(
-            selectedConnector.pricePerMinute ||
-              selectedConnector.pricePerKwh ||
-              0,
-          )
-        : station.pricePerMinute;
+      const pricePerKwh = selectedConnector
+        ? Number(selectedConnector.pricePerKwh || 0)
+        : station.pricePerKwh;
 
-      const cost = chargingDuration * pricePerMin;
+      const cost = chargingDuration * pricePerKwh;
 
       const connectorInfo = selectedConnector
         ? `\n🔌 ${t?.station?.connector ?? 'Коннектор'}: ${selectedConnector.type}`
@@ -1877,7 +1871,7 @@ export default function MapPage() {
     <div className="relative h-screen w-full bg-[#0a1f1a] flex flex-col">
       {/* Top View Mode Switcher - показывается только на вкладке карты */}
       {activeTab === "map" && (
-        <div className="absolute top-4 left-4 right-4 z-30 max-w-md mx-auto">
+        <div className="absolute left-4 right-4 z-30 max-w-md mx-auto" style={{ top: 'max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))' }}>
           <div className="bg-white rounded-full p-1 shadow-lg">
             <div className="flex">
               <button
@@ -1916,7 +1910,7 @@ export default function MapPage() {
         <>
           {/* Active Charging Indicator */}
           {isCharging && chargingStartTime && (
-            <div className="absolute top-4 left-4 right-4 z-20">
+            <div className="absolute left-4 right-4 z-20" style={{ top: 'max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))' }}>
               <div className="bg-emerald-500 text-white rounded-xl p-3 shadow-2xl max-w-md mx-auto">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
@@ -1935,7 +1929,7 @@ export default function MapPage() {
                           (Date.now() - chargingStartTime) / 1000 / 60,
                         );
                         const cost = station
-                          ? duration * station.pricePerMinute
+                          ? duration * station.pricePerKwh
                           : 0;
                         return `${duration} ${t?.units?.min ?? 'мин'} • ${cost.toFixed(0)} ${t?.units?.som ?? 'сом'}`;
                       })()}
@@ -2371,11 +2365,10 @@ export default function MapPage() {
                                         </span>
                                         <span className="text-emerald-400 font-semibold">
                                           {Number(
-                                            connector.pricePerMinute ||
-                                              connector.pricePerKwh ||
+                                            connector.pricePerKwh ||
                                               0,
                                           )}{" "}
-                                          {t?.units?.somPerMin ?? 'сом/мин'}
+                                          {t?.units?.somPerKwh ?? 'сом/кВт·ч'}
                                         </span>
                                       </div>
                                     </button>
@@ -2444,7 +2437,7 @@ export default function MapPage() {
                               {t?.station?.price ?? "Цена"}
                             </div>
                             <div className="text-emerald-400 font-semibold text-sm">
-                              {selectedStation.pricePerMinute} {t?.units?.somPerMin ?? 'сом/мин'}
+                              {selectedStation.pricePerKwh} {t?.units?.somPerKwh ?? 'сом/кВт·ч'}
                             </div>
                           </div>
                         </div>
@@ -2581,7 +2574,7 @@ export default function MapPage() {
                         (Date.now() - chargingStartTime) / 1000 / 60,
                       );
                       const cost = station
-                        ? duration * station.pricePerMinute
+                        ? duration * station.pricePerKwh
                         : 0;
                       return `${duration} ${t?.units?.min ?? 'мин'} • ${cost.toFixed(2)} ${t?.units?.som ?? 'сом'} • ${station?.name || (t?.station?.station ?? 'Станция')}`;
                     })()}
@@ -2869,11 +2862,10 @@ export default function MapPage() {
                                 <div className="text-gray-400">
                                   {Number(connector.powerKw)} {t?.units?.kw ?? 'кВт'} •{" "}
                                   {Number(
-                                    connector.pricePerMinute ||
-                                      connector.pricePerKwh ||
+                                    connector.pricePerKwh ||
                                       0,
                                   )}{" "}
-                                  {t?.units?.somPerMin ?? 'сом/мин'}
+                                  {t?.units?.somPerKwh ?? 'сом/кВт·ч'}
                                 </div>
                               </div>
                             ))}
@@ -3256,7 +3248,7 @@ export default function MapPage() {
                               }
                             >
                               {selectedConnector
-                                ? `${formatConnectorType(selectedConnector.type)} • ${Number(selectedConnector.powerKw)} ${t?.units?.kw ?? 'кВт'} • ${Number(selectedConnector.pricePerMinute || selectedConnector.pricePerKwh || 0)} ${t?.units?.somPerMin ?? 'сом/мин'}`
+                                ? `${formatConnectorType(selectedConnector.type)} • ${Number(selectedConnector.powerKw)} ${t?.units?.kw ?? 'кВт'} • ${Number(selectedConnector.pricePerKwh || 0)} ${t?.units?.somPerKwh ?? 'сом/кВт·ч'}`
                                 : (t?.booking?.selectConnector ?? "Выберите коннектор")}
                             </span>
                             <svg
@@ -3290,10 +3282,8 @@ export default function MapPage() {
                                   {displayConnectors.map((connector, index) => {
                                     const isAvailable =
                                       connector.status === "available";
-                                    const pricePerMin = Number(
-                                      connector.pricePerMinute ||
-                                        connector.pricePerKwh ||
-                                        0,
+                                    const pricePerKwh = Number(
+                                      connector.pricePerKwh || 0,
                                     );
                                     const isSelected =
                                       selectedConnector?.id === connector.id;
@@ -3365,7 +3355,7 @@ export default function MapPage() {
                                                     : "text-gray-600"
                                                 }
                                               >
-                                                {pricePerMin} {t?.units?.somPerMin ?? 'сом/мин'}
+                                                {pricePerKwh} {t?.units?.somPerKwh ?? 'сом/кВт·ч'}
                                               </span>
                                             </div>
                                           </div>
@@ -3403,12 +3393,8 @@ export default function MapPage() {
                               <div>
                                 <span className="text-gray-400">{t?.station?.price ?? 'Цена'}:</span>
                                 <span className="text-emerald-400 ml-1.5 font-semibold">
-                                  {Number(
-                                    selectedConnector.pricePerMinute ||
-                                      selectedConnector.pricePerKwh ||
-                                      0,
-                                  )}{" "}
-                                  {t?.units?.somPerMin ?? 'сом/мин'}
+                                  {Number(selectedConnector.pricePerKwh || 0)}{" "}
+                                  {t?.units?.somPerKwh ?? 'сом/кВт·ч'}
                                 </span>
                               </div>
                             </div>
@@ -3428,7 +3414,7 @@ export default function MapPage() {
                           <div>
                             <span className="text-gray-400">{t?.station?.price ?? 'Цена'}:</span>
                             <span className="text-emerald-400 ml-1.5">
-                              {bookingStation.pricePerMinute} {t?.units?.somPerMin ?? 'сом/мин'}
+                              {bookingStation.pricePerKwh} {t?.units?.somPerKwh ?? 'сом/кВт·ч'}
                             </span>
                           </div>
                         </div>

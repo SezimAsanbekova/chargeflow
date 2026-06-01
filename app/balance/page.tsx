@@ -14,7 +14,6 @@ import {
 import Image from "next/image";
 import {
   Plus,
-  CreditCard,
   History,
   ArrowUpRight,
   ArrowDownLeft,
@@ -261,26 +260,19 @@ export default function BalancePage() {
           <h2 className="text-white text-xl font-bold mb-4">
             {t?.quickActions?.title ?? "Быстрые действия"}
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <button className="bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4 hover:border-emerald-500/50 transition">
-              <CreditCard className="text-emerald-400 mb-3" size={24} />
-              <div className="text-white font-medium text-sm">
-                {t?.quickActions?.addCard?.title ?? "Добавить карту"}
-              </div>
-              <div className="text-gray-400 text-xs mt-1">
-                {t?.quickActions?.addCard?.subtitle ?? "Для автопополнения"}
-              </div>
-            </button>
+          <div className="grid grid-cols-1 gap-4">
             <button
               onClick={() => setShowTransactions(!showTransactions)}
-              className="bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-4 hover:border-emerald-500/50 transition"
+              className="bg-[#0f2d26] border border-emerald-900/30 rounded-xl p-3 hover:border-emerald-500/50 transition flex items-center gap-3"
             >
-              <History className="text-emerald-400 mb-3" size={24} />
-              <div className="text-white font-medium text-sm">
-                {t?.quickActions?.history?.title ?? "История операций"}
-              </div>
-              <div className="text-gray-400 text-xs mt-1">
-                {t?.quickActions?.history?.subtitle ?? "Все транзакции"}
+              <History className="text-emerald-400" size={24} />
+              <div className="text-left">
+                <div className="text-white font-medium text-sm">
+                  {t?.quickActions?.history?.title ?? "История операций"}
+                </div>
+                <div className="text-gray-400 text-xs mt-0.5">
+                  {t?.quickActions?.history?.subtitle ?? "Все транзакции"}
+                </div>
               </div>
             </button>
           </div>

@@ -21,7 +21,7 @@
   "som": "сом",
   "kw": "кВт",
   "kwh": "кВт⋅ч",
-  "somPerMin": "сом/мин",
+  "somPerKwh": "сом/кВт·ч",
   "min": "мин",
   "hour": "ч",
   "bottomNav": {

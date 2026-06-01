@@ -25,6 +25,61 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ── iOS PWA / Safe Area ─────────────────────────── */
+:root {
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+}
+
+/*
+ * This class is referenced in BottomNavigation.tsx and map/page.tsx.
+ * Defining it here makes the existing code work correctly:
+ * the nav background fills the home-indicator zone, items sit above it.
+ */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Safe area utility classes */
+@layer utilities {
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+  .pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+  .mt-safe { margin-top: env(safe-area-inset-top, 0px); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+}
+
+/*
+ * iOS standalone PWA mode.
+ * body padding-top pushes all normal-flow page headers below
+ * the status bar / Dynamic Island automatically.
+ * Fixed-positioned elements (map, ai-chat) are unaffected
+ * and handle their own safe-area individually.
+ */
+@media all and (display-mode: standalone) {
+  html, body {
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Фиксированный navbar в standalone получает отступ под Dynamic Island */
+  .nav-safe-top {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
+
+  /* Hero-секция учитывает увеличенную высоту navbar в standalone */
+  .hero-safe-top {
+    padding-top: calc(4rem + env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
 @keyframes sparkle-fade {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(0); opacity: 0; }

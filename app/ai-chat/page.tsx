@@ -41,6 +41,7 @@ export default function AiChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioMimeType, setAudioMimeType] = useState<string>("audio/webm");
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [playingMessageIndex, setPlayingMessageIndex] = useState<number | null>(null);
   const [userLocation, setUserLocation] = useState<{
@@ -58,8 +59,10 @@ export default function AiChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -142,6 +145,26 @@ export default function AiChatPage() {
       );
     }
 
+    // Проверяем поддерживаемые аудио форматы
+    console.log("=== Supported Audio Formats ===");
+    const formats = [
+      'audio/webm',
+      'audio/webm;codecs=opus',
+      'audio/webm;codecs=vp8',
+      'audio/ogg',
+      'audio/ogg;codecs=opus',
+      'audio/mp4',
+      'audio/mp4;codecs=mp4a',
+      'audio/mpeg',
+      'audio/wav'
+    ];
+    
+    formats.forEach(format => {
+      const supported = MediaRecorder.isTypeSupported(format);
+      console.log(`${format}: ${supported ? '✅' : '❌'}`);
+    });
+    console.log("===============================");
+
     // Загружаем настройки голоса
     const savedVoice = localStorage.getItem("ai-voice") || "shimmer";
     const savedModel = localStorage.getItem("ai-model") || "tts-1-hd";
@@ -193,42 +216,129 @@ export default function AiChatPage() {
     stopAiVoice();
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        } 
+      });
+      
+      mediaStreamRef.current = stream;
+      
+      // Пробуем использовать форматы в порядке предпочтения для OpenAI
+      let mimeType = 'audio/webm'; // default fallback
+      
+      // Предпочитаем форматы, которые OpenAI точно поддерживает
+      if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+        mimeType = 'audio/ogg;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+      }
+      
+      console.log('Using MIME type:', mimeType);
+      setAudioMimeType(mimeType);
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      recordingStartTimeRef.current = Date.now();
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        console.log('Data available event:', event.data.size, 'bytes');
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
+          console.log('Total chunks collected:', audioChunksRef.current.length);
         }
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const recordingDuration = Date.now() - recordingStartTimeRef.current;
+        console.log('Recording stopped after', recordingDuration, 'ms');
+        console.log('Total chunks:', audioChunksRef.current.length);
+        
+        if (audioChunksRef.current.length === 0) {
+          console.error('No audio chunks collected!');
+          alert('Не удалось записать аудио. Попробуйте еще раз.');
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+            mediaStreamRef.current = null;
+          }
+          return;
+        }
+        
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        console.log('Created blob:', blob.size, 'bytes, type:', blob.type);
+        
+        if (blob.size === 0) {
+          console.error('Blob is empty despite having chunks!');
+          alert('Аудиозапись пуста. Попробуйте еще раз.');
+        }
+        
         setAudioBlob(blob);
-        stream.getTracks().forEach((track) => track.stop());
+        
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+        }
       };
 
-      mediaRecorder.start();
+      mediaRecorder.onerror = (event: any) => {
+        console.error('MediaRecorder error:', event.error);
+        alert('Ошибка записи: ' + event.error);
+      };
+
+      mediaRecorder.onstart = () => {
+        console.log('MediaRecorder started, state:', mediaRecorder.state);
+      };
+
+      // Запускаем запись с timeslice для регулярного сбора данных
+      mediaRecorder.start(1000); // Собираем данные каждую секунду
       setIsRecording(true);
+      console.log('Recording started, state:', mediaRecorder.state);
     } catch (error) {
       console.error("Error accessing microphone:", error);
-      alert("Не удалось получить доступ к микрофону");
+      alert("Не удалось получить доступ к микрофону: " + error);
     }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+      const recordingDuration = Date.now() - recordingStartTimeRef.current;
+      console.log('Attempting to stop recording after', recordingDuration, 'ms');
+      console.log('Current state:', mediaRecorderRef.current.state);
+      
+      if (recordingDuration < 500) {
+        alert('Запись слишком короткая. Говорите минимум 0.5 секунды.');
+        cancelRecording();
+        return;
+      }
+      
+      // Запрашиваем данные перед остановкой
+      if (mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      
       setIsRecording(false);
     }
   };
 
   const cancelRecording = () => {
-    stopRecording();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    setIsRecording(false);
     setAudioBlob(null);
     setRecordingTime(0);
+    audioChunksRef.current = [];
   };
 
   const togglePreviewPlayback = () => {
@@ -252,12 +362,41 @@ export default function AiChatPage() {
   const sendAudioMessage = async () => {
     if (!audioBlob || loading) return;
 
+    // Проверяем размер blob
+    if (audioBlob.size === 0) {
+      console.error("Audio blob is empty");
+      alert("Аудиозапись пуста. Попробуйте записать снова.");
+      setAudioBlob(null);
+      return;
+    }
+
+    console.log('Sending audio blob:', audioBlob.size, 'bytes, type:', audioBlob.type);
     setLoading(true);
 
     try {
+      // Определяем расширение файла на основе MIME типа
+      const getFileExtension = (mimeType: string): string => {
+        // Убираем codecs из MIME типа для определения расширения
+        const baseType = mimeType.split(';')[0].trim();
+        
+        if (baseType.includes('mp4') || baseType.includes('m4a')) return 'mp4';
+        if (baseType.includes('mpeg') || baseType.includes('mp3')) return 'mp3';
+        if (baseType.includes('ogg') || baseType.includes('oga')) return 'ogg';
+        if (baseType.includes('wav')) return 'wav';
+        if (baseType.includes('webm')) return 'webm';
+        if (baseType.includes('flac')) return 'flac';
+        
+        return 'webm'; // default
+      };
+
+      const extension = getFileExtension(audioMimeType);
+      const fileName = `audio.${extension}`;
+      
+      console.log('Sending file:', fileName, 'with MIME type:', audioMimeType);
+
       // Отправляем аудио на сервер для транскрипции
       const formData = new FormData();
-      formData.append("audio", audioBlob, "audio.webm");
+      formData.append("audio", audioBlob, fileName);
 
       const transcribeRes = await fetch("/api/transcribe", {
         method: "POST",
@@ -265,9 +404,15 @@ export default function AiChatPage() {
       });
 
       if (!transcribeRes.ok) {
-        const errorData = await transcribeRes.json();
-        console.error("Transcription error:", errorData);
-        throw new Error(errorData.error || "Ошибка распознавания аудио");
+        let errorMessage = "Ошибка распознавания аудио";
+        try {
+          const errorData = await transcribeRes.json();
+          console.error("Transcription error:", errorData);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (e) {
+          console.error("Failed to parse error response:", e);
+        }
+        throw new Error(errorMessage);
       }
 
       const { text } = await transcribeRes.json();

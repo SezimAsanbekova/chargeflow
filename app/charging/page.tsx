@@ -228,13 +228,13 @@ export default function ChargingPage() {
               {t?.active?.depositTitle ?? "Депозит используется"}
             </p>
             <p className="text-gray-300 text-sm mt-0.5">
-              {(t?.active?.depositInfo ?? "Ваш депозит {amount} сом покрывает ~{minutes} мин зарядки")
+              {(t?.active?.depositInfo ?? "Ваш депозит {amount} сом покрывает ~{kwh} кВт·ч зарядки")
                 .replace("{amount}", Math.round(activeSession.depositAmount))
                 .replace(
-                  "{minutes}",
+                  "{kwh}",
                   activeSession.pricePerKwh > 0
-                    ? Math.round(activeSession.depositAmount / activeSession.pricePerKwh * 100) / 100
-                    : 0,
+                    ? (activeSession.depositAmount / activeSession.pricePerKwh).toFixed(1)
+                    : "0",
                 )}
             </p>
           </div>
@@ -525,7 +525,7 @@ export default function ChargingPage() {
             </div>
           </div>
 
-          {/* Price per minute */}
+          {/* Price per kWh */}
           <div className="bg-[#0a1f1a] border border-emerald-500/20 rounded-lg p-4">
             <div className="flex items-center gap-2 text-emerald-400 mb-2">
               <DollarSign className="w-5 h-5" />

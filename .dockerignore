@@ -1,0 +1,64 @@
+# Зависимости
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next
+out
+dist
+build
+
+# Тестирование
+coverage
+.nyc_output
+
+# Переменные окружения
+.env
+.env*.local
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# Разработка
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# macOS
+.DS_Store
+*.pem
+
+# Документация
+*.md
+!README.md
+
+# Prisma
+prisma/migrations
+
+# Docker
+Dockerfile
+.dockerignore
+docker-test.sh
+docker-run.sh
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Прочее
+.editorconfig
+.eslintrc.json

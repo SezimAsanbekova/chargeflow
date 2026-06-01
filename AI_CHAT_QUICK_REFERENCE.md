@@ -89,7 +89,7 @@
 - "Сколько стоит зарядка?"
 - "Зарядка канча турат?"
 - Shows price per kWh
-- Shows price per minute
+- Shows charging duration
 
 ---
 

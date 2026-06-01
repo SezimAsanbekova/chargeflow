@@ -39,7 +39,7 @@ interface ChargingSession {
     id: string;
     type: string;
     powerKw: number;
-    pricePerMinute: number;
+    pricePerKwh: number;
   };
   vehicle: {
     brand: string;
@@ -239,7 +239,7 @@ export default function ChargingHistoryPage() {
                         {t?.history?.details?.priceLabel ?? "Цена:"}
                       </span>
                       <span className="text-emerald-400 ml-1.5">
-                        {session.connector.pricePerMinute} сом/мин
+                        {session.connector.pricePerKwh} сом/кВт·ч
                       </span>
                     </div>
                   </div>

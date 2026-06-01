@@ -151,16 +151,15 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#0a1f1a]">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-[#0a1f1a]/95 backdrop-blur-sm z-50 border-b border-emerald-900/20">
+      <nav className="nav-safe-top fixed top-0 w-full bg-[#0a1f1a]/95 backdrop-blur-sm z-50 border-b border-emerald-900/20">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 flex-shrink-0">
             <Image 
               src="/logo12.png" 
               alt="ChargeFlow Logo" 
-              width={32} 
-              height={32}
-              className="object-contain sm:w-10 sm:h-10"
-              style={{ width: 'auto', height: '32px' }}
+              width={40} 
+              height={40}
+              className="object-contain w-8 h-8 sm:w-10 sm:h-10"
             />
             <span className="text-white font-bold text-base sm:text-lg md:text-xl">{t.nav.logo}</span>
           </div>
@@ -203,7 +202,7 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-24 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6">
+      <section className="hero-safe-top pt-16 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-block bg-emerald-500/10 border border-emerald-500/30 rounded-full px-3 sm:px-4 py-2 mb-4 sm:mb-6">
             <span className="text-emerald-400 text-xs sm:text-sm font-medium">{t.hero.badge}</span>

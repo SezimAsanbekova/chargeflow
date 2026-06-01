@@ -33,7 +33,6 @@ interface Connector {
   type: string;
   powerKw: number;
   pricePerKwh: number;
-  pricePerMinute: number;
   status: string;
 }
 
@@ -308,13 +307,13 @@ export default function ConfirmChargingPage() {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-400 text-sm">
-                {t?.confirm?.pricePerMin ?? "Цена за минуту"}
+                {t?.confirm?.pricePerKwh ?? "Цена за кВт·ч"}
               </span>
               <span className="text-emerald-400 font-bold text-lg">
-                {connector.pricePerMinute
-                  ? Number(connector.pricePerMinute).toFixed(2)
+                {connector.pricePerKwh
+                  ? Number(connector.pricePerKwh).toFixed(2)
                   : "0.00"}{" "}
-                сом/мин
+                сом/кВт·ч
               </span>
             </div>
           </div>

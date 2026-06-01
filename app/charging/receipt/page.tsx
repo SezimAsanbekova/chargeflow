@@ -19,7 +19,7 @@ interface ReceiptData {
   sessionId: string;
   stationName: string;
   stationAddress: string;
-  pricePerMinute: number;
+  pricePerKwh: number;
   startTime: string;
   endTime: string;
   durationMinutes: number;

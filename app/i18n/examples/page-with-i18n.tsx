@@ -139,7 +139,7 @@ export default async function HomePage({ params }: HomePageProps) {
                 {t.features.smartSearch.description}
               </p>
               <div className="flex flex-wrap gap-2">
-                {t.features.smartSearch.connectors.map((connector, idx) => (
+                {t.features.smartSearch.connectors.map((connector: string, idx: number) => (
                   <span 
                     key={idx}
                     className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full"
@@ -162,7 +162,7 @@ export default async function HomePage({ params }: HomePageProps) {
                 {t.features.booking.description}
               </p>
               <ul className="space-y-2 text-sm text-gray-400">
-                {t.features.booking.benefits.map((benefit, idx) => (
+                {t.features.booking.benefits.map((benefit: string, idx: number) => (
                   <li key={idx} className="flex items-center gap-2">
                     <CheckCircle className="text-emerald-400" size={16} />
                     {benefit}
@@ -183,7 +183,7 @@ export default async function HomePage({ params }: HomePageProps) {
                 {t.features.quickStart.description}
               </p>
               <ul className="space-y-2 text-sm text-gray-400">
-                {t.features.quickStart.tracking.map((item, idx) => (
+                {t.features.quickStart.tracking.map((item: string, idx: number) => (
                   <li key={idx} className="flex items-center gap-2">
                     <CheckCircle className="text-emerald-400" size={16} />
                     {item}
@@ -228,7 +228,7 @@ export default async function HomePage({ params }: HomePageProps) {
             <div>
               <h4 className="text-white font-bold mb-4">{t.footer.company.title}</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
-                {t.footer.company.links.map((link, idx) => (
+                {t.footer.company.links.map((link: string, idx: number) => (
                   <li key={idx}>
                     <Link href="#" className="hover:text-emerald-400 transition">
                       {link}
@@ -240,7 +240,7 @@ export default async function HomePage({ params }: HomePageProps) {
             <div>
               <h4 className="text-white font-bold mb-4">{t.footer.support.title}</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
-                {t.footer.support.links.map((link, idx) => (
+                {t.footer.support.links.map((link: string, idx: number) => (
                   <li key={idx}>
                     <Link href="#" className="hover:text-emerald-400 transition">
                       {link}
@@ -252,7 +252,7 @@ export default async function HomePage({ params }: HomePageProps) {
             <div>
               <h4 className="text-white font-bold mb-4">{t.footer.legal.title}</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
-                {t.footer.legal.links.map((link, idx) => (
+                {t.footer.legal.links.map((link: string, idx: number) => (
                   <li key={idx}>
                     <Link href="#" className="hover:text-emerald-400 transition">
                       {link}

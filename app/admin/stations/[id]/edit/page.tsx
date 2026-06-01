@@ -11,7 +11,7 @@ interface Connector {
   id?: string;
   type: string;
   powerKw: number;
-  pricePerMinute: number;
+  pricePerKwh: number;
   status: string;
 }
 
@@ -162,7 +162,7 @@ export default function EditStationPage() {
             id: c.id,
             type: c.type,
             powerKw: Number(c.powerKw),
-            pricePerMinute: Number(c.pricePerMinute || c.pricePerKwh || 0),
+            pricePerKwh: Number(c.pricePerKwh || 0),
             status: c.status,
           })));
         } else {
@@ -170,7 +170,7 @@ export default function EditStationPage() {
           setConnectors([{
             type: 'CCS2',
             powerKw: 50,
-            pricePerMinute: 14,
+            pricePerKwh: 14,
             status: 'available',
           }]);
         }
@@ -193,7 +193,7 @@ export default function EditStationPage() {
       {
         type: 'CCS2',
         powerKw: 50,
-        pricePerMinute: 14,
+        pricePerKwh: 14,
         status: 'available',
       },
     ]);
@@ -238,8 +238,7 @@ export default function EditStationPage() {
           connectors: connectors.map(c => ({
             type: c.type,
             powerKw: c.powerKw,
-            pricePerMinute: c.pricePerMinute,
-            pricePerKwh: 0, // Для совместимости
+            pricePerKwh: c.pricePerKwh,
             status: c.status,
           })),
         }),
@@ -790,14 +789,14 @@ export default function EditStationPage() {
                     {/* Цена за минуту */}
                     <div>
                       <label className="block text-gray-300 mb-2 text-sm">
-                        Цена (сом/мин) *
+                        Цена (сом/кВт·ч) *
                       </label>
                       <div className="number-input-wrapper relative">
                         <input
                           type="number"
                           step="0.01"
-                          value={connector.pricePerMinute}
-                          onChange={(e) => updateConnector(index, 'pricePerMinute', parseFloat(e.target.value) || 0)}
+                          value={connector.pricePerKwh}
+                          onChange={(e) => updateConnector(index, 'pricePerKwh', parseFloat(e.target.value) || 0)}
                           min="0"
                           required
                           className="w-full bg-[#0f2d26] border border-emerald-900/30 rounded-lg px-3 py-2.5 pr-10 text-white focus:border-emerald-500 focus:outline-none"
@@ -805,7 +804,7 @@ export default function EditStationPage() {
                         <div className="number-input-controls">
                           <button
                             type="button"
-                            onClick={() => updateConnector(index, 'pricePerMinute', Math.round((connector.pricePerMinute + 0.5) * 100) / 100)}
+                            onClick={() => updateConnector(index, 'pricePerKwh', Math.round((connector.pricePerKwh + 0.5) * 100) / 100)}
                             className="number-input-btn"
                           >
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -814,7 +813,7 @@ export default function EditStationPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => updateConnector(index, 'pricePerMinute', Math.max(0, Math.round((connector.pricePerMinute - 0.5) * 100) / 100))}
+                            onClick={() => updateConnector(index, 'pricePerKwh', Math.max(0, Math.round((connector.pricePerKwh - 0.5) * 100) / 100))}
                             className="number-input-btn"
                           >
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
