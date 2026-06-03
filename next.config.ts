@@ -16,7 +16,7 @@ if (process.env.NODE_ENV === 'production') {
     dest: 'public',
     register: true,
     skipWaiting: true,
-    disable: false,
+    disable: process.env.DISABLE_PWA === 'true', // Можно отключить через env
     buildExcludes: [/middleware-manifest\.json$/],
     runtimeCaching: [
     {

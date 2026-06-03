@@ -57,10 +57,23 @@ function SignInForm() {
 
   // Перенаправляем авторизованного пользователя
   useEffect(() => {
+    console.log('🔍 [AUTH STATUS]', {
+      status,
+      callbackUrl,
+      timestamp: new Date().toISOString()
+    });
+    
     if (status === "authenticated") {
-      console.log('✅ User authenticated, redirecting to:', callbackUrl);
+      console.log('✅ [SIGNIN] User authenticated, redirecting to:', {
+        callbackUrl,
+        timestamp: new Date().toISOString()
+      });
       router.replace(callbackUrl);
       router.refresh();
+    } else if (status === "unauthenticated") {
+      console.log('ℹ️ [SIGNIN] User not authenticated');
+    } else if (status === "loading") {
+      console.log('⏳ [SIGNIN] Auth status loading...');
     }
   }, [status, router, callbackUrl]);
 
@@ -80,6 +93,11 @@ function SignInForm() {
 
     try {
       if (isLogin) {
+        console.log('🔐 [CREDENTIALS] Login attempt:', {
+          email: formData.email,
+          timestamp: new Date().toISOString()
+        });
+        
         // Вход - БЕЗ кода, сразу входим
         const result = await signIn("credentials", {
           email: formData.email,
@@ -87,7 +105,16 @@ function SignInForm() {
           redirect: false,
         });
 
+        console.log('📊 [CREDENTIALS] Login result:', {
+          ok: result?.ok,
+          status: result?.status,
+          error: result?.error,
+          timestamp: new Date().toISOString()
+        });
+
         if (result?.error) {
+          console.error('❌ [CREDENTIALS] Login error:', result.error);
+          
           // Проверяем, является ли это ошибкой Google-аккаунта
           if (result.error.includes("создан через Google")) {
             setToast({
@@ -103,10 +130,17 @@ function SignInForm() {
             setError(result.error);
           }
         } else {
+          console.log('✅ [CREDENTIALS] Login successful, redirecting to:', callbackUrl);
           router.push(callbackUrl);
           router.refresh();
         }
       } else {
+        console.log('📝 [REGISTER] Registration attempt:', {
+          email: formData.email,
+          name: formData.name,
+          timestamp: new Date().toISOString()
+        });
+        
         // Регистрация - С кодом
         const response = await fetch("/api/auth/register", {
           method: "POST",
@@ -116,13 +150,24 @@ function SignInForm() {
 
         const data = await response.json();
 
+        console.log('📊 [REGISTER] Registration response:', {
+          ok: response.ok,
+          status: response.status,
+          data,
+          timestamp: new Date().toISOString()
+        });
+
         if (!response.ok) {
+          console.error('❌ [REGISTER] Registration error:', data);
+          
           // Показываем детальные ошибки валидации пароля
           if (data.details && Array.isArray(data.details)) {
             throw new Error(data.details.join("\n"));
           }
           throw new Error(data.error || "Ошибка регистрации");
         }
+
+        console.log('✅ [REGISTER] Registration successful, sending verification code');
 
         // После регистрации отправляем код
         const codeResponse = await fetch("/api/auth/send-code", {
@@ -137,9 +182,18 @@ function SignInForm() {
 
         const codeData = await codeResponse.json();
 
+        console.log('📊 [REGISTER] Code sending response:', {
+          ok: codeResponse.ok,
+          status: codeResponse.status,
+          timestamp: new Date().toISOString()
+        });
+
         if (!codeResponse.ok) {
+          console.error('❌ [REGISTER] Code sending error:', codeData);
           throw new Error(codeData.error || "Ошибка отправки кода");
         }
+
+        console.log('✅ [REGISTER] Code sent, redirecting to verification');
 
         // Переходим на страницу ввода кода
         router.push(
@@ -147,6 +201,12 @@ function SignInForm() {
         );
       }
     } catch (err: any) {
+      console.error('❌ [SIGNIN] Form submission error:', {
+        error: err,
+        message: err?.message,
+        stack: err?.stack,
+        timestamp: new Date().toISOString()
+      });
       setError(err.message);
     } finally {
       setLoading(false);
@@ -156,13 +216,25 @@ function SignInForm() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      console.log('🔐 Starting Google sign in with callback:', callbackUrl);
-      await signIn("google", { 
+      console.log('🔐 [SIGNIN] Starting Google sign in:', {
+        callbackUrl,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      });
+      
+      const result = await signIn("google", { 
         callbackUrl,
         redirect: true 
       });
-    } catch (err) {
-      console.error('❌ Google sign in error:', err);
+      
+      console.log('✅ [SIGNIN] Google sign in result:', result);
+    } catch (err: any) {
+      console.error('❌ [SIGNIN] Google sign in error:', {
+        error: err,
+        message: err?.message,
+        stack: err?.stack,
+        timestamp: new Date().toISOString()
+      });
       setError("Ошибка входа через Google");
       setLoading(false);
     }

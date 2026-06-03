@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./components/Providers";
+import ServiceWorkerLogger from "./components/ServiceWorkerLogger";
 import { cookies } from "next/headers";
 import { defaultLocale, type Locale } from "@/app/i18n";
 
@@ -91,6 +92,7 @@ export default async function RootLayout({
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <ServiceWorkerLogger />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -14,6 +14,13 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
       allowDangerousEmailAccountLinking: true,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     CredentialsProvider({
       name: 'credentials',
@@ -141,7 +148,25 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: true, // Всегда true для HTTPS
+        domain: process.env.NODE_ENV === 'production' ? '.twc1.net' : undefined,
+      },
+    },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
+      },
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
       },
     },
   },
@@ -153,7 +178,12 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }: any) {
       if (account?.provider === 'google') {
-        console.log('🔐 [GOOGLE] OAuth login attempt:', { email: user.email, timestamp: new Date().toISOString() });
+        console.log('🔐 [GOOGLE] OAuth login attempt:', {
+          email: user.email,
+          name: user.name,
+          provider: account.provider,
+          timestamp: new Date().toISOString()
+        });
         
         try {
           // Проверяем, существует ли пользователь
@@ -163,12 +193,20 @@ export const authOptions: NextAuthOptions = {
 
           // Если пользователь существует и является администратором, блокируем вход
           if (existingUser && existingUser.role === 'admin') {
-            console.log('❌ [GOOGLE] Admin trying to login via Google:', { email: user.email });
+            console.log('❌ [GOOGLE] Admin trying to login via Google:', {
+              email: user.email,
+              role: existingUser.role,
+              timestamp: new Date().toISOString()
+            });
             return false;
           }
 
           if (!existingUser) {
-            console.log('📝 [GOOGLE] Creating new user:', { email: user.email });
+            console.log('📝 [GOOGLE] Creating new user:', {
+              email: user.email,
+              name: user.name,
+              timestamp: new Date().toISOString()
+            });
             
             // Создаем нового пользователя
             const newUser = await prisma.user.create({
@@ -183,7 +221,11 @@ export const authOptions: NextAuthOptions = {
               },
             });
 
-            console.log('✅ [GOOGLE] User created:', { email: user.email, userId: newUser.id });
+            console.log('✅ [GOOGLE] User created:', {
+              email: user.email,
+              userId: newUser.id,
+              timestamp: new Date().toISOString()
+            });
 
             // Создаем баланс для нового пользователя
             await prisma.userBalance.create({
@@ -193,11 +235,21 @@ export const authOptions: NextAuthOptions = {
               },
             });
 
-            console.log('✅ [GOOGLE] User balance created:', { email: user.email, userId: newUser.id });
+            console.log('✅ [GOOGLE] User balance created:', {
+              email: user.email,
+              userId: newUser.id,
+              timestamp: new Date().toISOString()
+            });
 
             user.id = newUser.id;
           } else {
-            console.log('✅ [GOOGLE] Existing user login:', { email: user.email, userId: existingUser.id });
+            console.log('✅ [GOOGLE] Existing user login:', {
+              email: user.email,
+              userId: existingUser.id,
+              role: existingUser.role,
+              status: existingUser.status,
+              timestamp: new Date().toISOString()
+            });
             user.id = existingUser.id;
             
             // Отправляем уведомление о входе
@@ -210,16 +262,33 @@ export const authOptions: NextAuthOptions = {
                 to: existingUser.email,
                 ...emailContent,
               });
-              console.log('📧 [GOOGLE] Login notification sent:', { email: user.email });
+              console.log('📧 [GOOGLE] Login notification sent:', {
+                email: user.email,
+                timestamp: new Date().toISOString()
+              });
             } catch (emailError) {
-              console.error('❌ [GOOGLE] Failed to send login notification:', emailError);
+              console.error('❌ [GOOGLE] Failed to send login notification:', {
+                error: emailError,
+                message: emailError?.message,
+                timestamp: new Date().toISOString()
+              });
             }
           }
 
-          console.log('✅ [GOOGLE] Login successful:', { email: user.email, userId: user.id });
+          console.log('✅ [GOOGLE] Login successful:', {
+            email: user.email,
+            userId: user.id,
+            timestamp: new Date().toISOString()
+          });
           return true;
         } catch (error) {
-          console.error('❌ [GOOGLE] Error in signIn callback:', error);
+          console.error('❌ [GOOGLE] Error in signIn callback:', {
+            error,
+            message: error?.message,
+            stack: error?.stack,
+            email: user.email,
+            timestamp: new Date().toISOString()
+          });
           return false;
         }
       }
@@ -230,19 +299,51 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user, account, trigger }: any) {
+      console.log('🔑 [JWT] Creating/updating token:', {
+        hasUser: !!user,
+        hasAccount: !!account,
+        trigger,
+        provider: account?.provider,
+        email: token.email,
+        timestamp: new Date().toISOString()
+      });
+
       if (user) {
         token.id = user.id;
         token.role = user.role || 'user';
+        console.log('✅ [JWT] Token updated with user data:', {
+          userId: token.id,
+          role: token.role,
+          email: token.email,
+          timestamp: new Date().toISOString()
+        });
       }
 
       // Если это первый вход через Google, получаем ID пользователя
       if (trigger === 'signIn' && account?.provider === 'google') {
+        console.log('🔍 [JWT] Fetching user data for Google OAuth:', {
+          email: token.email,
+          timestamp: new Date().toISOString()
+        });
+        
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email as string },
         });
+        
         if (dbUser) {
           token.id = dbUser.id;
           token.role = dbUser.role;
+          console.log('✅ [JWT] Google OAuth token enriched:', {
+            userId: token.id,
+            role: token.role,
+            email: token.email,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          console.error('❌ [JWT] User not found in database after Google OAuth:', {
+            email: token.email,
+            timestamp: new Date().toISOString()
+          });
         }
       }
 
@@ -252,6 +353,12 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
+        console.log('✅ [SESSION] Session created:', {
+          userId: session.user.id,
+          email: session.user.email,
+          role: session.user.role,
+          timestamp: new Date().toISOString()
+        });
       }
       return session;
     },
