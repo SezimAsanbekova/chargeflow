@@ -55,10 +55,12 @@ function SignInForm() {
 
   const callbackUrl = searchParams.get("callbackUrl") || "/profile";
 
-  // Перенаправляем авторизованного пользователя в профиль
+  // Перенаправляем авторизованного пользователя
   useEffect(() => {
     if (status === "authenticated") {
-      router.push(callbackUrl);
+      console.log('✅ User authenticated, redirecting to:', callbackUrl);
+      router.replace(callbackUrl);
+      router.refresh();
     }
   }, [status, router, callbackUrl]);
 
@@ -154,8 +156,13 @@ function SignInForm() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await signIn("google", { callbackUrl });
+      console.log('🔐 Starting Google sign in with callback:', callbackUrl);
+      await signIn("google", { 
+        callbackUrl,
+        redirect: true 
+      });
     } catch (err) {
+      console.error('❌ Google sign in error:', err);
       setError("Ошибка входа через Google");
       setLoading(false);
     }

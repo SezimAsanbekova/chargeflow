@@ -69,27 +69,28 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Перенаправление с главной страницы
-  if (pathname === '/') {
-    // Проверяем админский токен
-    const adminToken = request.cookies.get('admin_token')?.value;
-    if (adminToken) {
-      const payload = await verifyJWT(adminToken);
-      if (payload && payload.role === 'admin') {
-        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-      }
-    }
+  // НЕ перенаправляем с главной страницы автоматически
+  // Пусть пользователи видят landing page
+  // if (pathname === '/') {
+  //   // Проверяем админский токен
+  //   const adminToken = request.cookies.get('admin_token')?.value;
+  //   if (adminToken) {
+  //     const payload = await verifyJWT(adminToken);
+  //     if (payload && payload.role === 'admin') {
+  //       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+  //     }
+  //   }
 
-    // Проверяем пользовательский токен
-    const token = await getToken({ 
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET 
-    });
+  //   // Проверяем пользовательский токен
+  //   const token = await getToken({ 
+  //     req: request,
+  //     secret: process.env.NEXTAUTH_SECRET 
+  //   });
 
-    if (token) {
-      return NextResponse.redirect(new URL('/profile', request.url));
-    }
-  }
+  //   if (token) {
+  //     return NextResponse.redirect(new URL('/profile', request.url));
+  //   }
+  // }
 
   return NextResponse.next();
 }
