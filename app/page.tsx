@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { 
   Zap, 
   MapPin, 
@@ -25,16 +26,20 @@ import LanguageSwitcher from '@/app/i18n/components/LanguageSwitcher';
 
 export default function HomePage() {
   const { status } = useSession();
+  const searchParams = useSearchParams();
   const [locale, setLocale] = useState<Locale>(defaultLocale);
   const [t, setT] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Редирект авторизованных пользователей в профиль
+  // Проверяем, нужно ли показать лендинг (параметр ?show=landing)
+  const showLanding = searchParams.get('show') === 'landing';
+
+  // Редирект авторизованных пользователей в профиль (если не показываем лендинг)
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && !showLanding) {
       window.location.href = '/profile';
     }
-  }, [status]);
+  }, [status, showLanding]);
 
   // Загрузка переводов при изменении языка
   useEffect(() => {
@@ -89,10 +94,10 @@ export default function HomePage() {
     } else if (section === 'legal') {
       switch (linkIndex) {
         case 0: // Условия использования
-          alert('Условия использования скоро будут доступны!');
+          window.location.href = '/terms';
           break;
         case 1: // Политика конфиденциальности
-          alert('Политика конфиденциальности скоро будет доступна!');
+          window.location.href = '/privacy';
           break;
         case 2: // Оферта
           alert('Оферта скоро будет доступна!');

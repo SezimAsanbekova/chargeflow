@@ -250,7 +250,7 @@ function SignInForm() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link
-            href="/"
+            href="/?show=landing"
             className="inline-flex items-center gap-2 text-white text-2xl font-bold"
           >
             <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-emerald-900/30 border border-emerald-500/30">
@@ -507,7 +507,7 @@ function SignInForm() {
         {/* Back to Home */}
         <div className="mt-6 text-center">
           <Link
-            href="/"
+            href="/?show=landing"
             className="text-gray-400 hover:text-emerald-400 text-sm transition"
           >
             {t?.signin?.backToHome ?? "← Вернуться на главную"}
