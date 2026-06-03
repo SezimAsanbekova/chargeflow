@@ -70,14 +70,14 @@ function SignInForm() {
         timestamp: new Date().toISOString()
       });
       
-      // Используем window.location для более надежного редиректа
-      window.location.href = callbackUrl;
+      // Используем router для SPA навигации без полной перезагрузки
+      router.push(callbackUrl);
     } else if (status === "unauthenticated") {
       console.log('ℹ️ [SIGNIN] User not authenticated');
     } else if (status === "loading") {
       console.log('⏳ [SIGNIN] Auth status loading...');
     }
-  }, [status, callbackUrl]);
+  }, [status, callbackUrl, router]);
 
   // Don't render form until client-side hydration is complete
   if (!isClient) {
