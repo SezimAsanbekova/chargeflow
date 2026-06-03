@@ -7,23 +7,7 @@ import OfflineIndicator from './OfflineIndicator';
 
 export default function PWAProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Регистрация service worker только в production
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((registration) => {
-          console.log('Service Worker зарегистрирован:', registration);
-
-          // Проверка обновлений каждые 60 секунд
-          setInterval(() => {
-            registration.update();
-          }, 60000);
-        })
-        .catch((error) => {
-          console.error('Ошибка регистрации Service Worker:', error);
-        });
-    }
-
+    // Service Worker регистрируется автоматически через next-pwa
     // Обработка обновлений PWA
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
