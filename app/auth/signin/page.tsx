@@ -60,6 +60,7 @@ function SignInForm() {
     console.log('🔍 [AUTH STATUS]', {
       status,
       callbackUrl,
+      pathname: window.location.pathname,
       timestamp: new Date().toISOString()
     });
     
@@ -68,14 +69,15 @@ function SignInForm() {
         callbackUrl,
         timestamp: new Date().toISOString()
       });
-      router.replace(callbackUrl);
-      router.refresh();
+      
+      // Используем window.location для более надежного редиректа
+      window.location.href = callbackUrl;
     } else if (status === "unauthenticated") {
       console.log('ℹ️ [SIGNIN] User not authenticated');
     } else if (status === "loading") {
       console.log('⏳ [SIGNIN] Auth status loading...');
     }
-  }, [status, router, callbackUrl]);
+  }, [status, callbackUrl]);
 
   // Don't render form until client-side hydration is complete
   if (!isClient) {
@@ -218,16 +220,18 @@ function SignInForm() {
     try {
       console.log('🔐 [SIGNIN] Starting Google sign in:', {
         callbackUrl,
+        currentUrl: window.location.href,
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent
       });
       
+      // Используем window.location для более надежного редиректа
       const result = await signIn("google", { 
         callbackUrl,
-        redirect: true 
+        redirect: true, // Автоматический редирект
       });
       
-      console.log('✅ [SIGNIN] Google sign in result:', result);
+      console.log('✅ [SIGNIN] Google sign in initiated:', result);
     } catch (err) {
       console.error('❌ [SIGNIN] Google sign in error:', {
         error: err,
