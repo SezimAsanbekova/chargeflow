@@ -269,7 +269,7 @@ export const authOptions: NextAuthOptions = {
             } catch (emailError) {
               console.error('❌ [GOOGLE] Failed to send login notification:', {
                 error: emailError,
-                message: emailError?.message,
+                message: (emailError as Error)?.message,
                 timestamp: new Date().toISOString()
               });
             }
@@ -284,8 +284,8 @@ export const authOptions: NextAuthOptions = {
         } catch (error) {
           console.error('❌ [GOOGLE] Error in signIn callback:', {
             error,
-            message: error?.message,
-            stack: error?.stack,
+            message: (error as Error)?.message,
+            stack: (error as Error)?.stack,
             email: user.email,
             timestamp: new Date().toISOString()
           });

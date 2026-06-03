@@ -200,14 +200,14 @@ function SignInForm() {
           `/auth/verify-code?email=${encodeURIComponent(formData.email)}&password=${encodeURIComponent(formData.password)}&type=registration`,
         );
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('❌ [SIGNIN] Form submission error:', {
         error: err,
-        message: err?.message,
-        stack: err?.stack,
+        message: (err as Error)?.message,
+        stack: (err as Error)?.stack,
         timestamp: new Date().toISOString()
       });
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -228,11 +228,11 @@ function SignInForm() {
       });
       
       console.log('✅ [SIGNIN] Google sign in result:', result);
-    } catch (err: any) {
+    } catch (err) {
       console.error('❌ [SIGNIN] Google sign in error:', {
         error: err,
-        message: err?.message,
-        stack: err?.stack,
+        message: (err as Error)?.message,
+        stack: (err as Error)?.stack,
         timestamp: new Date().toISOString()
       });
       setError("Ошибка входа через Google");
@@ -470,8 +470,8 @@ function SignInForm() {
                       router.push(
                         `/auth/reset-password?email=${encodeURIComponent(formData.email)}`,
                       );
-                    } catch (err: any) {
-                      setError(err.message);
+                    } catch (err) {
+                      setError((err as Error).message);
                     } finally {
                       setLoading(false);
                     }

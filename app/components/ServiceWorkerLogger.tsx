@@ -40,8 +40,8 @@ export default function ServiceWorkerLogger() {
     }).catch((error) => {
       console.error('❌ [SW] Error checking Service Worker registration:', {
         error,
-        message: error?.message,
-        stack: error?.stack,
+        message: (error as Error)?.message,
+        stack: (error as Error)?.stack,
         timestamp: new Date().toISOString()
       });
     });
@@ -69,15 +69,15 @@ export default function ServiceWorkerLogger() {
         (error) => {
           console.error('❌ [SW] Service Worker registration failed:', {
             error,
-            message: error?.message,
-            name: error?.name,
-            stack: error?.stack,
+            message: (error as Error)?.message,
+            name: (error as Error)?.name,
+            stack: (error as Error)?.stack,
             url: args[0],
             timestamp: new Date().toISOString()
           });
           
           // Дополнительная диагностика для 404 ошибок
-          if (error?.message?.includes('404') || error?.message?.includes('bad HTTP')) {
+          if ((error as Error)?.message?.includes('404') || (error as Error)?.message?.includes('bad HTTP')) {
             console.error('🔍 [SW] 404 Error - Service Worker file not found:', {
               expectedUrl: `${window.location.origin}${args[0]}`,
               suggestion: 'Run "npm run build" with NODE_ENV=production to generate sw.js',
