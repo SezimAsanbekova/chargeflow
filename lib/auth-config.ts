@@ -149,7 +149,7 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: true, // Всегда true для HTTPS
-        domain: process.env.NODE_ENV === 'production' ? '.twc1.net' : undefined,
+        // Убираем домен для работы с Timeweb
       },
     },
     callbackUrl: {
