@@ -23,35 +23,45 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.log('❌ [CREDENTIALS] Missing credentials');
           throw new Error('Email и пароль обязательны');
         }
+
+        console.log('🔐 [CREDENTIALS] Login attempt:', { email: credentials.email, timestamp: new Date().toISOString() });
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
 
         if (!user) {
+          console.log('❌ [CREDENTIALS] User not found:', { email: credentials.email });
           throw new Error('Неверный email или пароль');
         }
 
+        console.log('✅ [CREDENTIALS] User found:', { email: credentials.email, role: user.role, hasPassword: !!user.passwordHash });
+
         // Проверяем, является ли пользователь администратором
         if (user.role === 'admin') {
+          console.log('❌ [CREDENTIALS] Admin trying to login via user endpoint:', { email: credentials.email });
           throw new Error('Этот аккаунт предназначен только для админ-панели. Войдите через /admin/signin');
         }
 
         // Проверяем, был ли аккаунт создан через Google (без пароля)
         if (!user.passwordHash) {
+          console.log('❌ [CREDENTIALS] Google account, no password:', { email: credentials.email });
           throw new Error('Этот аккаунт создан через Google. Войдите через Google');
         }
 
         // Проверка блокировки аккаунта
         if (user.lockedUntil && new Date() < user.lockedUntil) {
           const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+          console.log('🔒 [CREDENTIALS] Account locked:', { email: credentials.email, minutesLeft });
           throw new Error(`Аккаунт заблокирован. Попробуйте через ${minutesLeft} минут`);
         }
 
         // Проверка статуса
         if (user.status === 'blocked') {
+          console.log('🚫 [CREDENTIALS] Account blocked by admin:', { email: credentials.email });
           throw new Error('Ваш аккаунт заблокирован администратором');
         }
 
@@ -64,6 +74,8 @@ export const authOptions: NextAuthOptions = {
         if (!isPasswordValid) {
           // Увеличиваем счетчик неудачных попыток
           const newAttempts = user.loginAttempts + 1;
+          console.log('❌ [CREDENTIALS] Invalid password:', { email: credentials.email, attempts: newAttempts });
+          
           const updateData: any = {
             loginAttempts: newAttempts,
           };
@@ -79,6 +91,7 @@ export const authOptions: NextAuthOptions = {
               data: updateData,
             });
 
+            console.log('🔒 [CREDENTIALS] Account locked due to failed attempts:', { email: credentials.email });
             throw new Error('Слишком много неудачных попыток входа. Аккаунт заблокирован на 1 час');
           }
 
@@ -91,6 +104,8 @@ export const authOptions: NextAuthOptions = {
           throw new Error(`Неверный пароль. Осталось попыток: ${attemptsLeft}`);
         }
 
+        console.log('✅ [CREDENTIALS] Password valid, resetting login attempts:', { email: credentials.email });
+
         // Успешный вход - сбрасываем счетчик попыток
         await prisma.user.update({
           where: { id: user.id },
@@ -99,6 +114,8 @@ export const authOptions: NextAuthOptions = {
             lockedUntil: null,
           },
         });
+
+        console.log('✅ [CREDENTIALS] Login successful:', { email: credentials.email, userId: user.id });
 
         // Не отправляем уведомление о входе при использовании credentials
         // (это может быть первый вход после регистрации)
@@ -135,6 +152,8 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }: any) {
       if (account?.provider === 'google') {
+        console.log('🔐 [GOOGLE] OAuth login attempt:', { email: user.email, timestamp: new Date().toISOString() });
+        
         try {
           // Проверяем, существует ли пользователь
           const existingUser = await prisma.user.findUnique({
@@ -143,10 +162,13 @@ export const authOptions: NextAuthOptions = {
 
           // Если пользователь существует и является администратором, блокируем вход
           if (existingUser && existingUser.role === 'admin') {
+            console.log('❌ [GOOGLE] Admin trying to login via Google:', { email: user.email });
             return false;
           }
 
           if (!existingUser) {
+            console.log('📝 [GOOGLE] Creating new user:', { email: user.email });
+            
             // Создаем нового пользователя
             const newUser = await prisma.user.create({
               data: {
@@ -160,6 +182,8 @@ export const authOptions: NextAuthOptions = {
               },
             });
 
+            console.log('✅ [GOOGLE] User created:', { email: user.email, userId: newUser.id });
+
             // Создаем баланс для нового пользователя
             await prisma.userBalance.create({
               data: {
@@ -168,8 +192,11 @@ export const authOptions: NextAuthOptions = {
               },
             });
 
+            console.log('✅ [GOOGLE] User balance created:', { email: user.email, userId: newUser.id });
+
             user.id = newUser.id;
           } else {
+            console.log('✅ [GOOGLE] Existing user login:', { email: user.email, userId: existingUser.id });
             user.id = existingUser.id;
             
             // Отправляем уведомление о входе
@@ -182,14 +209,16 @@ export const authOptions: NextAuthOptions = {
                 to: existingUser.email,
                 ...emailContent,
               });
+              console.log('📧 [GOOGLE] Login notification sent:', { email: user.email });
             } catch (emailError) {
-              console.error('Failed to send login notification:', emailError);
+              console.error('❌ [GOOGLE] Failed to send login notification:', emailError);
             }
           }
 
+          console.log('✅ [GOOGLE] Login successful:', { email: user.email, userId: user.id });
           return true;
         } catch (error) {
-          console.error('Error in signIn callback:', error);
+          console.error('❌ [GOOGLE] Error in signIn callback:', error);
           return false;
         }
       }

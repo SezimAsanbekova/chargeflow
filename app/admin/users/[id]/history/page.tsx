@@ -121,10 +121,10 @@ export default function UserHistoryPage() {
   }
 
   const totalEnergy = sessions.reduce(
-    (sum, s) => sum + (s.energyConsumed || 0),
+    (sum, s) => sum + Number(s.energyConsumed || 0),
     0
   );
-  const totalCost = sessions.reduce((sum, s) => sum + (s.cost || 0), 0);
+  const totalCost = sessions.reduce((sum, s) => sum + Number(s.cost || 0), 0);
 
   return (
     <div className="min-h-screen bg-[#0a1f1a] p-6">
@@ -153,7 +153,7 @@ export default function UserHistoryPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-2">
               <Zap className="text-emerald-400" size={24} />
@@ -164,23 +164,23 @@ export default function UserHistoryPage() {
             </div>
           </div>
 
-          <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-xl p-4">
+          <div className="bg-[#0f2d26] border border-yellow-500/30 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-2">
               <Zap className="text-yellow-400" size={24} />
               <span className="text-gray-400 text-sm">Энергия</span>
             </div>
             <div className="text-2xl font-bold text-white">
-              {totalEnergy.toFixed(2)} кВт⋅ч
+              {totalEnergy.toFixed(1)} кВт·ч
             </div>
           </div>
 
-          <div className="bg-[#0f2d26] border border-emerald-500/30 rounded-xl p-4">
+          <div className="bg-[#0f2d26] border border-green-500/30 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-2">
               <DollarSign className="text-green-400" size={24} />
               <span className="text-gray-400 text-sm">Потрачено</span>
             </div>
             <div className="text-2xl font-bold text-white">
-              {totalCost.toFixed(2)} сом
+              {Math.round(totalCost).toLocaleString()} сом
             </div>
           </div>
         </div>
@@ -226,10 +226,10 @@ export default function UserHistoryPage() {
 
                     <div className="text-right">
                       <div className="text-2xl font-bold text-emerald-400 mb-1">
-                        {session.cost.toFixed(2)} сом
+                        {Math.round(Number(session.cost)).toLocaleString()} сом
                       </div>
-                      <div className="text-gray-400 text-sm">
-                        {session.energyConsumed.toFixed(2)} кВт⋅ч
+                      <div className="text-yellow-400 text-sm font-semibold">
+                        {Number(session.energyConsumed).toFixed(1)} кВт·ч
                       </div>
                     </div>
                   </div>

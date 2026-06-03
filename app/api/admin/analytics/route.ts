@@ -123,6 +123,34 @@ export async function GET(request: NextRequest) {
       ? Math.round(totalMinutes / completedSessions.length) 
       : 0;
 
+    // Get daily revenue for last 7 days
+    const last7Days = new Date();
+    last7Days.setDate(now.getDate() - 7);
+    
+    const dailyRevenue = await prisma.$queryRaw<Array<{ date: Date; total: number }>>`
+      SELECT 
+        DATE(created_at) as date,
+        SUM(amount) as total
+      FROM payments
+      WHERE created_at >= ${last7Days}
+      AND status = 'success'
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+      LIMIT 7
+    `;
+
+    // Get connector usage statistics
+    const connectorStats = await prisma.$queryRaw<Array<{ type: string; count: bigint }>>`
+      SELECT 
+        c.type,
+        COUNT(cs.id) as count
+      FROM charging_sessions cs
+      JOIN connectors c ON cs.connector_id = c.id
+      WHERE cs.start_time >= ${startDate}
+      GROUP BY c.type
+      ORDER BY count DESC
+    `;
+
     return NextResponse.json({
       totalSessions,
       totalEnergy,
@@ -131,7 +159,14 @@ export async function GET(request: NextRequest) {
       totalUsersCount, // Всего пользователей в системе
       totalStationsCount, // Всего станций в системе
       averageSessionTime,
-      sessionsPerDay: [], // Can be implemented later for charts
+      dailyRevenue: dailyRevenue.map(d => ({
+        date: d.date,
+        total: Number(d.total)
+      })),
+      connectorStats: connectorStats.map(c => ({
+        type: c.type,
+        count: Number(c.count)
+      })),
       period,
       startDate: startDate.toISOString(),
       endDate: now.toISOString(),

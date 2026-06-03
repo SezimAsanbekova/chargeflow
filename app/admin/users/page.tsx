@@ -284,10 +284,11 @@ export default function UsersPage() {
                       )}
                       <Link
                         href={`/admin/users/${user.id}/history`}
-                        className="p-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
+                        className="px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition flex items-center gap-2"
                         title="История"
                       >
                         <History size={20} />
+                        <span>История</span>
                       </Link>
                     </div>
                   </div>

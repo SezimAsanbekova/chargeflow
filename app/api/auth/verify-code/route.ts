@@ -7,7 +7,10 @@ export async function POST(request: NextRequest) {
   try {
     const { email, code, type, skipMarkAsUsed } = await request.json();
 
+    console.log('🔑 [AUTH] Verify code attempt:', { email, type: type || 'login', skipMarkAsUsed, timestamp: new Date().toISOString() });
+
     if (!email || !code) {
+      console.log('❌ [AUTH] Missing email or code:', { email: !!email, code: !!code });
       return NextResponse.json(
         { error: 'Email и код обязательны' },
         { status: 400 }
@@ -18,11 +21,14 @@ export async function POST(request: NextRequest) {
     const verification = await verifyCode(email, code, type || 'login', skipMarkAsUsed);
 
     if (!verification.valid) {
+      console.log('❌ [AUTH] Invalid verification code:', { email, error: verification.error });
       return NextResponse.json(
         { error: verification.error || 'Неверный код' },
         { status: 401 }
       );
     }
+
+    console.log('✅ [AUTH] Verification code valid:', { email });
 
     // Код правильный - получаем пользователя
     const user = await prisma.user.findUnique({
@@ -30,14 +36,18 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
+      console.log('❌ [AUTH] User not found after verification:', { email });
       return NextResponse.json(
         { error: 'Пользователь не найден' },
         { status: 404 }
       );
     }
 
+    console.log('✅ [AUTH] User authenticated:', { email, userId: user.id, role: user.role });
+
     // Проверяем, является ли пользователь администратором
     if (user.role === 'admin' && type !== 'reset_password') {
+      console.log('❌ [AUTH] Admin trying to verify via user endpoint:', { email });
       return NextResponse.json(
         { error: 'Этот аккаунт предназначен только для админ-панели. Войдите через /admin/signin' },
         { status: 403 }
@@ -54,6 +64,8 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      console.log('✅ [AUTH] Login attempts reset:', { email, userId: user.id });
+
       // Отправляем уведомление о входе
       try {
         const emailContent = getLoginNotificationEmail(
@@ -64,10 +76,13 @@ export async function POST(request: NextRequest) {
           to: user.email,
           ...emailContent,
         });
+        console.log('📧 [AUTH] Login notification sent:', { email });
       } catch (emailError) {
-        console.error('Failed to send login notification:', emailError);
+        console.error('❌ [AUTH] Failed to send login notification:', emailError);
       }
     }
+
+    console.log('✅ [AUTH] Login successful:', { email, userId: user.id, role: user.role });
 
     return NextResponse.json({
       success: true,
@@ -80,7 +95,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Verify code error:', error);
+    console.error('❌ [AUTH] Verify code error:', error);
     return NextResponse.json(
       { error: 'Внутренняя ошибка сервера' },
       { status: 500 }

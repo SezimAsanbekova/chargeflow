@@ -110,24 +110,38 @@ export default function FinancePage() {
     return payment.status === filter;
   }) || [];
 
+  const escapeCSV = (value: string | number): string => {
+    const stringValue = String(value);
+    // If value contains comma, quote, or newline, wrap in quotes and escape internal quotes
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
   const handleExportCSV = () => {
     if (!data) return;
 
-    const csv = [
-      ['Дата', 'Пользователь', 'Тип', 'Метод', 'Сумма', 'Статус'].join(','),
-      ...filteredPayments.map((p) =>
-        [
-          formatDate(p.createdAt),
-          p.user.phone || p.user.email,
-          getPaymentTypeText(p.type),
-          p.method,
-          p.amount,
-          getStatusText(p.status),
-        ].join(',')
-      ),
+    // Create CSV with proper escaping
+    const headers = ['Дата', 'Пользователь', 'Тип', 'Метод', 'Сумма', 'Статус'];
+    const rows = filteredPayments.map((p) => [
+      formatDate(p.createdAt),
+      p.user.phone || p.user.email,
+      getPaymentTypeText(p.type),
+      p.method,
+      `${Number(p.amount).toFixed(2)} сом`,
+      getStatusText(p.status),
+    ]);
+
+    // Build CSV content with proper escaping
+    const csvContent = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(row => row.map(escapeCSV).join(','))
     ].join('\n');
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Add UTF-8 BOM for proper Excel compatibility
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `finance_${period}_${new Date().toISOString().split('T')[0]}.csv`;
@@ -221,7 +235,7 @@ export default function FinancePage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Total Revenue */}
           <div className="bg-[#0f2d26] border border-green-500/30 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4">
@@ -231,7 +245,7 @@ export default function FinancePage() {
               <span className="text-gray-400 text-sm">Общий доход</span>
             </div>
             <div className="text-3xl font-bold text-white">
-              {data?.totalRevenue.toFixed(2) || 0} сом
+              {Math.round(data?.totalRevenue || 0).toLocaleString()} сом
             </div>
           </div>
 
@@ -258,19 +272,6 @@ export default function FinancePage() {
             </div>
             <div className="text-3xl font-bold text-white">
               {data?.successfulPayments || 0}
-            </div>
-          </div>
-
-          {/* Average Payment */}
-          <div className="bg-[#0f2d26] border border-purple-500/30 rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                <Wallet className="text-purple-500" size={24} />
-              </div>
-              <span className="text-gray-400 text-sm">Средний платеж</span>
-            </div>
-            <div className="text-3xl font-bold text-white">
-              {data?.averagePayment.toFixed(2) || 0} сом
             </div>
           </div>
         </div>
