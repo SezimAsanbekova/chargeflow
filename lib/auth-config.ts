@@ -411,4 +411,28 @@ export const authOptions: NextAuthOptions = {
     },
   },
   debug: process.env.NODE_ENV === 'development',
+  logger: {
+    error(code: string, metadata: any) {
+      // Разворачиваем реальную причину ошибки OAuth (например, OAUTH_CALLBACK_ERROR),
+      // которую NextAuth иначе показывает в браузере просто как error=OAuthCallback.
+      const err = metadata instanceof Error ? metadata : metadata?.error;
+      console.error('❌ [NEXTAUTH][ERROR]', {
+        code,
+        name: err?.name,
+        message: err?.message,
+        cause: err?.cause?.message || err?.cause,
+        providerId: metadata?.providerId,
+        stack: err?.stack,
+        timestamp: new Date().toISOString(),
+      });
+    },
+    warn(code: string) {
+      console.warn('⚠️ [NEXTAUTH][WARN]', { code, timestamp: new Date().toISOString() });
+    },
+    debug(code: string, metadata: any) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🐛 [NEXTAUTH][DEBUG]', { code, metadata });
+      }
+    },
+  },
 };
