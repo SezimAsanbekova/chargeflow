@@ -7,12 +7,55 @@ import { sendEmail, getLoginNotificationEmail } from '@/lib/email';
 import bcrypt from 'bcryptjs';
 import type { Adapter } from 'next-auth/adapters';
 
+// ───────────────────────────────────────────────────────────────────────────
+// ДИАГНОСТИКА: безопасно показываем, что реально пришло в окружение.
+// Полные секреты НЕ печатаем — только длину и хвост/голову, чтобы сравнить
+// с тем, что в Google Console, и поймать лишние пробелы/кавычки/переносы.
+// ───────────────────────────────────────────────────────────────────────────
+function mask(value: string | undefined): string {
+  if (value === undefined) return '<UNDEFINED>';
+  if (value === '') return '<EMPTY STRING>';
+  const len = value.length;
+  const head = value.slice(0, 6);
+  const tail = value.slice(-4);
+  const hasQuotes = /^["'].*["']$/.test(value);
+  const hasSpaces = value !== value.trim();
+  const hasNewline = /[\r\n]/.test(value);
+  return `len=${len} head="${head}" tail="${tail}" quotes=${hasQuotes} spaces=${hasSpaces} newline=${hasNewline}`;
+}
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+const NEXTAUTH_URL = process.env.NEXTAUTH_URL || '';
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || '';
+
+console.log('🚀 [AUTH-CONFIG] Загрузка конфигурации NextAuth:', {
+  NODE_ENV: process.env.NODE_ENV,
+  NEXTAUTH_URL: NEXTAUTH_URL || '<UNDEFINED>',
+  NEXTAUTH_SECRET: mask(NEXTAUTH_SECRET),
+  GOOGLE_CLIENT_ID: mask(GOOGLE_CLIENT_ID),
+  GOOGLE_CLIENT_SECRET: mask(GOOGLE_CLIENT_SECRET),
+  GOOGLE_CLIENT_SECRET_startsWithGOCSPX: GOOGLE_CLIENT_SECRET.startsWith('GOCSPX-'),
+  expectedRedirectUri: `${NEXTAUTH_URL.replace(/\/$/, '')}/api/auth/callback/google`,
+  timestamp: new Date().toISOString(),
+});
+
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+  console.error('❌ [AUTH-CONFIG] GOOGLE_CLIENT_ID или GOOGLE_CLIENT_SECRET ПУСТЫЕ — вход через Google работать не будет!');
+}
+if (!NEXTAUTH_URL) {
+  console.error('❌ [AUTH-CONFIG] NEXTAUTH_URL не задан — redirect_uri будет неверным!');
+}
+if (!NEXTAUTH_SECRET) {
+  console.error('❌ [AUTH-CONFIG] NEXTAUTH_SECRET не задан — cookie state/pkce не расшифруются!');
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
@@ -203,6 +246,15 @@ export const authOptions: NextAuthOptions = {
       return baseUrl;
     },
     async signIn({ user, account, profile }: any) {
+      console.log('🔓 [SIGNIN] Callback invoked:', {
+        provider: account?.provider,
+        type: account?.type,
+        hasUser: !!user,
+        userEmail: user?.email,
+        hasProfile: !!profile,
+        timestamp: new Date().toISOString(),
+      });
+
       if (account?.provider === 'google') {
         console.log('🔐 [GOOGLE] OAuth login attempt:', {
           email: user.email,
@@ -410,29 +462,59 @@ export const authOptions: NextAuthOptions = {
       }
     },
   },
-  debug: process.env.NODE_ENV === 'development',
+  debug: true,
   logger: {
     error(code: string, metadata: any) {
-      // Разворачиваем реальную причину ошибки OAuth (например, OAUTH_CALLBACK_ERROR),
-      // которую NextAuth иначе показывает в браузере просто как error=OAuthCallback.
-      const err = metadata instanceof Error ? metadata : metadata?.error;
-      console.error('❌ [NEXTAUTH][ERROR]', {
-        code,
-        name: err?.name,
-        message: err?.message,
-        cause: err?.cause?.message || err?.cause,
-        providerId: metadata?.providerId,
-        stack: err?.stack,
-        timestamp: new Date().toISOString(),
-      });
+      // Разворачиваем реальную причину ошибки OAuth максимально подробно.
+      // openid-client кидает OPError с полями error / error_description / response.
+      const err = (metadata instanceof Error ? metadata : metadata?.error) as any;
+
+      // Пытаемся достать тело ответа Google (там лежит точная причина).
+      let googleResponseBody: any;
+      try {
+        const resp = err?.response;
+        if (resp) {
+          googleResponseBody = resp.body ?? resp.data ?? resp.text ?? undefined;
+        }
+      } catch {
+        // ignore
+      }
+
+      console.error('❌ [NEXTAUTH][ERROR] ──────────────────────────────');
+      console.error('   code:               ', code);
+      console.error('   error.name:         ', err?.name);
+      console.error('   error.message:      ', err?.message);
+      console.error('   error.error:        ', err?.error);             // напр. "invalid_client"
+      console.error('   error.error_desc:   ', err?.error_description); // напр. "The provided client secret is invalid."
+      console.error('   error.code:         ', err?.code);
+      console.error('   error.cause:        ', err?.cause?.message || err?.cause);
+      console.error('   providerId:         ', metadata?.providerId);
+      console.error('   google.responseBody:', googleResponseBody);
+      console.error('   error.stack:        ', err?.stack);
+      console.error('   timestamp:          ', new Date().toISOString());
+      console.error('────────────────────────────────────────────────');
     },
     warn(code: string) {
       console.warn('⚠️ [NEXTAUTH][WARN]', { code, timestamp: new Date().toISOString() });
     },
     debug(code: string, metadata: any) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🐛 [NEXTAUTH][DEBUG]', { code, metadata });
+      // Печатаем debug всегда (включая прод), но прячем чувствительные значения.
+      const safe: any = {};
+      try {
+        if (metadata && typeof metadata === 'object') {
+          for (const k of Object.keys(metadata)) {
+            const v = (metadata as any)[k];
+            if (typeof v === 'string' && (k.toLowerCase().includes('secret') || k.toLowerCase().includes('token'))) {
+              safe[k] = `<hidden len=${v.length}>`;
+            } else {
+              safe[k] = v;
+            }
+          }
+        }
+      } catch {
+        // ignore
       }
+      console.log('🐛 [NEXTAUTH][DEBUG]', code, safe);
     },
   },
 };
