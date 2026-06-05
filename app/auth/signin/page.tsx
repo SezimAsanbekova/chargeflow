@@ -55,12 +55,49 @@ function SignInForm() {
 
   const callbackUrl = searchParams.get("callbackUrl") || "/profile";
 
+  // ДИАГНОСТИКА: напрямую запрашиваем /api/auth/session чтобы увидеть что реально приходит в браузер
+  useEffect(() => {
+    const checkRawSession = async () => {
+      try {
+        console.log('🩺 [DIAG] Запрашиваю /api/auth/session напрямую...');
+        const res = await fetch('/api/auth/session', {
+          cache: 'no-store',
+          credentials: 'include',
+        });
+        console.log('🩺 [DIAG] Ответ /api/auth/session:', {
+          ok: res.ok,
+          status: res.status,
+          fromServiceWorker: (res as any).type,
+          headers: {
+            contentType: res.headers.get('content-type'),
+            cacheControl: res.headers.get('cache-control'),
+          },
+        });
+        const text = await res.text();
+        console.log('🩺 [DIAG] Тело сессии (raw):', text || '(пусто)');
+
+        // Проверяем cookies (httpOnly не видны, но видны несекьюрные)
+        console.log('🩺 [DIAG] document.cookie:', document.cookie || '(пусто)');
+
+        // Проверяем зарегистрированные Service Worker
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          console.log('🩺 [DIAG] Зарегистрированных Service Worker:', regs.length, regs.map(r => r.scope));
+        }
+      } catch (err) {
+        console.error('🩺 [DIAG] Ошибка запроса сессии:', err);
+      }
+    };
+    checkRawSession();
+  }, []);
+
   // Перенаправляем авторизованного пользователя
   useEffect(() => {
     console.log('🔍 [AUTH STATUS]', {
       status,
       callbackUrl,
       pathname: window.location.pathname,
+      href: window.location.href,
       timestamp: new Date().toISOString()
     });
     

@@ -175,6 +175,33 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   callbacks: {
+    async redirect({ url, baseUrl }: any) {
+      console.log('🧭 [REDIRECT] Callback invoked:', {
+        url,
+        baseUrl,
+        timestamp: new Date().toISOString()
+      });
+
+      // Разрешаем относительные пути
+      if (url.startsWith('/')) {
+        const finalUrl = `${baseUrl}${url}`;
+        console.log('🧭 [REDIRECT] Relative URL resolved to:', finalUrl);
+        return finalUrl;
+      }
+
+      // Разрешаем URL только на том же origin
+      try {
+        if (new URL(url).origin === baseUrl) {
+          console.log('🧭 [REDIRECT] Same-origin URL allowed:', url);
+          return url;
+        }
+      } catch (e) {
+        console.error('❌ [REDIRECT] Invalid URL:', { url, error: (e as Error)?.message });
+      }
+
+      console.log('🧭 [REDIRECT] Falling back to baseUrl:', baseUrl);
+      return baseUrl;
+    },
     async signIn({ user, account, profile }: any) {
       if (account?.provider === 'google') {
         console.log('🔐 [GOOGLE] OAuth login attempt:', {
