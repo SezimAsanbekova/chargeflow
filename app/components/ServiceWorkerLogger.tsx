@@ -2,108 +2,61 @@
 
 import { useEffect } from 'react';
 
+/**
+ * Этот компонент УДАЛЯЕТ старые Service Worker'ы и чистит их кэш.
+ *
+ * Причина: раньше был включён PWA (next-pwa), который регистрировал sw.js
+ * и кэшировал /api/* запросы (включая /api/auth/session).
+ * Старый SW остаётся в браузере даже после отключения PWA и отдаёт
+ * закэшированную (пустую) сессию -> из-за этого возникала петля редиректов
+ * между /auth/signin и /profile на проде.
+ *
+ * Здесь мы разрегистрируем все SW и удаляем все Cache Storage кэши.
+ */
 export default function ServiceWorkerLogger() {
   useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
-      console.log('⚠️ [SW] Service Worker not supported in this browser');
-      return;
+    if (typeof window === 'undefined') return;
+
+    // 1. Удаляем все зарегистрированные Service Worker'ы
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        if (registrations.length === 0) {
+          console.log('✅ [SW] Нет зарегистрированных Service Worker — чисто');
+          return;
+        }
+
+        console.warn('🧹 [SW] Найдены старые Service Worker, удаляю:', registrations.length);
+
+        registrations.forEach((registration) => {
+          registration
+            .unregister()
+            .then((success) => {
+              console.log('🗑️ [SW] Service Worker удалён:', {
+                success,
+                scope: registration.scope,
+              });
+            })
+            .catch((error) => {
+              console.error('❌ [SW] Ошибка удаления Service Worker:', error);
+            });
+        });
+      });
     }
 
-    console.log('🔍 [SW] Service Worker support detected');
+    // 2. Чистим все кэши Cache Storage (там лежат старые ответы /api/auth/session)
+    if ('caches' in window) {
+      caches.keys().then((cacheNames) => {
+        if (cacheNames.length === 0) return;
 
-    // Слушаем события регистрации Service Worker
-    navigator.serviceWorker.getRegistration().then((registration) => {
-      if (registration) {
-        console.log('✅ [SW] Service Worker already registered:', {
-          scope: registration.scope,
-          state: registration.active?.state,
-          updateViaCache: registration.updateViaCache,
-          timestamp: new Date().toISOString()
-        });
+        console.warn('🧹 [SW] Удаляю старые кэши:', cacheNames);
 
-        // Слушаем обновления
-        registration.addEventListener('updatefound', () => {
-          console.log('🔄 [SW] Service Worker update found');
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              console.log('📊 [SW] New Service Worker state:', {
-                state: newWorker.state,
-                timestamp: new Date().toISOString()
-              });
-            });
-          }
-        });
-      } else {
-        console.log('ℹ️ [SW] No Service Worker registered yet');
-      }
-    }).catch((error) => {
-      console.error('❌ [SW] Error checking Service Worker registration:', {
-        error,
-        message: (error as Error)?.message,
-        stack: (error as Error)?.stack,
-        timestamp: new Date().toISOString()
-      });
-    });
-
-    // Слушаем ошибки регистрации
-    const originalRegister = navigator.serviceWorker.register;
-    navigator.serviceWorker.register = function(...args) {
-      console.log('🚀 [SW] Attempting to register Service Worker:', {
-        url: args[0],
-        options: args[1],
-        timestamp: new Date().toISOString()
-      });
-
-      return originalRegister.apply(this, args).then(
-        (registration) => {
-          console.log('✅ [SW] Service Worker registered successfully:', {
-            scope: registration.scope,
-            installing: !!registration.installing,
-            waiting: !!registration.waiting,
-            active: !!registration.active,
-            timestamp: new Date().toISOString()
+        cacheNames.forEach((cacheName) => {
+          caches.delete(cacheName).then((success) => {
+            console.log('🗑️ [SW] Кэш удалён:', { cacheName, success });
           });
-          return registration;
-        },
-        (error) => {
-          console.error('❌ [SW] Service Worker registration failed:', {
-            error,
-            message: (error as Error)?.message,
-            name: (error as Error)?.name,
-            stack: (error as Error)?.stack,
-            url: args[0],
-            timestamp: new Date().toISOString()
-          });
-          
-          // Дополнительная диагностика для 404 ошибок
-          if ((error as Error)?.message?.includes('404') || (error as Error)?.message?.includes('bad HTTP')) {
-            console.error('🔍 [SW] 404 Error - Service Worker file not found:', {
-              expectedUrl: `${window.location.origin}${args[0]}`,
-              suggestion: 'Run "npm run build" with NODE_ENV=production to generate sw.js',
-              timestamp: new Date().toISOString()
-            });
-          }
-          
-          throw error;
-        }
-      );
-    };
-
-    // Слушаем события контроллера
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('🔄 [SW] Controller changed - new Service Worker activated');
-    });
-
-    // Слушаем сообщения от Service Worker
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      console.log('📨 [SW] Message from Service Worker:', {
-        data: event.data,
-        origin: event.origin,
-        timestamp: new Date().toISOString()
+        });
       });
-    });
-
+    }
   }, []);
 
   return null;
