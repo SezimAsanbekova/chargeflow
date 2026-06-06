@@ -55,12 +55,32 @@ export default async function proxy(request: NextRequest) {
     }
 
     // Проверяем авторизацию пользователя через NextAuth
+    // ВАЖНО: имя cookie должно совпадать с тем, что задано в auth-config.ts
+    // (там sessionToken назван 'next-auth.session-token' БЕЗ префикса __Secure-),
+    // иначе getToken по умолчанию на https ищет '__Secure-next-auth.session-token'
+    // и не находит токен → бесконечный редирект на /auth/signin.
     const token = await getToken({ 
       req: request,
-      secret: process.env.NEXTAUTH_SECRET 
+      secret: process.env.NEXTAUTH_SECRET,
+      cookieName: 'next-auth.session-token',
+      secureCookie: true,
+    });
+
+    console.log('🛡️ [MIDDLEWARE] Проверка защищённого маршрута:', {
+      pathname,
+      hasToken: !!token,
+      tokenEmail: (token as any)?.email,
+      tokenId: (token as any)?.id,
+      hasSecret: !!process.env.NEXTAUTH_SECRET,
+      cookieNames: request.cookies.getAll().map((c) => c.name),
+      timestamp: new Date().toISOString(),
     });
 
     if (!token) {
+      console.warn('⚠️ [MIDDLEWARE] Токен не найден — редирект на /auth/signin', {
+        pathname,
+        cookieNames: request.cookies.getAll().map((c) => c.name),
+      });
       const signInUrl = new URL('/auth/signin', request.url);
       signInUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(signInUrl);
