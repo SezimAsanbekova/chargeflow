@@ -167,12 +167,25 @@ export async function sendVerificationCode(
       </html>
     `;
 
-    await sendEmail({
+    const result = await sendEmail({
       to: email,
       subject,
       html,
     });
 
+    if (!result.success) {
+      console.error('❌ [VERIFICATION] Письмо с кодом НЕ отправлено:', {
+        email,
+        type,
+        error: (result as any)?.error?.message || (result as any)?.error,
+      });
+      return {
+        success: false,
+        error: 'Не удалось отправить код на email. Проверьте адрес или попробуйте позже.',
+      };
+    }
+
+    console.log('✅ [VERIFICATION] Код отправлен на email:', { email, type });
     return { success: true };
   } catch (error) {
     console.error('Error sending verification code:', error);

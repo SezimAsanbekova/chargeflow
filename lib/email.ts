@@ -15,14 +15,30 @@ const createTransporter = () => {
     return null;
   }
 
+  const port = parseInt(process.env.EMAIL_PORT || '587');
+  const secure = process.env.EMAIL_SECURE === 'true'; // true для 465, false для других портов
+
+  console.log('📮 [EMAIL] Создание SMTP-транспорта:', {
+    host: process.env.EMAIL_HOST,
+    port,
+    secure,
+    user: process.env.EMAIL_USER,
+    hasPass: !!process.env.EMAIL_PASS,
+    timestamp: new Date().toISOString(),
+  });
+
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT || '587'),
-    secure: process.env.EMAIL_SECURE === 'true', // true для 465, false для других портов
+    port,
+    secure,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    // Таймауты, чтобы запрос не висел минутами и фронт не показывал "load failed"
+    connectionTimeout: 10000, // 10с на установку TCP-соединения
+    greetingTimeout: 10000,   // 10с на приветствие SMTP-сервера
+    socketTimeout: 15000,     // 15с на неактивность сокета
   });
 };
 
