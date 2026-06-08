@@ -1,5 +1,5 @@
-// Утилита для отправки email уведомлений через Nodemailer
-import nodemailer from 'nodemailer';
+// Утилита для отправки email уведомлений через Resend
+import { Resend } from 'resend';
 
 interface EmailOptions {
   to: string;
@@ -7,66 +7,54 @@ interface EmailOptions {
   html: string;
 }
 
-// Создаем транспорт для отправки email
-const createTransporter = () => {
-  // Проверяем наличие настроек email
-  if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('⚠️ Email настройки не найдены. Письма будут логироваться в консоль.');
+// Создаем клиент Resend
+const getResendClient = () => {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('⚠️ RESEND_API_KEY не найден. Письма будут логироваться в консоль.');
     return null;
   }
 
-  const port = parseInt(process.env.EMAIL_PORT || '587');
-  const secure = process.env.EMAIL_SECURE === 'true'; // true для 465, false для других портов
-
-  console.log('📮 [EMAIL] Создание SMTP-транспорта:', {
-    host: process.env.EMAIL_HOST,
-    port,
-    secure,
-    user: process.env.EMAIL_USER,
-    hasPass: !!process.env.EMAIL_PASS,
-    timestamp: new Date().toISOString(),
-  });
-
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port,
-    secure,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    // Таймауты, чтобы запрос не висел минутами и фронт не показывал "load failed"
-    connectionTimeout: 10000, // 10с на установку TCP-соединения
-    greetingTimeout: 10000,   // 10с на приветствие SMTP-сервера
-    socketTimeout: 15000,     // 15с на неактивность сокета
-  });
+  return new Resend(process.env.RESEND_API_KEY);
 };
 
 export async function sendEmail({ to, subject, html }: EmailOptions) {
-  const transporter = createTransporter();
+  const resend = getResendClient();
 
-  // Если транспорт не настроен, логируем в консоль
-  if (!transporter) {
+  // Если клиент не настроен, логируем в консоль
+  if (!resend) {
     console.log('📧 Email (не отправлен, только лог):');
     console.log('To:', to);
     console.log('Subject:', subject);
     return { success: true, mode: 'console' };
   }
 
+  const from = process.env.EMAIL_FROM || 'ChargeFlow <onboarding@resend.dev>';
+
+  console.log('📮 [EMAIL] Отправка через Resend:', {
+    from,
+    to,
+    subject,
+    timestamp: new Date().toISOString(),
+  });
+
   try {
-    // Отправляем реальное письмо
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"ChargeFlow" <noreply@chargeflow.kg>',
+    const { data, error } = await resend.emails.send({
+      from,
       to,
       subject,
       html,
     });
 
-    console.log('✅ Email успешно отправлен:', info.messageId);
+    if (error) {
+      console.error('❌ Ошибка отправки email (Resend):', error);
+      return { success: false, error };
+    }
+
+    console.log('✅ Email успешно отправлен:', data?.id);
     console.log('To:', to);
     console.log('Subject:', subject);
-    
-    return { success: true, messageId: info.messageId };
+
+    return { success: true, messageId: data?.id };
   } catch (error) {
     console.error('❌ Ошибка отправки email:', error);
     return { success: false, error };
