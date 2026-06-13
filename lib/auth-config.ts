@@ -29,16 +29,22 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const NEXTAUTH_URL = process.env.NEXTAUTH_URL || '';
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || '';
 
-console.log('🚀 [AUTH-CONFIG] Загрузка конфигурации NextAuth:', {
-  NODE_ENV: process.env.NODE_ENV,
-  NEXTAUTH_URL: NEXTAUTH_URL || '<UNDEFINED>',
-  NEXTAUTH_SECRET: mask(NEXTAUTH_SECRET),
-  GOOGLE_CLIENT_ID: mask(GOOGLE_CLIENT_ID),
-  GOOGLE_CLIENT_SECRET: mask(GOOGLE_CLIENT_SECRET),
-  GOOGLE_CLIENT_SECRET_startsWithGOCSPX: GOOGLE_CLIENT_SECRET.startsWith('GOCSPX-'),
-  expectedRedirectUri: `${NEXTAUTH_URL.replace(/\/$/, '')}/api/auth/callback/google`,
-  timestamp: new Date().toISOString(),
-});
+// secure-куки нужны только на HTTPS. Локально (http://localhost) они ломают вход,
+// поэтому включаем secure только если сайт реально работает по https.
+const useSecureCookies = NEXTAUTH_URL.startsWith('https://');
+
+if (process.env.NODE_ENV === 'development') {
+  console.log('🚀 [AUTH-CONFIG] Загрузка конфигурации NextAuth:', {
+    NODE_ENV: process.env.NODE_ENV,
+    NEXTAUTH_URL: NEXTAUTH_URL || '<UNDEFINED>',
+    NEXTAUTH_SECRET: mask(NEXTAUTH_SECRET),
+    GOOGLE_CLIENT_ID: mask(GOOGLE_CLIENT_ID),
+    GOOGLE_CLIENT_SECRET: mask(GOOGLE_CLIENT_SECRET),
+    GOOGLE_CLIENT_SECRET_startsWithGOCSPX: GOOGLE_CLIENT_SECRET.startsWith('GOCSPX-'),
+    expectedRedirectUri: `${NEXTAUTH_URL.replace(/\/$/, '')}/api/auth/callback/google`,
+    timestamp: new Date().toISOString(),
+  });
+}
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
   console.error('❌ [AUTH-CONFIG] GOOGLE_CLIENT_ID или GOOGLE_CLIENT_SECRET ПУСТЫЕ — вход через Google работать не будет!');
@@ -191,8 +197,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: true, // Всегда true для HTTPS
-        // Убираем домен для работы с Timeweb
+        secure: useSecureCookies, // true на https (прод), false на http://localhost
       },
     },
     callbackUrl: {
@@ -200,7 +205,7 @@ export const authOptions: NextAuthOptions = {
       options: {
         sameSite: 'lax',
         path: '/',
-        secure: true,
+        secure: useSecureCookies,
       },
     },
     csrfToken: {
@@ -209,7 +214,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: true,
+        secure: useSecureCookies,
       },
     },
   },
@@ -462,7 +467,8 @@ export const authOptions: NextAuthOptions = {
       }
     },
   },
-  debug: true,
+  // Debug включаем только в локальной разработке, чтобы не шуметь и не светить секреты в проде.
+  debug: process.env.NODE_ENV === 'development',
   logger: {
     error(code: string, metadata: any) {
       // Разворачиваем реальную причину ошибки OAuth максимально подробно.
@@ -497,24 +503,9 @@ export const authOptions: NextAuthOptions = {
     warn(code: string) {
       console.warn('⚠️ [NEXTAUTH][WARN]', { code, timestamp: new Date().toISOString() });
     },
-    debug(code: string, metadata: any) {
-      // Печатаем debug всегда (включая прод), но прячем чувствительные значения.
-      const safe: any = {};
-      try {
-        if (metadata && typeof metadata === 'object') {
-          for (const k of Object.keys(metadata)) {
-            const v = (metadata as any)[k];
-            if (typeof v === 'string' && (k.toLowerCase().includes('secret') || k.toLowerCase().includes('token'))) {
-              safe[k] = `<hidden len=${v.length}>`;
-            } else {
-              safe[k] = v;
-            }
-          }
-        }
-      } catch {
-        // ignore
-      }
-      console.log('🐛 [NEXTAUTH][DEBUG]', code, safe);
+    debug() {
+      // Намеренно отключено: стандартный debug NextAuth печатает clientSecret и токены
+      // в открытом виде (в т.ч. в GET_AUTHORIZATION_URL). Не логируем, чтобы не светить секреты.
     },
   },
 };
