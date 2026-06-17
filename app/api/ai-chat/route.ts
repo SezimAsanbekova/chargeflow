@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth-config";
 
 export async function POST(req: NextRequest) {
   try {
+    // Платный OpenAI-эндпоинт — только для авторизованных пользователей.
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { messages, userLocation } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: "Invalid messages" }, { status: 400 });
+    }
+
+    // Ограничение объёма ввода, чтобы исключить злоупотребление токенами.
+    if (messages.length > 30) {
+      return NextResponse.json({ error: "Too many messages" }, { status: 400 });
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -111,12 +124,8 @@ ${stationsContext}`,
       const errorText = await response.text();
       console.error("OpenAI error:", response.status, errorText);
       return NextResponse.json(
-        { 
-          error: "AI service error",
-          details: errorText,
-          status: response.status 
-        },
-        { status: response.status }
+        { error: "AI service error" },
+        { status: 502 }
       );
     }
 
@@ -127,7 +136,7 @@ ${stationsContext}`,
   } catch (error: any) {
     console.error("AI chat error:", error?.message ?? error);
     return NextResponse.json(
-      { error: "Internal server error", details: error?.message ?? String(error) },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

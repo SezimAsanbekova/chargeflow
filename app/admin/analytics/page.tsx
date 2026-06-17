@@ -341,7 +341,7 @@ export default function AnalyticsPage() {
                 <div className="text-3xl font-bold text-white">
                   {Math.round(data?.totalRevenue || 0).toLocaleString()} сом
                 </div>
-                <span className="text-gray-400 text-sm">Общий доход</span>
+                <span className="text-gray-400 text-sm">Общая выручка</span>
               </div>
             </div>
           </div>

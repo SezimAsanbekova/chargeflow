@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth-config";
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { text, voice, model, speed } = await req.json();
 
     if (!text) {
       return NextResponse.json({ error: "No text provided" }, { status: 400 });
+    }
+
+    // Ограничение длины текста — защита от перерасхода квоты TTS.
+    if (typeof text !== "string" || text.length > 4096) {
+      return NextResponse.json({ error: "Invalid text" }, { status: 400 });
     }
 
     const apiKey = process.env.OPENAI_API_KEY;

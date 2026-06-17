@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth-config";
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const audioFile = formData.get("audio") as File;
 
@@ -12,6 +19,11 @@ export async function POST(req: NextRequest) {
     // Проверяем размер файла
     if (audioFile.size === 0) {
       return NextResponse.json({ error: "Audio file is empty" }, { status: 400 });
+    }
+
+    // Ограничение размера (25 МБ — лимит Whisper), защита от заливки огромных файлов.
+    if (audioFile.size > 25 * 1024 * 1024) {
+      return NextResponse.json({ error: "Audio file too large" }, { status: 400 });
     }
 
     // Проверяем тип файла
